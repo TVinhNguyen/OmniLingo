@@ -1,0 +1,214 @@
+package service
+
+import (
+	"context"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/omnilingo/vocabulary-service/internal/domain"
+	"github.com/omnilingo/vocabulary-service/internal/messaging"
+	"github.com/omnilingo/vocabulary-service/internal/repository"
+	"go.uber.org/zap"
+)
+
+// DeckService defines business logic for deck and card management.
+type DeckService interface {
+	ListDecks(ctx context.Context, userID uuid.UUID) ([]*domain.Deck, error)
+	GetDeck(ctx context.Context, userID, deckID uuid.UUID) (*domain.Deck, error)
+	CreateDeck(ctx context.Context, userID uuid.UUID, req domain.CreateDeckRequest) (*domain.Deck, error)
+	DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) error
+	AddCard(ctx context.Context, userID, deckID uuid.UUID, req domain.AddCardRequest) (*domain.UserCard, error)
+	RemoveCard(ctx context.Context, userID, deckID uuid.UUID, cardID uuid.UUID) error
+	MarkKnown(ctx context.Context, userID, cardID uuid.UUID) error
+}
+
+type deckService struct {
+	deckRepo repository.DeckRepository
+	cardRepo repository.CardRepository
+	wordRepo repository.WordRepository
+	pub      messaging.Publisher
+	log      *zap.Logger
+}
+
+// NewDeckService constructs a DeckService.
+func NewDeckService(
+	deckRepo repository.DeckRepository,
+	cardRepo repository.CardRepository,
+	wordRepo repository.WordRepository,
+	pub messaging.Publisher,
+	log *zap.Logger,
+) DeckService {
+	return &deckService{
+		deckRepo: deckRepo,
+		cardRepo: cardRepo,
+		wordRepo: wordRepo,
+		pub:      pub,
+		log:      log,
+	}
+}
+
+func (s *deckService) ListDecks(ctx context.Context, userID uuid.UUID) ([]*domain.Deck, error) {
+	return s.deckRepo.ListByUser(ctx, userID)
+}
+
+func (s *deckService) GetDeck(ctx context.Context, userID, deckID uuid.UUID) (*domain.Deck, error) {
+	d, err := s.deckRepo.GetByID(ctx, deckID)
+	if err != nil {
+		return nil, err
+	}
+	// Ownership or public access check
+	if d.OwnerID != userID && !d.IsPublic {
+		return nil, domain.ErrDeckNotOwned
+	}
+	return d, nil
+}
+
+func (s *deckService) CreateDeck(ctx context.Context, userID uuid.UUID, req domain.CreateDeckRequest) (*domain.Deck, error) {
+	if strings.TrimSpace(req.Name) == "" {
+		return nil, domain.ErrDeckNameRequired
+	}
+	if req.Language == "" {
+		return nil, domain.ErrLanguageRequired
+	}
+
+	d := &domain.Deck{
+		ID:       uuid.New(),
+		OwnerID:  userID,
+		Language: req.Language,
+		Name:     req.Name,
+		IsPublic: req.IsPublic,
+	}
+	if err := s.deckRepo.Create(ctx, d); err != nil {
+		return nil, err
+	}
+
+	// Emit Kafka event (fail-soft)
+	evt := &domain.DeckCreatedEvent{
+		EventID:   uuid.New().String(),
+		UserID:    userID,
+		DeckID:    d.ID,
+		Language:  d.Language,
+		Name:      d.Name,
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := s.pub.Publish(ctx, domain.TopicDeckCreated, evt); err != nil {
+		s.log.Warn("failed to publish deck.created event", zap.Error(err))
+	}
+
+	return d, nil
+}
+
+func (s *deckService) DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) error {
+	d, err := s.deckRepo.GetByID(ctx, deckID)
+	if err != nil {
+		return err
+	}
+	if d.OwnerID != userID {
+		return domain.ErrDeckNotOwned
+	}
+	return s.deckRepo.Delete(ctx, deckID)
+}
+
+func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req domain.AddCardRequest) (*domain.UserCard, error) {
+	if req.WordID == uuid.Nil {
+		return nil, domain.ErrWordIDRequired
+	}
+
+	// Verify deck ownership
+	d, err := s.deckRepo.GetByID(ctx, deckID)
+	if err != nil {
+		return nil, err
+	}
+	if d.OwnerID != userID {
+		return nil, domain.ErrDeckNotOwned
+	}
+
+	// Verify word exists
+	word, err := s.wordRepo.GetByID(ctx, req.WordID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	card := &domain.UserCard{
+		ID:      uuid.New(),
+		UserID:  userID,
+		DeckID:  deckID,
+		WordID:  req.WordID,
+		AddedAt: now,
+	}
+	if err := s.cardRepo.AddCard(ctx, card); err != nil {
+		return nil, err
+	}
+
+	// Emit Kafka event for srs-service to schedule
+	evt := &domain.CardAddedEvent{
+		EventID:   uuid.New().String(),
+		UserID:    userID,
+		DeckID:    deckID,
+		CardID:    card.ID,
+		WordID:    req.WordID,
+		Language:  word.Language,
+		Level:     word.Level,
+		CreatedAt: now,
+	}
+	if err := s.pub.Publish(ctx, domain.TopicCardAdded, evt); err != nil {
+		s.log.Warn("failed to publish card.added event", zap.Error(err))
+	}
+
+	card.Word = word
+	return card, nil
+}
+
+func (s *deckService) RemoveCard(ctx context.Context, userID, deckID uuid.UUID, cardID uuid.UUID) error {
+	// Verify ownership via deck check
+	d, err := s.deckRepo.GetByID(ctx, deckID)
+	if err != nil {
+		return err
+	}
+	if d.OwnerID != userID {
+		return domain.ErrDeckNotOwned
+	}
+	if err := s.cardRepo.RemoveCard(ctx, userID, cardID); err != nil {
+		return err
+	}
+
+	// Emit event (fail-soft)
+	evt := &domain.CardRemovedEvent{
+		EventID:   uuid.New().String(),
+		UserID:    userID,
+		CardID:    cardID,
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := s.pub.Publish(ctx, domain.TopicCardRemoved, evt); err != nil {
+		s.log.Warn("failed to publish card.removed event", zap.Error(err))
+	}
+	return nil
+}
+
+func (s *deckService) MarkKnown(ctx context.Context, userID, cardID uuid.UUID) error {
+	card, err := s.cardRepo.GetCard(ctx, cardID)
+	if err != nil {
+		return err
+	}
+	if card.UserID != userID {
+		return domain.ErrForbidden
+	}
+	if err := s.cardRepo.MarkKnown(ctx, userID, cardID); err != nil {
+		return err
+	}
+
+	// Emit event (fail-soft)
+	evt := &domain.CardMarkedKnownEvent{
+		EventID:   uuid.New().String(),
+		UserID:    userID,
+		CardID:    cardID,
+		WordID:    card.WordID,
+		CreatedAt: time.Now().UTC(),
+	}
+	if err := s.pub.Publish(ctx, domain.TopicCardMarkedKnown, evt); err != nil {
+		s.log.Warn("failed to publish card.marked_known event", zap.Error(err))
+	}
+	return nil
+}

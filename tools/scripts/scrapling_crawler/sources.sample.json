@@ -1,0 +1,67 @@
+{
+  "global": {
+    "user_agent": "OmniLingoBot/1.0 (+https://omnilingo.local)",
+    "delay_seconds": 1.0,
+    "max_pages_per_source": 100,
+    "respect_robots_txt": true
+  },
+  "sources": [
+    {
+      "name": "wiktionary_english_lemmas",
+      "enabled": false,
+      "start_urls": [
+        "https://en.wiktionary.org/wiki/Category:English_lemmas"
+      ],
+      "allowed_domains": [
+        "en.wiktionary.org"
+      ],
+      "link_selectors": {
+        "item_links": ".mw-category a::attr(href)",
+        "next_pages": "a:contains('next page')::attr(href)"
+      },
+      "detail_fields": {
+        "term": {
+          "type": "text",
+          "selector": "#firstHeading::text"
+        },
+        "content_html": {
+          "type": "html",
+          "selector": "#mw-content-text"
+        }
+      }
+    },
+    {
+      "name": "your_licensed_source",
+      "enabled": true,
+      "start_urls": [
+        "https://example.com/public-vocab"
+      ],
+      "allowed_domains": [
+        "example.com"
+      ],
+      "link_selectors": {
+        "item_links": ".word-card a::attr(href)",
+        "next_pages": "a.next::attr(href)"
+      },
+      "detail_fields": {
+        "word": {
+          "type": "text",
+          "selector": "h1.word::text"
+        },
+        "ipa": {
+          "type": "text",
+          "selector": ".ipa::text"
+        },
+        "audio_url": {
+          "type": "attr",
+          "selector": "audio source",
+          "attr": "src"
+        },
+        "example": {
+          "type": "text",
+          "selector": ".example::text"
+        }
+      }
+    }
+  ]
+}

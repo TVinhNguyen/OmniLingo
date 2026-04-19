@@ -1,0 +1,42 @@
+{
+  "global": {
+    "user_agent": "OmniLingoBot/1.0 (+local-test)",
+    "delay_seconds": 0.5,
+    "max_pages_per_source": 10,
+    "respect_robots_txt": true
+  },
+  "sources": [
+    {
+      "name": "quotes_toscrape_authors",
+      "enabled": true,
+      "start_urls": [
+        "https://quotes.toscrape.com/"
+      ],
+      "allowed_domains": [
+        "quotes.toscrape.com"
+      ],
+      "link_selectors": {
+        "item_links": ".quote span a::attr(href)",
+        "next_pages": "li.next a::attr(href)"
+      },
+      "detail_fields": {
+        "author": {
+          "type": "text",
+          "selector": "h3.author-title::text"
+        },
+        "born_date": {
+          "type": "text",
+          "selector": ".author-born-date::text"
+        },
+        "born_location": {
+          "type": "text",
+          "selector": ".author-born-location::text"
+        },
+        "description": {
+          "type": "text",
+          "selector": ".author-description::text"
+        }
+      }
+    }
+  ]
+}

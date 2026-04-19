@@ -1,0 +1,42 @@
+{
+  "global": {
+    "user_agent": "OmniLingoBot/1.0 (+local-test)",
+    "delay_seconds": 0.7,
+    "max_pages_per_source": 12,
+    "respect_robots_txt": true
+  },
+  "sources": [
+    {
+      "name": "7esl_vocab_articles",
+      "enabled": true,
+      "start_urls": [
+        "https://7esl.com/vocabulary/"
+      ],
+      "allowed_domains": [
+        "7esl.com"
+      ],
+      "link_selectors": {
+        "item_links": "main article a::attr(href)",
+        "next_pages": "a.next.page-numbers::attr(href)"
+      },
+      "detail_fields": {
+        "title": {
+          "type": "text",
+          "selector": "title::text"
+        },
+        "headline": {
+          "type": "text",
+          "selector": "h1::text"
+        },
+        "summary": {
+          "type": "text",
+          "selector": "main p::text"
+        },
+        "keywords": {
+          "type": "list",
+          "selector": "main li::text"
+        }
+      }
+    }
+  ]
+}
