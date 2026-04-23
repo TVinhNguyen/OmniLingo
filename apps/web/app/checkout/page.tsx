@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
 import {
@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { createCheckoutSessionAction } from "./actions"
 
 type Step = "plan" | "payment" | "confirm" | "success"
 
@@ -30,6 +31,8 @@ export default function CheckoutPage() {
   const [method, setMethod] = useState<"card" | "momo" | "banking">("card")
   const [coupon, setCoupon] = useState("")
   const [couponApplied, setCouponApplied] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
   const pricing = cycle === "month" ? 199000 : 1990000
   const original = cycle === "year" ? 199000 * 12 : null
@@ -302,12 +305,29 @@ export default function CheckoutPage() {
                         <span className="font-medium">hoa.nguyen@example.com</span>
                       </div>
                     </div>
+                    {checkoutError && (
+                      <p className="mt-3 rounded-xl bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                        {checkoutError}
+                      </p>
+                    )}
                     <div className="mt-6 flex items-center justify-between">
                       <Button variant="ghost" onClick={() => setStep("payment")}>
                         Quay lại
                       </Button>
-                      <Button onClick={() => setStep("success")} className="min-w-[180px]">
-                        Thanh toán {total.toLocaleString("vi-VN")}đ
+                      <Button
+                        disabled={isPending}
+                        onClick={() => {
+                          setCheckoutError(null)
+                          const planId = "plus_monthly"
+                          const provider = method === "card" ? "stripe" : method === "momo" ? "momo" : "vnpay"
+                          startTransition(async () => {
+                            const result = await createCheckoutSessionAction(planId, cycle, provider)
+                            if (result?.error) setCheckoutError(result.error)
+                          })
+                        }}
+                        className="min-w-[180px]"
+                      >
+                        {isPending ? "Đang xử lý…" : `Thanh toán ${total.toLocaleString("vi-VN")}đ`}
                       </Button>
                     </div>
                   </Card>

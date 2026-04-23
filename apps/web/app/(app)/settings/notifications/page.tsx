@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { SettingsShell, SettingsCard } from "@/components/app/settings-shell"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -11,47 +11,57 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { Bell, Mail, Smartphone } from "lucide-react"
+import { updateNotificationPrefsAction } from "../../notifications/actions"
 
 const rows = [
-  { id: "srs", label: "Nhắc ôn tập (SRS)", desc: "Từ và bài sắp đến hạn" },
-  { id: "streak", label: "Streak", desc: "Nhắc duy trì streak hàng ngày" },
-  { id: "social", label: "Cộng đồng", desc: "Reply, mention, like" },
-  { id: "promotions", label: "Khuyến mãi", desc: "Sale, ưu đãi, sự kiện" },
-  { id: "system", label: "Hệ thống", desc: "Bảo mật, cập nhật tài khoản" },
+  { id: "srs",        label: "Nhắc ôn tập (SRS)",   desc: "Từ và bài sắp đến hạn" },
+  { id: "streak",     label: "Streak",               desc: "Nhắc duy trì streak hàng ngày" },
+  { id: "social",     label: "Cộng đồng",            desc: "Reply, mention, like" },
+  { id: "promotions", label: "Khuyến mãi",           desc: "Sale, ưu đãi, sự kiện" },
+  { id: "system",     label: "Hệ thống",             desc: "Bảo mật, cập nhật tài khoản" },
 ]
 
 const channels = [
-  { id: "push", label: "Push", icon: Smartphone },
-  { id: "email", label: "Email", icon: Mail },
+  { id: "push",  label: "Push",   icon: Smartphone },
+  { id: "email", label: "Email",  icon: Mail },
   { id: "inapp", label: "In-app", icon: Bell },
 ]
 
+type Prefs = Record<string, Record<string, boolean>>
+
+const DEFAULT_PREFS: Prefs = {
+  srs:        { push: true,  email: false, inapp: true  },
+  streak:     { push: true,  email: true,  inapp: true  },
+  social:     { push: false, email: false, inapp: true  },
+  promotions: { push: false, email: true,  inapp: false },
+  system:     { push: true,  email: true,  inapp: true  },
+}
+
 export default function NotificationsSettingsPage() {
-  const [prefs, setPrefs] = useState<Record<string, Record<string, boolean>>>({
-    srs: { push: true, email: false, inapp: true },
-    streak: { push: true, email: true, inapp: true },
-    social: { push: false, email: false, inapp: true },
-    promotions: { push: false, email: true, inapp: false },
-    system: { push: true, email: true, inapp: true },
-  })
+  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const [frequency, setFrequency] = useState("daily")
   const [dirty, setDirty] = useState(false)
+  const [saving, startTransition] = useTransition()
 
   const toggle = (rowId: string, chanId: string) => {
-    setPrefs({
-      ...prefs,
-      [rowId]: { ...prefs[rowId], [chanId]: !prefs[rowId][chanId] },
-    })
+    setPrefs({ ...prefs, [rowId]: { ...prefs[rowId], [chanId]: !prefs[rowId][chanId] } })
     setDirty(true)
+  }
+
+  const handleSave = () => {
+    startTransition(async () => {
+      await updateNotificationPrefsAction({ channels: prefs, frequency })
+      setDirty(false)
+    })
   }
 
   return (
     <SettingsShell
       title="Thông báo"
       description="Điều chỉnh cách bạn nhận thông báo"
-      dirty={dirty}
-      onSave={() => setDirty(false)}
-      onCancel={() => setDirty(false)}
+      dirty={dirty || saving}
+      onSave={handleSave}
+      onCancel={() => { setPrefs(DEFAULT_PREFS); setDirty(false) }}
     >
       <SettingsCard
         title="Tần suất tổng"
@@ -59,10 +69,7 @@ export default function NotificationsSettingsPage() {
       >
         <Select
           value={frequency}
-          onValueChange={(v) => {
-            setFrequency(v)
-            setDirty(true)
-          }}
+          onValueChange={(v) => { setFrequency(v); setDirty(true) }}
         >
           <SelectTrigger className="h-11 rounded-xl">
             <SelectValue />
@@ -88,10 +95,7 @@ export default function NotificationsSettingsPage() {
                   Loại thông báo
                 </th>
                 {channels.map((c) => (
-                  <th
-                    key={c.id}
-                    className="pb-3 text-center text-xs font-medium uppercase text-muted-foreground"
-                  >
+                  <th key={c.id} className="pb-3 text-center text-xs font-medium uppercase text-muted-foreground">
                     <div className="flex items-center justify-center gap-1">
                       <c.icon className="h-3.5 w-3.5" />
                       {c.label}
@@ -110,7 +114,7 @@ export default function NotificationsSettingsPage() {
                   {channels.map((c) => (
                     <td key={c.id} className="py-3 text-center">
                       <Switch
-                        checked={prefs[r.id][c.id]}
+                        checked={prefs[r.id]?.[c.id] ?? false}
                         onCheckedChange={() => toggle(r.id, c.id)}
                       />
                     </td>

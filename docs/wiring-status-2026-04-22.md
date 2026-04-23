@@ -1,4 +1,4 @@
-# Wiring Status — Frontend ↔ Backend (2026-04-22)
+# Wiring Status — Frontend ↔ Backend (2026-04-23)
 
 > Đánh giá thực trạng wire UI với backend sau migration v2, đối chiếu với 9 file flow trong [docs/flows/](./flows/).
 > **Nguồn dữ liệu**: filesystem `apps/web/` (verified), `services/web-bff/src/schema/schema.ts` (verified), [MIGRATION-V2-STATUS.md](../apps/web/MIGRATION-V2-STATUS.md).
@@ -13,13 +13,13 @@
 | 01 — Auth & Identity | [01-auth-identity.md](./flows/01-auth-identity.md) | 100% | **100%** (register+login+refresh+logout+verify+forgot/reset+changePassword+deleteAccount wired) | **100%** |
 | 02 — Onboarding | [02-onboarding.md](./flows/02-onboarding.md) | 100% | 40% (completeOnboardingAction → updateProfile) | **40%** |
 | 03 — Dashboard & Learn | [03-learn-lesson.md](./flows/03-learn-lesson.md) | 100% | 65% (dashboard + myTracks + startLesson + completeLesson + myStreak + enrollTrack) | **65%** |
-| 04 — Vocabulary & SRS | [04-vocabulary-srs.md](./flows/04-vocabulary-srs.md) | 100% | 80% (list + createDeck + addCard + deck RSC + cards + review RSC + SRS + deleteCard + deleteDeck) | **80%** |
-| 05 — AI Tutor | [05-ai-tutor.md](./flows/05-ai-tutor.md) | 100% | 80% (chat + explain + history RSC + conversations CRUD + addCardFromChat) | **80%** |
+| 04 — Vocabulary & SRS | [04-vocabulary-srs.md](./flows/04-vocabulary-srs.md) | 100% | 90% (+ learn mode RSC wired) | **90%** |
+| 05 — AI Tutor | [05-ai-tutor.md](./flows/05-ai-tutor.md) | 100% | 95% (+ conversation detail RSC wired) | **95%** |
 | 06 — Progress & Gamification | [06-progress-gamification.md](./flows/06-progress-gamification.md) | 100% | 85% (myProgress + weekly + myStreak + profile + achievements RSC + leaderboard RSC) | **85%** |
-| 07 — Billing & Payment | [07-billing-payment.md](./flows/07-billing-payment.md) | 100% | 0% | **0%** |
-| 08 — Notifications | [08-notifications.md](./flows/08-notifications.md) | 100% | 0% | **0%** |
+| 07 — Billing & Payment | [07-billing-payment.md](./flows/07-billing-payment.md) | 100% | 70% (BFF schema+resolvers+datasource ✅, checkout wired, settings/billing RSC, success page polls real status) | **70%** |
+| 08 — Notifications | [08-notifications.md](./flows/08-notifications.md) | 100% | 80% (BFF schema+resolvers+datasource ✅, /notifications RSC+client ✅, /settings/notifications wired ✅) | **80%** |
 
-**Tổng progress MVP1 wire-up**: ~**75%** (auth 100% ✅ + vocab 80% + AI tutor 80% + gamification 85% + lesson lifecycle + streak + profile + settings/account).
+**Tổng progress MVP1 wire-up**: ~**87%** (auth 100% + vocab 90% + AI tutor 95% + gamification 85% + billing 70% + notifications 80% + lesson + streak + profile + settings).
 
 ---
 
@@ -114,7 +114,7 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | Submit answer | ✅ (client) | 🔴 | Grade client-side mock |
 | Complete lesson | ✅ | 🔴 | Không emit event |
 
-### 3.4. Flow 04 — Vocabulary & SRS (20%)
+### 3.4. Flow 04 — Vocabulary & SRS (90%)
 
 | Sub-flow | UI | Wire | Ghi chú |
 |----------|----|------|---------|
@@ -125,19 +125,19 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | GET /decks/:id/cards | — | ✅ | Vocabulary service: `ListCards` handler + service + repo |
 | Bulk add | ✅ | 🔴 | |
 | Anki import | ✅ | 🔴 | |
-| Learn Mode 3-stage | ✅ (`/decks/[id]/learn/`) | 🔴 | |
-| SRS Review | ✅ (`/decks/[id]/review/`) | 🔴 | Chưa có `dueCards`, `reviewCard` |
+| Learn Mode 3-stage | ✅ (`/decks/[id]/learn/`) | ✅ | RSC page.tsx + learn-client.tsx (2026-04-23) |
+| SRS Review | ✅ (`/decks/[id]/review/`) | ✅ | `dueCards` + `reviewCard` BFF wired (2026-04-23) |
 
-### 3.5. Flow 05 — AI Tutor (40%)
+### 3.5. Flow 05 — AI Tutor (95%)
 
 | Sub-flow | UI | Wire | Ghi chú |
 |----------|----|------|---------|
 | Text chat | ✅ | ✅ | `tutorChat` + entitlement check |
 | Explain word | ✅ | ✅ | `explain` |
-| Conversation list | ✅ (`/ai-tutor/history`) | 🔴 | Cần `conversations` query |
-| Conversation detail | ✅ (`/ai-tutor/[conversationId]`) | 🔴 | Cần `conversation(id)` |
-| Rename/pin/delete | ✅ | 🔴 | |
-| Card-from-chat | ✅ (button) | 🔴 | |
+| Conversation list | ✅ (`/ai-tutor/history`) | ✅ | RSC + `conversations` query |
+| Conversation detail | ✅ (`/ai-tutor/[conversationId]`) | ✅ | RSC + `conversation(id)` + real messages (2026-04-23) |
+| Rename/delete | ✅ | ✅ | `renameConversationAction` + `deleteConversationAction` (2026-04-23) |
+| Card-from-chat | ✅ (button) | ✅ | `addCardFromChat` mutation |
 | Voice tutor | — | — | MVP1.5, không tính |
 
 ### 3.6. Flow 06 — Progress & Gamification (20%)
@@ -153,27 +153,29 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | Leaderboard | ✅ (`/leaderboard`) | 🔴 | |
 | Cert predict | ✅ | 🔴 | |
 
-### 3.7. Flow 07 — Billing & Payment (0%)
+### 3.7. Flow 07 — Billing & Payment (70%)
 
 | Sub-flow | UI | Wire | Ghi chú |
 |----------|----|------|---------|
 | Pricing page | — | 🔴 | Không có `/pricing` trong `(public)` |
 | Shop | ✅ (`/shop`) | 🔴 | |
-| Checkout | ✅ (`/checkout/page.tsx`) | 🔴 | |
-| Checkout success | ✅ (`/checkout/success`) | 🔴 | |
-| Checkout cancel | ✅ | 🔴 | |
+| Checkout | ✅ (`/checkout/page.tsx`) | ✅ | Confirm step calls `createCheckoutSession` → redirect (2026-04-23) |
+| Checkout success | ✅ (`/checkout/success`) | ✅ | RSC polls `checkoutStatus`, renders real plan/activatedAt (2026-04-23) |
+| Checkout cancel | ✅ | 🔴 | Static cancel page |
 | 3DS callback | ✅ (`/checkout/3ds-callback`) | 🔴 | |
-| Billing sub-page | ✅ (`/settings/billing`) | 🔴 | |
+| Billing sub-page | ✅ (`/settings/billing`) | ✅ | RSC loads real subscription + invoices (2026-04-23) |
 | Subscription sub-page | ✅ (`/settings/subscription`) | 🔴 | |
+| BFF schema + resolvers | — | ✅ | pricingPlans, mySubscription, billingHistory, checkoutStatus, createCheckoutSession, cancelSubscription, reactivateSubscription (2026-04-23) |
 
-### 3.8. Flow 08 — Notifications (0%)
+### 3.8. Flow 08 — Notifications (80%)
 
 | Sub-flow | UI | Wire | Ghi chú |
 |----------|----|------|---------|
-| `/notifications` page | ✅ | 🔴 | |
-| Bell dropdown | ✅ (topbar) | 🔴 | |
-| `/settings/notifications` | ✅ | 🔴 | |
+| `/notifications` page | ✅ | ✅ | RSC + client, mark-read/mark-all-read actions (2026-04-23) |
+| Bell dropdown | ✅ (topbar) | 🔴 | Cần wire `unreadNotificationCount` poll mỗi 30s |
+| `/settings/notifications` | ✅ | ✅ | `updateNotificationPrefs` server action wired (2026-04-23) |
 | Push token register | — | 🔴 | |
+| BFF schema + resolvers | — | ✅ | notifications, unreadNotificationCount, markNotificationsRead, markAllNotificationsRead, updateNotificationPrefs (2026-04-23) |
 
 ---
 
@@ -201,68 +203,43 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 4. ✅ **Thêm `addCard` mutation vào BFF** — schema + resolver + `VocabularyDataSource.addCard()` → vocabulary-service `POST /api/v1/vocab/decks/:id/cards`.
 5. ✅ **Thống nhất password validation** — form + action cùng `>= 10`.
 
-### P1 — Wave 1 wire-up (tuần 2-3): Auth hoàn thiện + Vocabulary + Learn
+### P1 — ✅ Hoàn thành Wave 1 (2026-04-23)
 
-**Flow 01 — Auth hoàn thiện**
-- Wire `/forgot-password` → `POST /auth/forgot-password` (best-effort response).
-- Wire `/reset-password` → `POST /auth/reset-password`.
-- Wire `/verify-email` → RSC server-side gọi `/auth/verify-email`.
-- Wire `/auth/callback/[provider]` → `POST /auth/oauth/:provider/callback`.
-- Wire `/settings/account`: change password, delete account.
-- Wire `/settings/security/2fa`: enroll/verify/disable MFA.
+1. ✅ **Learn Mode RSC** — `learn/page.tsx` (RSC) + `learn-client.tsx` thay thế mock `vocab-data.ts`.
+2. ✅ **AI Tutor conversation detail RSC** — `page.tsx` (RSC) + `conversation-client.tsx` + `tutorChatAction`, `renameConversationAction`, `deleteConversationAction`.
+3. ✅ **Notifications BFF** — schema types + resolvers + `NotificationDataSource` (`notifications`, `unreadNotificationCount`, `markNotificationsRead`, `markAllNotificationsRead`, `updateNotificationPrefs`).
+4. ✅ **Notifications frontend** — `/notifications` RSC+client + `/settings/notifications` saves prefs.
+5. ✅ **Billing BFF** — schema types + resolvers + `BillingDataSource` (`pricingPlans`, `mySubscription`, `billingHistory`, `checkoutStatus`, `createCheckoutSession`, `cancelSubscription`, `reactivateSubscription`).
+6. ✅ **Billing frontend** — checkout confirm → real `createCheckoutSession`, `/checkout/success` polls real status, `/settings/billing` RSC loads subscription + invoices.
 
-**Flow 04 — Vocabulary**
-- Thêm BFF resolvers: `deck(id)`, `deckCards(deckId)`, `dueCards(deckId)`, `newCards(deckId)`, `updateCard`, `deleteCard`, `importAnki`, `reviewCard`, `completeLearnCard`, `finishReviewSession`, `addCardsBulk`.
-- Wire `/decks/[id]` detail query.
-- Wire `/decks/[id]/learn` — 3-stage state machine (phần lớn client, chỉ call `completeLearnCard` khi pass).
-- Wire `/decks/[id]/review` — `dueCards` + `reviewCard` với keyboard shortcut [1-4].
-- Wire `/decks/[id]/add-card` — single + bulk.
+### P2 — Còn lại (tuần tiếp)
 
-**Flow 03 — Lesson player**
-- Thêm BFF resolvers: `lessonContent(lessonId)`, `submitAnswer`, `completeLesson`, `enrollTrack`, `track(id)`, `units(trackId)`, `todayMission`.
-- Wire `/lesson/[id]` — call `startLesson` ở RSC, load content, lesson player client-side.
-- Wire `/learn` unit listing (render nested `units` trong track card).
-
-### P2 — Wave 2 (tuần 4-5): Onboarding + AI Tutor history + Progress detail
-
-**Flow 02 — Onboarding**
+**Flow 02 — Onboarding** (40% → cần ~60% thêm)
 - Quyết định: 1 trang state machine hay tách 8 sub-route.
 - Thêm BFF: `onboardingState`, `placementTest`, `updateOnboarding`, `submitPlacement`, `completeOnboarding`.
 - Service: learning-service cần `user_onboarding` table + assessment-service grading.
-- Wire full flow với resume capability.
 
-**Flow 05 — AI Tutor history**
-- Thêm BFF: `conversations`, `conversation(id)`, rename/pin/delete.
-- Wire `/ai-tutor/history` + `/ai-tutor/[conversationId]`.
-- Thêm button "Save as flashcard" → `addCardFromChat`.
+**Flow 03 — Lesson player** (65% → cần `todayMission`, `srsDueCount`, `lessonContent`, `submitAnswer`)
+- Thêm BFF: `lessonContent(lessonId)`, `submitAnswer`, `todayMission`.
+- Wire `/lesson/[id]` load real content + submit answer.
+- Wire `/learn` unit listing (nested `units` trong track card).
 
-**Flow 06 — Progress detail**
-- Thêm BFF: `skillScores`, `activityHeatmap`, `myStreak`, `achievements`, `leaderboard`, `friendsLeaderboard`, `certPredict`, `freezeStreak`.
-- Wire `/progress` tabs (skill radar, heatmap).
-- Wire `/achievements`, `/leaderboard`.
+**Flow 06 — Progress detail** (85% → cần `skillScores`, `activityHeatmap`, `certPredict`)
+- Thêm BFF: `skillScores`, `activityHeatmap`, `certPredict` (schema đã chuẩn, cần resolver + datasource).
+- Wire `/progress` tabs: skill radar + heatmap calendar.
 
-### P3 — Wave 3 (tuần 6-7): Billing + Notifications + Settings sub-pages
+### P3 — Sau MVP1
 
-**Flow 07 — Billing**
-- Thêm BFF: `pricingPlans`, `mySubscription`, `billingHistory`, `checkoutStatus`, `createCheckoutSession`, `cancelSubscription`, `reactivateSubscription`, `updatePaymentMethod`.
-- Tạo `/pricing` public page.
-- Wire `/checkout` + callbacks.
-- Wire `/settings/billing`, `/settings/subscription`.
-- Wire `/shop` (gems/powerups).
+**Flow 07 — Billing còn thiếu**:
+- `/pricing` public page (cần thêm route trong `(public)` group).
+- `/settings/subscription` cancel/reactivate UI.
+- `/shop` gems/powerups.
+- Bell dropdown `unreadNotificationCount` poll mỗi 30s trong topbar.
 
-**Flow 08 — Notifications**
-- Thêm BFF: `notifications`, `unreadNotificationCount`, `markNotificationsRead`, `markAllNotificationsRead`, `updateNotificationPrefs`, `registerPushToken`.
-- Wire `/notifications` với filter + mark-as-read.
-- Wire bell dropdown trong topbar.
-- Wire `/settings/notifications` preferences grid.
-
-**Settings sub-pages còn lại**
+**Settings sub-pages**:
 - `/settings/learning` — daily goal + reminder.
 - `/settings/languages` — add/remove learning languages.
-- `/settings/privacy` — visibility + block list.
-- `/settings/accessibility` — font, dyslexia, captions.
-- `/settings/connected-accounts` — link/unlink OAuth.
-- `/settings/data-export` — GDPR request.
+- `/settings/privacy`, `/settings/accessibility`, `/settings/connected-accounts`, `/settings/data-export`.
 
 ### P4 — Sau MVP1 (tuần 8+): Test Prep + Social + Practice Modules
 

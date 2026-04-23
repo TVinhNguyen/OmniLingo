@@ -149,6 +149,54 @@ export const resolvers = {
       requireAuth(ctx);
       return ctx.dataSources.gamification.getMyLeaderboard();
     },
+
+    notifications: async (
+      _: unknown,
+      { filter, cursor, limit }: { filter?: string; cursor?: string; limit?: number },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.notification.getNotifications(filter, cursor, limit);
+    },
+
+    unreadNotificationCount: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.notification.getUnreadCount();
+    },
+
+    pricingPlans: async (
+      _: unknown,
+      { currency, country }: { currency?: string; country?: string },
+      ctx: BffContext,
+    ) => {
+      return ctx.dataSources.billing.getPlans(currency, country);
+    },
+
+    mySubscription: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.billing.getMySubscription();
+    },
+
+    billingHistory: async (
+      _: unknown,
+      { cursor, limit }: { cursor?: string; limit?: number },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.billing.getBillingHistory(cursor, limit);
+    },
+
+    checkoutStatus: async (_: unknown, { sessionId }: { sessionId: string }, ctx: BffContext) => {
+      requireAuth(ctx);
+      const raw = await ctx.dataSources.billing.getCheckoutStatus(sessionId);
+      return {
+        sessionId:    String(raw.session_id ?? raw.sessionId ?? sessionId),
+        state:        String(raw.state ?? "pending"),
+        planId:       raw.plan_id != null ? String(raw.plan_id) : null,
+        activatedAt:  raw.activated_at != null ? String(raw.activated_at) : null,
+        errorMessage: raw.error_message != null ? String(raw.error_message) : null,
+      };
+    },
   },
 
   // ─── Dashboard field resolvers (parallel execution) ─────────────────────
@@ -308,8 +356,54 @@ export const resolvers = {
       ctx: BffContext,
     ) => {
       requireAuth(ctx);
-      // Reuse existing addCard — same endpoint, just called from chat context
       return ctx.dataSources.vocabulary.addCard(deckId, lemma, meaning, ipa, pos);
+    },
+
+    markNotificationsRead: async (
+      _: unknown,
+      { ids }: { ids: string[] },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.notification.markRead(ids);
+    },
+
+    markAllNotificationsRead: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.notification.markAllRead();
+    },
+
+    updateNotificationPrefs: async (
+      _: unknown,
+      { prefs }: { prefs: unknown },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.notification.updatePrefs(prefs);
+    },
+
+    createCheckoutSession: async (
+      _: unknown,
+      args: { planId: string; period: string; provider: string; successUrl: string; cancelUrl: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      const { planId, period, provider, successUrl, cancelUrl } = args;
+      return ctx.dataSources.billing.createCheckoutSession(planId, period, provider, successUrl, cancelUrl);
+    },
+
+    cancelSubscription: async (
+      _: unknown,
+      { reason }: { reason?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.billing.cancelSubscription(reason);
+    },
+
+    reactivateSubscription: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.billing.reactivateSubscription();
     },
   },
 };

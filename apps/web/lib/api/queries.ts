@@ -263,3 +263,87 @@ export const MY_LEADERBOARD_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+export const NOTIFICATIONS_QUERY = /* GraphQL */ `
+  query Notifications($filter: String, $cursor: String, $limit: Int) {
+    notifications(filter: $filter, cursor: $cursor, limit: $limit) {
+      items {
+        id
+        type
+        title
+        body
+        targetUrl
+        icon
+        priority
+        read
+        createdAt
+      }
+      nextCursor
+      unreadCount
+    }
+  }
+`;
+
+export const UNREAD_NOTIFICATION_COUNT_QUERY = /* GraphQL */ `
+  query UnreadNotificationCount {
+    unreadNotificationCount
+  }
+`;
+
+export const PRICING_PLANS_QUERY = /* GraphQL */ `
+  query PricingPlans($currency: String, $country: String) {
+    pricingPlans(currency: $currency, country: $country) {
+      id
+      name
+      tier
+      price
+      currency
+      period
+      features
+      popular
+    }
+  }
+`;
+
+export const MY_SUBSCRIPTION_QUERY = /* GraphQL */ `
+  query MySubscription {
+    mySubscription {
+      id
+      planId
+      planName
+      state
+      currentPeriodStart
+      currentPeriodEnd
+      cancelAtPeriodEnd
+      trialEndsAt
+    }
+  }
+`;
+
+export const BILLING_HISTORY_QUERY = /* GraphQL */ `
+  query BillingHistory($cursor: String, $limit: Int) {
+    billingHistory(cursor: $cursor, limit: $limit) {
+      items {
+        id
+        amount
+        currency
+        paidAt
+        pdfUrl
+        description
+      }
+      nextCursor
+    }
+  }
+`;
+
+export const CHECKOUT_STATUS_QUERY = /* GraphQL */ `
+  query CheckoutStatus($sessionId: ID!) {
+    checkoutStatus(sessionId: $sessionId) {
+      sessionId
+      state
+      planId
+      activatedAt
+      errorMessage
+    }
+  }
+`;

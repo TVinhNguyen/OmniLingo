@@ -167,6 +167,80 @@ export const schema = /* GraphQL */ `
     messages: [ConversationMessage!]!
   }
 
+  # ─── Notifications ────────────────────────────────────────────────────────
+
+  """An in-app notification."""
+  type AppNotification {
+    id:        ID!
+    type:      String!
+    title:     String!
+    body:      String!
+    targetUrl: String
+    icon:      String
+    priority:  Int!
+    read:      Boolean!
+    createdAt: DateTime!
+  }
+
+  type NotificationPage {
+    items:       [AppNotification!]!
+    nextCursor:  String
+    unreadCount: Int!
+  }
+
+  # ─── Billing ──────────────────────────────────────────────────────────────
+
+  """Pricing plan (free / plus / pro)."""
+  type Plan {
+    id:       ID!
+    name:     String!
+    tier:     String!
+    price:    Int!        # minor units (VND / cents)
+    currency: String!
+    period:   String!     # month | year
+    features: [String!]!
+    popular:  Boolean!
+  }
+
+  """Active subscription state."""
+  type BillingSubscription {
+    id:                 ID!
+    planId:             ID!
+    planName:           String!
+    state:              String!   # trialing | active | past_due | canceled
+    currentPeriodStart: DateTime!
+    currentPeriodEnd:   DateTime!
+    cancelAtPeriodEnd:  Boolean!
+    trialEndsAt:        DateTime
+  }
+
+  type Invoice {
+    id:          ID!
+    amount:      Int!
+    currency:    String!
+    paidAt:      DateTime
+    pdfUrl:      String
+    description: String!
+  }
+
+  type InvoicePage {
+    items:      [Invoice!]!
+    nextCursor: String
+  }
+
+  type CheckoutStatus {
+    sessionId:    ID!
+    state:        String!  # pending | succeeded | failed
+    planId:       ID
+    activatedAt:  DateTime
+    errorMessage: String
+  }
+
+  type CheckoutSessionResult {
+    sessionId:   ID!
+    checkoutUrl: String!
+  }
+
   # ─── Queries ──────────────────────────────────────────────────────────────
 
   type Query {
@@ -226,6 +300,24 @@ export const schema = /* GraphQL */ `
 
     """Leaderboard (top users + current user rank) for current league."""
     myLeaderboard: Leaderboard!
+
+    """Paginated in-app notifications for current user."""
+    notifications(filter: String, cursor: String, limit: Int): NotificationPage!
+
+    """Count of unread in-app notifications (for bell badge)."""
+    unreadNotificationCount: Int!
+
+    """Public pricing plans."""
+    pricingPlans(currency: String, country: String): [Plan!]!
+
+    """Current user's active subscription (null if on free plan)."""
+    mySubscription: BillingSubscription
+
+    """Invoice history (paginated)."""
+    billingHistory(cursor: String, limit: Int): InvoicePage!
+
+    """Poll checkout session state (pending→succeeded|failed)."""
+    checkoutStatus(sessionId: ID!): CheckoutStatus!
   }
 
   """An SRS due item (card)."""
@@ -348,6 +440,30 @@ export const schema = /* GraphQL */ `
       ipa:     String
       pos:     String
     ): Card!
+
+    """Mark specific notifications as read. Returns count updated."""
+    markNotificationsRead(ids: [ID!]!): Int!
+
+    """Mark all notifications as read. Returns count updated."""
+    markAllNotificationsRead: Int!
+
+    """Save notification channel preferences (JSON object)."""
+    updateNotificationPrefs(prefs: JSON!): Boolean!
+
+    """Initiate a checkout session. Returns redirect URL."""
+    createCheckoutSession(
+      planId:      ID!
+      period:      String!
+      provider:    String!
+      successUrl:  String!
+      cancelUrl:   String!
+    ): CheckoutSessionResult!
+
+    """Cancel subscription at period end."""
+    cancelSubscription(reason: String): BillingSubscription
+
+    """Reactivate a subscription that was set to cancel."""
+    reactivateSubscription: BillingSubscription
   }
 
   """Result of an SRS review submission."""
