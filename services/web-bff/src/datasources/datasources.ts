@@ -156,6 +156,24 @@ export class LearningDataSource {
       method: "POST",
     });
   }
+
+  /** POST /api/v1/learning/lessons/:id/complete */
+  completeLesson(lessonId: string, xpEarned: number): Promise<{ ok: boolean }> {
+    return call<{ ok: boolean }>(this.ds, `/api/v1/learning/lessons/${lessonId}/complete`, {
+      method: "POST",
+      body: { xp_earned: xpEarned },
+    }).catch(() => ({ ok: false }));
+  }
+
+  /** POST /api/v1/learning/paths — enroll user in a track */
+  async enrollTrack(language: string, templateId?: string): Promise<{ trackId: string; ok: boolean }> {
+    const res = await call<{ path?: { id?: string }; id?: string }>(
+      this.ds, "/api/v1/learning/paths",
+      { method: "POST", body: { language, template_id: templateId ?? null } },
+    ).catch(() => ({})) as Record<string, unknown>;
+    const id = (res?.path as Record<string, unknown>)?.id as string ?? res?.id as string ?? "";
+    return { trackId: id, ok: !!id };
+  }
 }
 
 export class VocabularyDataSource {
@@ -201,6 +219,68 @@ export class VocabularyDataSource {
       masteredCount: (d.mastered_count ?? d.masteredCount ?? 0) as number,
     };
   }
+
+  async getDeck(deckId: string): Promise<Deck> {
+    // vocabulary-service: GET /api/v1/vocab/decks/:id
+    return this.deckLoader.load(deckId);
+  }
+
+  async getDeckCards(deckId: string): Promise<Array<{
+    id: string; deckId: string; lemma: string; meaning: string; ipa?: string; pos?: string; status?: string;
+  }>> {
+    const raw = await call<{ cards?: Array<Record<string, unknown>> }>(
+      this.ds,
+      `/api/v1/vocab/decks/${deckId}/cards`,
+    ).catch(() => ({ cards: [] }));
+    return (raw.cards ?? []).map((c) => ({
+      id:      (c.id ?? "") as string,
+      deckId:  (c.deck_id ?? deckId) as string,
+      lemma:   (c.lemma ?? "") as string,
+      meaning: (c.meaning ?? "") as string,
+      ipa:     (c.ipa ?? undefined) as string | undefined,
+      pos:     (c.pos ?? undefined) as string | undefined,
+      status:  (c.status ?? "new") as string,
+    }));
+  }
+
+  async addCard(
+    deckId: string,
+    lemma: string,
+    meaning: string,
+    ipa?: string,
+    pos?: string,
+  ): Promise<{ id: string; deckId: string; lemma: string; meaning: string; ipa?: string; pos?: string }> {
+    const raw = await call<{ card?: Record<string, unknown> }>(
+      this.ds,
+      `/api/v1/vocab/decks/${deckId}/cards`,
+      { method: "POST", body: { lemma, meaning, ipa, pos } },
+    );
+    const c = raw.card ?? {};
+    return {
+      id: (c.id ?? "") as string,
+      deckId: (c.deck_id ?? deckId) as string,
+      lemma: (c.lemma ?? lemma) as string,
+      meaning: (c.meaning ?? meaning) as string,
+      ipa: (c.ipa ?? ipa) as string | undefined,
+      pos: (c.pos ?? pos) as string | undefined,
+    };
+  }
+
+  /** DELETE /api/v1/vocab/decks/:deckId/cards/:cardId */
+  async deleteCard(deckId: string, cardId: string): Promise<{ ok: boolean }> {
+    await call(this.ds, `/api/v1/vocab/decks/${deckId}/cards/${cardId}`, {
+      method: "DELETE",
+    }).catch(() => {});
+    return { ok: true };
+  }
+
+  /** DELETE /api/v1/vocab/decks/:deckId */
+  async deleteDeck(deckId: string): Promise<{ ok: boolean }> {
+    await call(this.ds, `/api/v1/vocab/decks/${deckId}`, {
+      method: "DELETE",
+    }).catch(() => {});
+    return { ok: true };
+  }
 }
 
 export class EntitlementDataSource {
@@ -223,6 +303,86 @@ export class EntitlementDataSource {
     return call<{ allowed: boolean; quota: number }>(
       this.ds, `/api/v1/entitlements/check?feature=${featureCode}`,
     );
+  }
+}
+// ─── Gamification DataSource ──────────────────────────────────────────────────
+
+export class GamificationDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.gamification, token };
+  }
+
+  /** GET /api/v1/gamification/profile */
+  async getProfile(): Promise<{
+    streakCurrent: number;
+    streakLongest: number;
+    freezesLeft:   number;
+    totalXp:       number;
+    level:         number;
+  }> {
+    type ProfileBody = { profile?: Record<string, unknown> };
+    const raw: ProfileBody = await call<ProfileBody>(
+      this.ds, "/api/v1/gamification/profile",
+    ).catch(() => ({ profile: undefined }));
+    const p = raw.profile ?? {};
+    const xp    = (p["xp"]     ?? {}) as Record<string, unknown>;
+    const stk   = (p["streak"] ?? {}) as Record<string, unknown>;
+    const totalXp = Number(xp["total_xp"] ?? 0);
+    return {
+      streakCurrent: Number(stk["current"]      ?? 0),
+      streakLongest: Number(stk["longest"]       ?? 0),
+      freezesLeft:   Number(stk["freezes_left"]  ?? 0),
+      totalXp,
+      level: Math.floor(Math.sqrt(totalXp / 100)) + 1,
+    };
+  }
+
+  /** GET /api/v1/gamification/achievements — list earned achievements */
+  async getMyAchievements(): Promise<Array<{
+    id: string; code: string; title: string; description: string;
+    icon: string; rarity: string; earnedAt: string | null; xpReward: number;
+  }>> {
+    type Body = { achievements?: Array<Record<string, unknown>> };
+    const raw = await call<Body>(
+      this.ds, "/api/v1/gamification/achievements",
+    ).catch(() => ({ achievements: [] }));
+    return (raw.achievements ?? []).map((a) => ({
+      id:          String(a.id ?? ""),
+      code:        String(a.code ?? ""),
+      title:       String(a.title ?? ""),
+      description: String(a.description ?? ""),
+      icon:        String(a.icon ?? "trophy"),
+      rarity:      String(a.rarity ?? "common"),
+      earnedAt:    a.earned_at != null ? String(a.earned_at) : null,
+      xpReward:    Number(a.xp_reward ?? 0),
+    }));
+  }
+
+  /** GET /api/v1/gamification/leaderboard — league leaderboard */
+  async getMyLeaderboard(): Promise<{
+    league: string;
+    entries: Array<{ rank: number; userId: string; displayName: string; avatarUrl: string | null; xp: number; isCurrentUser: boolean }>;
+    myRank: number;
+    myXp:   number;
+  }> {
+    type Body = { league?: string; entries?: Array<Record<string, unknown>>; my_rank?: number; my_xp?: number };
+    const raw = await call<Body>(
+      this.ds, "/api/v1/gamification/leaderboard",
+    ).catch(() => ({ league: "Bronze", entries: [], my_rank: 0, my_xp: 0 }));
+    return {
+      league:  String(raw.league ?? "Bronze"),
+      myRank:  Number(raw.my_rank ?? 0),
+      myXp:    Number(raw.my_xp ?? 0),
+      entries: (raw.entries ?? []).map((e) => ({
+        rank:          Number(e.rank ?? 0),
+        userId:        String(e.user_id ?? e.userId ?? ""),
+        displayName:   String(e.display_name ?? e.displayName ?? ""),
+        avatarUrl:     e.avatar_url != null ? String(e.avatar_url) : null,
+        xp:            Number(e.xp ?? 0),
+        isCurrentUser: Boolean(e.is_current_user ?? e.isCurrentUser ?? false),
+      })),
+    };
   }
 }
 
@@ -285,27 +445,122 @@ export class AiTutorDataSource {
       body: { text, context, language },
     }) as Promise<{ explanation: string; examples: string[] }>;
   }
+
+  async listConversations(): Promise<Array<{
+    id: string; messageCount: number; lastMessage: string; ttlSeconds: number;
+  }>> {
+    const raw = await call<{ conversations?: Array<Record<string, unknown>> }>(
+      this.ds, "/api/v1/tutor/conversations",
+    ).catch(() => ({ conversations: [] }));
+    return (raw.conversations ?? []).map((c) => ({
+      id:           String(c.id ?? ""),
+      messageCount: Number(c.message_count ?? 0),
+      lastMessage:  String(c.last_message ?? ""),
+      ttlSeconds:   Number(c.ttl_seconds ?? 0),
+    }));
+  }
+
+  async getConversation(convId: string): Promise<{
+    id: string;
+    messages: Array<{ role: string; content: string }>;
+  }> {
+    const raw = await call<{ conversation_id?: string; messages?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/tutor/conversations/${convId}`,
+    ).catch(() => ({ conversation_id: convId, messages: [] }));
+    return {
+      id: raw.conversation_id ?? convId,
+      messages: (raw.messages ?? []).map((m) => ({
+        role:    String(m.role ?? "user"),
+        content: String(m.content ?? ""),
+      })),
+    };
+  }
+
+  /** PATCH /api/v1/tutor/conversations/:id */
+  async renameConversation(id: string, title: string): Promise<{ ok: boolean }> {
+    await call(this.ds, `/api/v1/tutor/conversations/${id}`, {
+      method: "PATCH",
+      body: { title },
+    }).catch(() => {});
+    return { ok: true };
+  }
+
+  /** DELETE /api/v1/tutor/conversations/:id */
+  async deleteConversation(id: string): Promise<{ ok: boolean }> {
+    await call(this.ds, `/api/v1/tutor/conversations/${id}`, {
+      method: "DELETE",
+    }).catch(() => {});
+    return { ok: true };
+  }
+}
+
+// ─── SRS DataSource ────────────────────────────────────────────────────────────
+
+export class SrsDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.srs, token };
+  }
+
+  /** GET /api/v1/srs/due?kind=card&limit=N */
+  async getDueCards(limit = 50): Promise<Array<{ itemId: string; state: string; reps: number }>> {
+    const raw = await call<{ due?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/srs/due?kind=card&limit=${limit}`,
+    ).catch(() => ({ due: [] }));
+    return (raw.due ?? []).map((d) => ({
+      itemId: String(d.item_id ?? ""),
+      state:  String(d.state  ?? "new"),
+      reps:   Number(d.reps   ?? 0),
+    }));
+  }
+
+  /** POST /api/v1/srs/schedule — rating: 1=again 2=hard 3=good 4=easy */
+  async scheduleCard(itemId: string, rating: number): Promise<{ nextDueAt: string }> {
+    const raw = await call<{ next_due_at?: string }>(
+      this.ds, "/api/v1/srs/schedule",
+      { method: "POST", body: { item_kind: "card", item_id: itemId, rating } },
+    ).catch(() => ({ next_due_at: "" }));
+    return { nextDueAt: raw.next_due_at ?? "" };
+  }
+
+  /** GET /api/v1/srs/stats */
+  async getStats(): Promise<{ total: number; dueToday: number; matureCount: number }> {
+    type StatsBody = { stats?: Record<string, unknown> };
+    const raw: StatsBody = await call<StatsBody>(
+      this.ds, "/api/v1/srs/stats",
+    ).catch(() => ({ stats: {} } as StatsBody));
+    const s: Record<string, unknown> = raw.stats ?? {};
+    return {
+      total:       Number(s["total"]        ?? 0),
+      dueToday:    Number(s["due_today"]    ?? 0),
+      matureCount: Number(s["mature_count"] ?? 0),
+    };
+  }
 }
 
 // ─── Context DataSources bundle ────────────────────────────────────────────────
 
 export interface DataSources {
-  identity: IdentityDataSource;
-  learning: LearningDataSource;
-  vocabulary: VocabularyDataSource;
-  entitlement: EntitlementDataSource;
-  progress: ProgressDataSource;
-  aiTutor: AiTutorDataSource;
+  identity:      IdentityDataSource;
+  learning:      LearningDataSource;
+  vocabulary:    VocabularyDataSource;
+  entitlement:   EntitlementDataSource;
+  gamification:  GamificationDataSource;
+  progress:      ProgressDataSource;
+  aiTutor:       AiTutorDataSource;
+  srs:           SrsDataSource;
 }
 
 /** Build all DataSources for a single request context. */
 export function buildDataSources(cfg: Config, token?: string): DataSources {
   return {
-    identity: new IdentityDataSource(cfg, token),
-    learning: new LearningDataSource(cfg, token),
-    vocabulary: new VocabularyDataSource(cfg, token),
-    entitlement: new EntitlementDataSource(cfg, token),
-    progress: new ProgressDataSource(cfg, token),
-    aiTutor: new AiTutorDataSource(cfg, token),
+    identity:     new IdentityDataSource(cfg, token),
+    learning:     new LearningDataSource(cfg, token),
+    vocabulary:   new VocabularyDataSource(cfg, token),
+    entitlement:  new EntitlementDataSource(cfg, token),
+    gamification: new GamificationDataSource(cfg, token),
+    progress:     new ProgressDataSource(cfg, token),
+    aiTutor:      new AiTutorDataSource(cfg, token),
+    srs:          new SrsDataSource(cfg, token),
   };
 }

@@ -138,3 +138,128 @@ export const WEEKLY_PROGRESS_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+export const SEARCH_WORDS_QUERY = /* GraphQL */ `
+  query SearchWords($query: String!, $language: String, $pageSize: Int) {
+    searchWords(query: $query, language: $language, pageSize: $pageSize) {
+      id
+      lemma
+      language
+      definition
+    }
+  }
+`;
+
+export const DECK_QUERY = /* GraphQL */ `
+  query Deck($id: ID!) {
+    deck(id: $id) {
+      id
+      name
+      cardCount
+      dueCount
+      masteredCount
+    }
+  }
+`;
+
+export const DECK_CARDS_QUERY = /* GraphQL */ `
+  query DeckCards($deckId: ID!) {
+    deckCards(deckId: $deckId) {
+      id
+      deckId
+      lemma
+      meaning
+      ipa
+      pos
+      status
+    }
+  }
+`;
+
+export const CONVERSATIONS_QUERY = /* GraphQL */ `
+  query Conversations {
+    conversations {
+      id
+      messageCount
+      lastMessage
+      ttlSeconds
+    }
+  }
+`;
+
+export const CONVERSATION_QUERY = /* GraphQL */ `
+  query Conversation($id: ID!) {
+    conversation(id: $id) {
+      id
+      messages {
+        role
+        content
+      }
+    }
+  }
+`;
+
+export const DUE_CARDS_QUERY = /* GraphQL */ `
+  query DueCards($limit: Int) {
+    dueCards(limit: $limit) {
+      itemId
+      state
+      reps
+    }
+  }
+`;
+
+export const SRS_STATS_QUERY = /* GraphQL */ `
+  query SrsStats {
+    srsStats {
+      total
+      dueToday
+      matureCount
+    }
+  }
+`;
+
+export const MY_STREAK_QUERY = /* GraphQL */ `
+  query MyStreak {
+    myStreak {
+      current
+      longest
+      freezesLeft
+      totalXp
+      level
+    }
+  }
+`;
+
+export const MY_ACHIEVEMENTS_QUERY = /* GraphQL */ `
+  query MyAchievements {
+    myAchievements {
+      id
+      code
+      title
+      description
+      icon
+      rarity
+      earnedAt
+      xpReward
+    }
+  }
+`;
+
+export const MY_LEADERBOARD_QUERY = /* GraphQL */ `
+  query MyLeaderboard {
+    myLeaderboard {
+      league
+      myRank
+      myXp
+      entries {
+        rank
+        userId
+        displayName
+        avatarUrl
+        xp
+        isCurrentUser
+      }
+    }
+  }
+`;

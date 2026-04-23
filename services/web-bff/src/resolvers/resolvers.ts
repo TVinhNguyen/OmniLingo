@@ -82,6 +82,16 @@ export const resolvers = {
       return ctx.dataSources.vocabulary.getMyDecks();
     },
 
+    deck: async (_: unknown, { id }: { id: string }, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.vocabulary.getDeck(id);
+    },
+
+    deckCards: async (_: unknown, { deckId }: { deckId: string }, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.vocabulary.getDeckCards(deckId);
+    },
+
     checkFeature: async (_: unknown, { code }: { code: string }, ctx: BffContext) => {
       requireAuth(ctx);
       const result = await ctx.dataSources.entitlement.checkFeature(code);
@@ -96,6 +106,48 @@ export const resolvers = {
     weeklyProgress: async (_: unknown, { days }: { days?: number }, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.progress.getWeekly(days ?? 7);
+    },
+
+    conversations: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.aiTutor.listConversations();
+    },
+
+    conversation: async (_: unknown, { id }: { id: string }, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.aiTutor.getConversation(id);
+    },
+
+    dueCards: async (_: unknown, { limit }: { limit?: number }, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.srs.getDueCards(limit ?? 50);
+    },
+
+    srsStats: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.srs.getStats();
+    },
+
+    myStreak: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      const p = await ctx.dataSources.gamification.getProfile();
+      return {
+        current:     p.streakCurrent,
+        longest:     p.streakLongest,
+        freezesLeft: p.freezesLeft,
+        totalXp:     p.totalXp,
+        level:       p.level,
+      };
+    },
+
+    myAchievements: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.gamification.getMyAchievements();
+    },
+
+    myLeaderboard: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.gamification.getMyLeaderboard();
     },
   },
 
@@ -141,6 +193,16 @@ export const resolvers = {
       return ctx.dataSources.vocabulary.createDeck(name, language);
     },
 
+    addCard: async (
+      _: unknown,
+      args: { deckId: string; lemma: string; meaning: string; ipa?: string; pos?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      const { deckId, lemma, meaning, ipa, pos } = args;
+      return ctx.dataSources.vocabulary.addCard(deckId, lemma, meaning, ipa, pos);
+    },
+
     tutorChat: async (
       _: unknown,
       args: { conversationId?: string; message: string; language?: string },
@@ -173,6 +235,81 @@ export const resolvers = {
     ) => {
       requireAuth(ctx);
       return ctx.dataSources.identity.updateMe(args);
+    },
+
+    reviewCard: async (
+      _: unknown,
+      { itemId, rating }: { itemId: string; rating: number },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.srs.scheduleCard(itemId, rating);
+    },
+
+    completeLesson: async (
+      _: unknown,
+      { lessonId, xpEarned }: { lessonId: string; xpEarned: number },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.completeLesson(lessonId, xpEarned);
+    },
+
+    enrollTrack: async (
+      _: unknown,
+      { language, templateId }: { language: string; templateId?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.enrollTrack(language, templateId);
+    },
+
+    renameConversation: async (
+      _: unknown,
+      { id, title }: { id: string; title: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.aiTutor.renameConversation(id, title);
+    },
+
+    deleteConversation: async (
+      _: unknown,
+      { id }: { id: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.aiTutor.deleteConversation(id);
+    },
+
+    deleteCard: async (
+      _: unknown,
+      { deckId, cardId }: { deckId: string; cardId: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.vocabulary.deleteCard(deckId, cardId);
+    },
+
+    deleteDeck: async (
+      _: unknown,
+      { deckId }: { deckId: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.vocabulary.deleteDeck(deckId);
+    },
+
+    addCardFromChat: async (
+      _: unknown,
+      { deckId, lemma, meaning, ipa, pos }: {
+        deckId: string; lemma: string; meaning: string; ipa?: string; pos?: string;
+      },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      // Reuse existing addCard — same endpoint, just called from chat context
+      return ctx.dataSources.vocabulary.addCard(deckId, lemma, meaning, ipa, pos);
     },
   },
 };

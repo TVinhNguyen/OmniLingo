@@ -68,3 +68,81 @@ export const UPDATE_PROFILE_MUTATION = /* GraphQL */ `
     }
   }
 `;
+
+export const ADD_CARD_MUTATION = /* GraphQL */ `
+  mutation AddCard($deckId: ID!, $lemma: String!, $meaning: String!, $ipa: String, $pos: String) {
+    addCard(deckId: $deckId, lemma: $lemma, meaning: $meaning, ipa: $ipa, pos: $pos) {
+      id
+      deckId
+      lemma
+      meaning
+    }
+  }
+`;
+
+export const REVIEW_CARD_MUTATION = /* GraphQL */ `
+  mutation ReviewCard($itemId: ID!, $rating: Int!) {
+    reviewCard(itemId: $itemId, rating: $rating) {
+      nextDueAt
+    }
+  }
+`;
+
+export const COMPLETE_LESSON_MUTATION = /* GraphQL */ `
+  mutation CompleteLesson($lessonId: ID!, $xpEarned: Int!) {
+    completeLesson(lessonId: $lessonId, xpEarned: $xpEarned) {
+      ok
+    }
+  }
+`;
+
+export const ENROLL_TRACK_MUTATION = /* GraphQL */ `
+  mutation EnrollTrack($language: String!, $templateId: String) {
+    enrollTrack(language: $language, templateId: $templateId) {
+      trackId
+      ok
+    }
+  }
+`;
+
+export const RENAME_CONVERSATION_MUTATION = /* GraphQL */ `
+  mutation RenameConversation($id: ID!, $title: String!) {
+    renameConversation(id: $id, title: $title) {
+      ok
+    }
+  }
+`;
+
+export const DELETE_CONVERSATION_MUTATION = /* GraphQL */ `
+  mutation DeleteConversation($id: ID!) {
+    deleteConversation(id: $id) {
+      ok
+    }
+  }
+`;
+
+export const DELETE_CARD_MUTATION = /* GraphQL */ `
+  mutation DeleteCard($deckId: ID!, $cardId: ID!) {
+    deleteCard(deckId: $deckId, cardId: $cardId) {
+      ok
+    }
+  }
+`;
+
+export const DELETE_DECK_MUTATION = /* GraphQL */ `
+  mutation DeleteDeck($deckId: ID!) {
+    deleteDeck(deckId: $deckId) {
+      ok
+    }
+  }
+`;
+
+export const ADD_CARD_FROM_CHAT_MUTATION = /* GraphQL */ `
+  mutation AddCardFromChat($deckId: ID!, $lemma: String!, $meaning: String!, $ipa: String, $pos: String) {
+    addCardFromChat(deckId: $deckId, lemma: $lemma, meaning: $meaning, ipa: $ipa, pos: $pos) {
+      id
+      lemma
+      meaning
+    }
+  }
+`;

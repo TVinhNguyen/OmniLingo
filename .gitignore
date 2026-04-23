@@ -46,3 +46,4 @@ docker-compose.override.yml
 # ─── Logs ────────────────────────────────────────────────────────────────────
 *.log
 logs/
+4000_Essential_English_Words_1_Vietnamese.apkg

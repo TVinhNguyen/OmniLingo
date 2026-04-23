@@ -25,8 +25,8 @@ func NewConsumer(brokers []string, groupID string, svc service.EntitlementServic
 		Brokers:  brokers,
 		GroupID:  groupID,
 		GroupTopics: []string{
-			"billing.subscription.activated",
-			"billing.subscription.cancelled",
+			"billing.subscription.created",  // billing-service publishes .created (not .activated)
+			"billing.subscription.canceled",  // billing-service uses US spelling .canceled
 			"payment.succeeded",
 		},
 		MinBytes:        1,
@@ -75,9 +75,9 @@ func (c *Consumer) Close() error { return c.reader.Close() }
 
 func (c *Consumer) handle(ctx context.Context, msg kafka.Message) error {
 	switch msg.Topic {
-	case "billing.subscription.activated":
+	case "billing.subscription.created":
 		return c.handleActivated(ctx, msg.Value)
-	case "billing.subscription.cancelled":
+	case "billing.subscription.canceled":
 		return c.handleCancelled(ctx, msg.Value)
 	case "payment.succeeded":
 		return c.handlePaymentSucceeded(ctx, msg.Value)

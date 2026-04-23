@@ -14,23 +14,45 @@ import {
   BarChart3,
   ShoppingBag,
   Flag,
+  Flame,
+  Globe,
+  PenLine,
+  Calendar,
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LogoMark } from "@/components/public/public-navbar"
-import { ThemeToggle } from "@/components/theme-toggle"
 
-const nav = [
-  { href: "/dashboard", icon: Home, label: "Trang chủ" },
-  { href: "/learn", icon: BookOpen, label: "Học" },
-  { href: "/practice", icon: Dumbbell, label: "Luyện tập" },
-  { href: "/test-prep", icon: Trophy, label: "Luyện thi" },
-  { href: "/ai-tutor", icon: Bot, label: "AI Tutor" },
-  { href: "/tutors", icon: Users, label: "Giáo viên 1-1" },
-  { href: "/community", icon: MessageSquare, label: "Cộng đồng" },
-  { href: "/leaderboard", icon: Flag, label: "Bảng xếp hạng" },
-  { href: "/progress", icon: BarChart3, label: "Tiến độ" },
-  { href: "/shop", icon: ShoppingBag, label: "Cửa hàng" },
+const navGroups = [
+  {
+    label: "",
+    items: [
+      { href: "/dashboard", icon: Home, label: "Trang chủ" },
+      { href: "/learn", icon: BookOpen, label: "Học" },
+      { href: "/practice", icon: Dumbbell, label: "Luyện tập" },
+      { href: "/test-prep", icon: Trophy, label: "Luyện thi" },
+      { href: "/ai-tutor", icon: Bot, label: "AI Tutor" },
+      { href: "/tutors", icon: Users, label: "Giáo viên 1-1" },
+    ],
+  },
+  {
+    label: "Cộng đồng",
+    items: [
+      { href: "/community", icon: MessageSquare, label: "Cộng đồng" },
+      { href: "/challenges", icon: Flame, label: "Thử thách" },
+      { href: "/language-exchange", icon: Globe, label: "Trao đổi ngôn ngữ" },
+      { href: "/leaderboard", icon: Flag, label: "Bảng xếp hạng" },
+    ],
+  },
+  {
+    label: "Khác",
+    items: [
+      { href: "/writing-center", icon: PenLine, label: "Writing Center" },
+      { href: "/tutors/bookings", icon: Calendar, label: "Lịch đã đặt" },
+      { href: "/progress", icon: BarChart3, label: "Tiến độ" },
+      { href: "/shop", icon: ShoppingBag, label: "Cửa hàng" },
+    ],
+  },
 ]
 
 export function AppMobileMenu({
@@ -65,39 +87,47 @@ export function AppMobileMenu({
                 <LogoMark />
                 <span className="text-lg font-bold">OmniLingo</span>
               </Link>
-              <div className="flex items-center gap-1">
-                <ThemeToggle className="h-9 w-9" />
-                <button
-                  onClick={onClose}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-low"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+              <button
+                onClick={onClose}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-low"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <nav className="mt-6">
-              <ul className="flex flex-col gap-1">
-                {nav.map((item) => {
-                  const active = pathname.startsWith(item.href)
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={onClose}
-                        className={cn(
-                          "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium",
-                          active
-                            ? "bg-surface-high shadow-ambient"
-                            : "text-muted-foreground hover:bg-surface-low"
-                        )}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {item.label}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
+              {navGroups.map((group, gi) => (
+                <div key={gi} className={gi > 0 ? "mt-4" : ""}>
+                  {group.label && (
+                    <div className="px-4 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      {group.label}
+                    </div>
+                  )}
+                  <ul className="flex flex-col gap-1">
+                    {group.items.map((item) => {
+                      const active =
+                        pathname === item.href ||
+                        (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"))
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={onClose}
+                            className={cn(
+                              "flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium",
+                              active
+                                ? "bg-surface-high shadow-ambient"
+                                : "text-muted-foreground hover:bg-surface-low"
+                            )}
+                          >
+                            <item.icon className="h-4 w-4" />
+                            {item.label}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
             </nav>
           </motion.aside>
         </>

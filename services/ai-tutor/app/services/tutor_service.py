@@ -134,6 +134,35 @@ class TutorService:
     async def get_history(self, user_id: str, conv_id: str) -> list[dict]:
         return await self._load_history(user_id, conv_id)
 
+    async def list_conversations(self, user_id: str) -> list[dict]:
+        """
+        List all conversation IDs for a user by scanning Redis keys.
+        Returns summary metadata: id, message count, last updated (TTL hint).
+        """
+        pattern = self._history_key(user_id, "*")
+        keys = await self.rdb.keys(pattern)
+        conversations = []
+        prefix = f"tutor:history:{user_id}:"
+        for key in sorted(keys, reverse=True):
+            key_str = key.decode() if isinstance(key, bytes) else key
+            conv_id = key_str.removeprefix(prefix)
+            raw = await self.rdb.get(key_str)
+            messages: list[dict] = []
+            if raw:
+                try:
+                    messages = json.loads(raw)
+                except json.JSONDecodeError:
+                    messages = []
+            # Get TTL to infer last-active (remaining TTL from conversation_ttl_sec)
+            ttl = await self.rdb.ttl(key_str)
+            conversations.append({
+                "id": conv_id,
+                "message_count": len(messages),
+                "last_message": messages[-1]["content"][:100] if messages else "",
+                "ttl_seconds": ttl,
+            })
+        return conversations
+
     # ─── Redis helpers ──────────────────────────────────────────────────────
 
     def _history_key(self, user_id: str, conv_id: str) -> str:
