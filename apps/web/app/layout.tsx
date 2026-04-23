@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/lib/theme-provider"
 import { AOSInit } from "@/components/aos-init"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
@@ -49,12 +49,7 @@ export default function RootLayout({
       className={`${jakarta.variable} ${geistMono.variable} bg-background`}
     >
       <body className="font-sans antialiased bg-background text-foreground">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
           <AOSInit />
           {children}
           <Toaster position="top-right" />

@@ -19,6 +19,7 @@ type DeckService interface {
 	CreateDeck(ctx context.Context, userID uuid.UUID, req domain.CreateDeckRequest) (*domain.Deck, error)
 	DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) error
 	AddCard(ctx context.Context, userID, deckID uuid.UUID, req domain.AddCardRequest) (*domain.UserCard, error)
+	ListCards(ctx context.Context, userID, deckID uuid.UUID) ([]*domain.UserCard, error)
 	RemoveCard(ctx context.Context, userID, deckID uuid.UUID, cardID uuid.UUID) error
 	MarkKnown(ctx context.Context, userID, cardID uuid.UUID) error
 }
@@ -159,6 +160,19 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 
 	card.Word = word
 	return card, nil
+}
+
+// ListCards returns all cards in a deck (with enriched word data).
+func (s *deckService) ListCards(ctx context.Context, userID, deckID uuid.UUID) ([]*domain.UserCard, error) {
+	// Verify ownership
+	d, err := s.deckRepo.GetByID(ctx, deckID)
+	if err != nil {
+		return nil, err
+	}
+	if d.OwnerID != userID {
+		return nil, domain.ErrDeckNotOwned
+	}
+	return s.cardRepo.ListByDeck(ctx, userID, deckID)
 }
 
 func (s *deckService) RemoveCard(ctx context.Context, userID, deckID uuid.UUID, cardID uuid.UUID) error {

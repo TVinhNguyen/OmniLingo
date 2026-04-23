@@ -116,11 +116,21 @@ type OAuthIdentity struct {
 
 // EmailVerification stores a pending email verification token.
 type EmailVerification struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Token     string    `json:"-"` // plaintext only when created; stored as hash
-	TokenHash string    `json:"-"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	Token     string     `json:"-"` // plaintext only when created; stored as hash
+	TokenHash string     `json:"-"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at,omitempty"`
+}
+
+// PasswordResetToken stores a pending password-reset token.
+type PasswordResetToken struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    uuid.UUID  `json:"user_id"`
+	Token     string     `json:"-"` // plaintext — only returned at creation
+	TokenHash string     `json:"-"`
+	ExpiresAt time.Time  `json:"expires_at"`
 	UsedAt    *time.Time `json:"used_at,omitempty"`
 }
 
@@ -165,4 +175,6 @@ var (
 	ErrPasswordCompromised  = &DomainError{Code: "PASSWORD_COMPROMISED", Message: "this password has appeared in a data breach — please choose a different one"}
 	ErrVerificationInvalid  = &DomainError{Code: "VERIFICATION_INVALID", Message: "verification token is invalid or expired"}
 	ErrVerificationUsed     = &DomainError{Code: "VERIFICATION_USED", Message: "verification token has already been used"}
+	ErrResetTokenInvalid    = &DomainError{Code: "RESET_TOKEN_INVALID", Message: "password reset token is invalid or expired"}
+	ErrResetTokenUsed       = &DomainError{Code: "RESET_TOKEN_USED", Message: "password reset token has already been used"}
 )

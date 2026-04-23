@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { motion } from "motion/react"
-import { Users2, Trophy, Calendar, MessageCircle, Heart, Share2, Plus, TrendingUp } from "lucide-react"
+import { Users2, Trophy, Calendar, MessageCircle, Heart, Share2, Plus, TrendingUp, Flame, Globe } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -93,10 +94,39 @@ export default function CommunityPage() {
             Share progress, ask questions, and practice with learners around the world.
           </p>
         </div>
-        <Button className="rounded-full">
-          <Plus className="mr-1.5 size-4" />
-          New post
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" className="rounded-full bg-transparent">
+            <Link href="/challenges">
+              <Flame className="mr-1.5 size-4" />
+              Thử thách
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="rounded-full bg-transparent">
+            <Link href="/language-exchange">
+              <Globe className="mr-1.5 size-4" />
+              Trao đổi
+            </Link>
+          </Button>
+          <Button asChild className="rounded-full">
+            <Link href="/community/new">
+              <Plus className="mr-1.5 size-4" />
+              Tạo bài viết
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Trending tags quick row */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        {["JLPT2026", "IELTSwriting", "SpanishSlang", "FrenchMusic", "pronunciation", "streak"].map((t) => (
+          <Link
+            key={t}
+            href={`/community/tag/${t}`}
+            className="rounded-full bg-surface-lowest px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-ambient transition-colors hover:bg-primary/10 hover:text-primary"
+          >
+            #{t}
+          </Link>
+        ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">

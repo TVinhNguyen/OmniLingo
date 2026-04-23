@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { motion } from "motion/react"
-import { Gem, Flame, Heart, Snowflake, Sparkles, Zap, Gift, ShieldCheck } from "lucide-react"
+import { Gem, Flame, Heart, Snowflake, Sparkles, Zap, Gift, ShieldCheck, ShoppingCart } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -63,13 +64,24 @@ export default function ShopPage() {
             Spend XP on boosters, lives and cosmetics.
           </p>
         </div>
-        <Card className="flex items-center gap-3 border-border/60 bg-card/80 px-4 py-3">
-          <Gem className="size-5 text-primary" />
-          <div>
-            <div className="text-xs text-muted-foreground">Balance</div>
-            <div className="font-serif text-xl font-bold">2,480 XP</div>
-          </div>
-        </Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <Card className="flex items-center gap-3 border-border/60 bg-card/80 px-4 py-3">
+            <Gem className="size-5 text-primary" />
+            <div>
+              <div className="text-xs text-muted-foreground">Balance</div>
+              <div className="font-serif text-xl font-bold">2,480 XP</div>
+            </div>
+          </Card>
+          <Button asChild className="relative rounded-full">
+            <Link href="/shop/cart">
+              <ShoppingCart className="mr-1.5 size-4" />
+              Giỏ hàng
+              <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-white/95 px-1.5 text-xs font-bold text-primary">
+                2
+              </span>
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <section className="mb-10">

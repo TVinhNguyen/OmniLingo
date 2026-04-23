@@ -60,3 +60,13 @@ async def get_conversation(
     """Get conversation message history."""
     history = await svc.get_history(user_id=user_id, conv_id=conversation_id)
     return {"conversation_id": conversation_id, "messages": history}
+
+
+@router.get("/conversations", status_code=200)
+async def list_conversations(
+    user_id: str = Depends(get_current_user_id),
+    svc: TutorService = Depends(get_tutor_service),
+) -> dict:
+    """List all conversations for the current user (scan Redis keys for this user)."""
+    conversations = await svc.list_conversations(user_id=user_id)
+    return {"conversations": conversations}

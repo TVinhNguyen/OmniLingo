@@ -45,6 +45,12 @@ type AuthService interface {
 	// Email verification
 	SendVerificationEmail(ctx context.Context, userID uuid.UUID) error
 	VerifyEmail(ctx context.Context, rawToken string) error
+	// Password reset
+	ForgotPassword(ctx context.Context, email string) error
+	ResetPassword(ctx context.Context, rawToken, newPassword string) error
+	// Account management
+	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
+	DeleteMeWithPassword(ctx context.Context, userID uuid.UUID, password, reason string) error
 	// Session management
 	ListSessions(ctx context.Context, userID uuid.UUID) ([]*domain.Session, error)
 	RevokeSession(ctx context.Context, userID, sessionID uuid.UUID) error
@@ -489,6 +495,142 @@ func (s *authService) VerifyEmail(ctx context.Context, rawToken string) error {
 		"SUCCESS", "",
 	))
 	return nil
+}
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+// ForgotPassword creates a password-reset token and logs the link (dev mode).
+// Always returns nil to prevent email enumeration — caller must show generic message.
+func (s *authService) ForgotPassword(ctx context.Context, email string) error {
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		// Anti-enumeration: silently succeed even if email not found
+		return nil
+	}
+
+	rawToken, err := generateSecureToken(32)
+	if err != nil {
+		return nil // swallow — caller shows generic success
+	}
+
+	prt := &domain.PasswordResetToken{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		Token:     rawToken,
+		TokenHash: hashString(rawToken),
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+	}
+
+	if err := s.userRepo.CreatePasswordResetToken(ctx, prt); err != nil {
+		s.log.Error("failed to save password reset token", zap.Error(err))
+		return nil // swallow — anti-enumeration
+	}
+
+	// TODO: integrate notification-service to send email
+	// Dev: log the full link so developers can test the flow
+	s.log.Info("password reset token generated (dev — wire notification-service in prod)",
+		zap.String("user_id", user.ID.String()),
+		zap.String("link", s.cfg.BaseURL+"/reset-password?token="+rawToken),
+	)
+
+	return nil
+}
+
+// ResetPassword validates the token and updates the password hash.
+func (s *authService) ResetPassword(ctx context.Context, rawToken, newPassword string) error {
+	tokenHash := hashString(rawToken)
+	prt, err := s.userRepo.FindPasswordResetByHash(ctx, tokenHash)
+	if err != nil {
+		return domain.ErrResetTokenInvalid
+	}
+	if prt.UsedAt != nil {
+		return domain.ErrResetTokenUsed
+	}
+	if time.Now().After(prt.ExpiresAt) {
+		return domain.ErrResetTokenInvalid
+	}
+
+	// HIBP check on new password
+	if s.cfg.HIBPEnabled {
+		if count, hibpErr := s.hibp.IsPwned(newPassword); hibpErr == nil && count > 0 {
+			return domain.ErrPasswordCompromised
+		}
+	}
+
+	newHash, err := s.hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	if err := s.userRepo.UpdatePasswordHash(ctx, prt.UserID, newHash); err != nil {
+		return err
+	}
+	if err := s.userRepo.MarkPasswordResetUsed(ctx, prt.ID); err != nil {
+		return err
+	}
+
+	// Revoke all sessions for security
+	_ = s.sessionRepo.RevokeAllForUser(ctx, prt.UserID)
+
+	s.auditLog.Record(ctx, domain.NewAuditEvent(
+		prt.UserID.String(), domain.AuditPasswordChange, "", "", "",
+		"SUCCESS", "via_reset_token",
+	))
+	return nil
+}
+
+// ─── Account Management ───────────────────────────────────────────────────────
+
+// ChangePassword verifies oldPassword matches current hash, then updates to newPassword.
+// Revokes all sessions (force re-login after password change).
+func (s *authService) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !s.verifyPassword(oldPassword, user.PasswordHash) {
+		return domain.ErrInvalidCredentials
+	}
+
+	if s.cfg.HIBPEnabled {
+		if count, hibpErr := s.hibp.IsPwned(newPassword); hibpErr == nil && count > 0 {
+			return domain.ErrPasswordCompromised
+		}
+	}
+
+	newHash, err := s.hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	if err := s.userRepo.UpdatePasswordHash(ctx, userID, newHash); err != nil {
+		return err
+	}
+
+	// Revoke all sessions so attacker can't keep using stolen session
+	_ = s.sessionRepo.RevokeAllForUser(ctx, userID)
+
+	s.auditLog.Record(ctx, domain.NewAuditEvent(
+		userID.String(), domain.AuditPasswordChange, "", "", "",
+		"SUCCESS", "via_account_settings",
+	))
+	return nil
+}
+
+// DeleteMeWithPassword verifies password before soft-deleting the account.
+func (s *authService) DeleteMeWithPassword(ctx context.Context, userID uuid.UUID, password, reason string) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Require password confirmation for security
+	if !s.verifyPassword(password, user.PasswordHash) {
+		return domain.ErrInvalidCredentials
+	}
+
+	return s.DeleteMe(ctx, userID, reason)
 }
 
 // ─── Session Management ───────────────────────────────────────────────────────

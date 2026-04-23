@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { FlagIcon, flagMap, type LangCode } from "@/components/flag-icon"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { completeOnboardingAction } from "./actions"
 
 const TOTAL_STEPS = 8
 
@@ -59,12 +60,23 @@ export default function OnboardingPage() {
   const [level, setLevel] = useState<string>("")
   const [dailyMins, setDailyMins] = useState<number>(10)
   const [reminderTime, setReminderTime] = useState("20:00")
+  const [, startTransition] = useTransition()
 
   const progress = (step / TOTAL_STEPS) * 100
 
   const next = () => {
     if (step === TOTAL_STEPS) {
-      router.push("/dashboard")
+      startTransition(async () => {
+        await completeOnboardingAction({
+          nativeLang,
+          targetLangs: selectedLangs,
+          goal,
+          level,
+          dailyMins,
+          reminderTime,
+        })
+        router.push("/dashboard")
+      })
     } else {
       // Skip cert step if goal is not cert
       if (step === 3 && goal !== "cert") {

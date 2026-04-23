@@ -27,6 +27,7 @@ func (h *DeckHandler) RegisterRoutes(protected fiber.Router) {
 	protected.Post("/decks", h.CreateDeck)
 	protected.Get("/decks/:id", h.GetDeck)
 	protected.Delete("/decks/:id", h.DeleteDeck)
+	protected.Get("/decks/:id/cards", h.ListCards)
 	protected.Post("/decks/:id/cards", h.AddCard)
 	protected.Delete("/decks/:deckId/cards/:cardId", h.RemoveCard)
 	protected.Post("/cards/:id/mark-known", h.MarkKnown)
@@ -108,6 +109,27 @@ func (h *DeckHandler) DeleteDeck(c *fiber.Ctx) error {
 		return HandleError(c, err, h.log)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// ListCards godoc — GET /api/v1/vocab/decks/:id/cards
+func (h *DeckHandler) ListCards(c *fiber.Ctx) error {
+	uid, err := middleware.UserIDFromCtx(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(ErrorResponse{
+			Error: "UNAUTHORIZED", Message: "authentication required",
+		})
+	}
+	deckID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
+			Error: "BAD_REQUEST", Message: "invalid deck id",
+		})
+	}
+	cards, err := h.deckSvc.ListCards(c.Context(), uid, deckID)
+	if err != nil {
+		return HandleError(c, err, h.log)
+	}
+	return c.JSON(fiber.Map{"cards": cards})
 }
 
 // AddCard godoc — POST /api/v1/vocab/decks/:id/cards

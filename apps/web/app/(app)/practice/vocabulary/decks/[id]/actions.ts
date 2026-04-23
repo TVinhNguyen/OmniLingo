@@ -4,36 +4,44 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { gql } from "@/lib/api/client";
 import { getAccessToken } from "@/lib/auth/session";
-import { ADD_CARD_MUTATION } from "@/lib/api/mutations";
-import { SEARCH_WORDS_QUERY } from "@/lib/api/queries";
-import type { VocabWord } from "@/lib/api/types";
+import { ADD_CARD_MUTATION, REVIEW_CARD_MUTATION } from "@/lib/api/mutations";
 
-export async function addWordToDeckAction(formData: FormData): Promise<void> {
+export async function addCardAction(formData: FormData): Promise<void> {
   const token = await getAccessToken();
   if (!token) redirect("/sign-in");
 
-  const deckId = String(formData.get("deckId") ?? "");
-  const language = String(formData.get("language") ?? "en");
-  const lemma = String(formData.get("lemma") ?? "").trim().toLowerCase();
+  const deckId  = String(formData.get("deckId")  ?? "").trim();
+  const lemma   = String(formData.get("lemma")   ?? "").trim();
+  const meaning = String(formData.get("meaning") ?? "").trim();
+  const ipa     = String(formData.get("ipa")     ?? "").trim() || undefined;
+  const pos     = String(formData.get("pos")     ?? "").trim() || undefined;
 
-  if (!deckId || !lemma) {
-    redirect(`/practice/vocabulary/decks/${deckId}?error=Thi%E1%BA%BFu%20deck%20ho%E1%BA%B7c%20t%E1%BB%AB`);
+  if (!deckId || !lemma || !meaning) {
+    redirect(`/practice/vocabulary/decks/${deckId}?error=Thiếu thông tin thẻ`);
   }
 
-  const found = await gql<{ searchWords: VocabWord[] }>(
-    SEARCH_WORDS_QUERY,
-    { query: lemma, language, pageSize: 10 },
-    token,
-  );
-
-  const exact = found.searchWords.find((w) => w.lemma.toLowerCase() === lemma);
-  const picked = exact ?? found.searchWords[0];
-
-  if (!picked) {
-    redirect(`/practice/vocabulary/decks/${deckId}?error=Kh%C3%B4ng%20t%C3%ACm%20th%E1%BA%A5y%20t%E1%BB%AB%20${encodeURIComponent(lemma)}`);
-  }
-
-  await gql(ADD_CARD_MUTATION, { deckId, wordId: picked.id }, token);
+  await gql(ADD_CARD_MUTATION, { deckId, lemma, meaning, ipa, pos }, token);
   revalidatePath(`/practice/vocabulary/decks/${deckId}`);
   redirect(`/practice/vocabulary/decks/${deckId}?added=1`);
+}
+
+/**
+ * reviewCardAction — submits an SRS review rating for a card.
+ * rating: 1=again 2=hard 3=good 4=easy (matches FSRS spec)
+ * Returns { error? } on failure, void on success.
+ */
+export async function reviewCardAction(
+  itemId: string,
+  rating: 1 | 2 | 3 | 4,
+): Promise<{ error: string } | undefined> {
+  const token = await getAccessToken();
+  if (!token) return { error: "Chưa đăng nhập" };
+
+  try {
+    await gql(REVIEW_CARD_MUTATION, { itemId, rating }, token);
+    return undefined; // success
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Ghi nhận đánh giá thất bại";
+    return { error: msg };
+  }
 }

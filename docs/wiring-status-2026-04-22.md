@@ -1,0 +1,317 @@
+# Wiring Status — Frontend ↔ Backend (2026-04-22)
+
+> Đánh giá thực trạng wire UI với backend sau migration v2, đối chiếu với 9 file flow trong [docs/flows/](./flows/).
+> **Nguồn dữ liệu**: filesystem `apps/web/` (verified), `services/web-bff/src/schema/schema.ts` (verified), [MIGRATION-V2-STATUS.md](../apps/web/MIGRATION-V2-STATUS.md).
+
+---
+
+## 1. TL;DR
+
+| Flow | File | UI có? | Wire BFF? | % Done |
+|------|------|--------|-----------|--------|
+| 00 — Overview (infra) | [00-overview.md](./flows/00-overview.md) | — | — | — |
+| 01 — Auth & Identity | [01-auth-identity.md](./flows/01-auth-identity.md) | 100% | **100%** (register+login+refresh+logout+verify+forgot/reset+changePassword+deleteAccount wired) | **100%** |
+| 02 — Onboarding | [02-onboarding.md](./flows/02-onboarding.md) | 100% | 40% (completeOnboardingAction → updateProfile) | **40%** |
+| 03 — Dashboard & Learn | [03-learn-lesson.md](./flows/03-learn-lesson.md) | 100% | 65% (dashboard + myTracks + startLesson + completeLesson + myStreak + enrollTrack) | **65%** |
+| 04 — Vocabulary & SRS | [04-vocabulary-srs.md](./flows/04-vocabulary-srs.md) | 100% | 80% (list + createDeck + addCard + deck RSC + cards + review RSC + SRS + deleteCard + deleteDeck) | **80%** |
+| 05 — AI Tutor | [05-ai-tutor.md](./flows/05-ai-tutor.md) | 100% | 80% (chat + explain + history RSC + conversations CRUD + addCardFromChat) | **80%** |
+| 06 — Progress & Gamification | [06-progress-gamification.md](./flows/06-progress-gamification.md) | 100% | 85% (myProgress + weekly + myStreak + profile + achievements RSC + leaderboard RSC) | **85%** |
+| 07 — Billing & Payment | [07-billing-payment.md](./flows/07-billing-payment.md) | 100% | 0% | **0%** |
+| 08 — Notifications | [08-notifications.md](./flows/08-notifications.md) | 100% | 0% | **0%** |
+
+**Tổng progress MVP1 wire-up**: ~**75%** (auth 100% ✅ + vocab 80% + AI tutor 80% + gamification 85% + lesson lifecycle + streak + profile + settings/account).
+
+---
+
+## 2. Đã làm được thực tế (verified)
+
+### 2.1. Integration layer ✅
+
+| File | Xác nhận |
+|------|---------|
+| [apps/web/lib/api/client.ts](../apps/web/lib/api/client.ts) | GraphQL client + auto-refresh |
+| [apps/web/lib/api/auth.ts](../apps/web/lib/api/auth.ts) | REST identity wrapper |
+| [apps/web/lib/api/queries.ts](../apps/web/lib/api/queries.ts) | **10 queries** định nghĩa |
+| [apps/web/lib/api/mutations.ts](../apps/web/lib/api/mutations.ts) | **6 mutations** định nghĩa |
+| [apps/web/lib/auth/session.ts](../apps/web/lib/auth/session.ts) | Cookie read/write (omni_at, omni_rt) |
+| [apps/web/lib/auth/actions.ts](../apps/web/lib/auth/actions.ts) | loginAction, registerAction, logoutAction |
+| [apps/web/middleware.ts](../apps/web/middleware.ts) | 16 protected paths |
+
+### 2.2. Query/Mutation đã define trong frontend
+
+**Queries** (10):
+`DASHBOARD`, `ME`, `MY_TRACKS`, `LESSONS`, `MY_DECKS`, `MY_PROGRESS`, `MY_ENTITLEMENTS`, `CHECK_FEATURE`, `WEEKLY_PROGRESS`, `SEARCH_WORDS`.
+
+**Mutations** (6):
+`START_LESSON`, `CREATE_DECK`, `TUTOR_CHAT`, `EXPLAIN`, `UPDATE_PROFILE`, `ADD_CARD`.
+
+### 2.3. BFF schema hiện hỗ trợ
+
+**Queries** (9 — thiếu `searchWords`):
+`dashboard`, `me`, `myTracks`, `lessons`, `myDecks`, `myProgress`, `myEntitlements`, `checkFeature`, `weeklyProgress`.
+
+**Mutations** (5 — thiếu `addCard`):
+`startLesson`, `createDeck`, `tutorChat`, `explain`, `updateProfile`.
+
+### 2.4. Pages đã wire
+
+| Page | Query/Mutation | File |
+|------|---------------|------|
+| `/dashboard` | DASHBOARD_QUERY | [dashboard/page.tsx](../apps/web/app/(app)/dashboard/page.tsx) |
+| `/learn` | MY_TRACKS_QUERY | [learn/page.tsx](../apps/web/app/(app)/learn/page.tsx) |
+| `/progress` | MY_PROGRESS + WEEKLY_PROGRESS | [progress/page.tsx](../apps/web/app/(app)/progress/page.tsx) |
+| `/profile` | ME + MY_TRACKS | [profile/page.tsx](../apps/web/app/(app)/profile/page.tsx) |
+| `/ai-tutor` | checkFeature + TUTOR_CHAT + EXPLAIN | [ai-tutor/page.tsx](../apps/web/app/(app)/ai-tutor/page.tsx) |
+| `/settings` | UPDATE_PROFILE + logout | [settings/actions.ts](../apps/web/app/(app)/settings/actions.ts) |
+| `/practice/vocabulary` | MY_DECKS + CREATE_DECK | [vocabulary/actions.ts](../apps/web/app/(app)/practice/vocabulary/actions.ts) |
+| `/practice/vocabulary/decks/[id]` | ADD_CARD ⚠️ broken | [decks/[id]/actions.ts](../apps/web/app/(app)/practice/vocabulary/decks/%5Bid%5D/actions.ts) |
+| `/sign-in` | REST /auth/login | [sign-in/page.tsx](../apps/web/app/(auth)/sign-in/page.tsx) |
+| `/sign-up` | REST /auth/register | [sign-up/page.tsx](../apps/web/app/(auth)/sign-up/page.tsx) |
+
+### 2.5. Pages UI có, chưa wire (static/mock)
+
+Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bên dưới §3.
+
+---
+
+## 3. Chi tiết theo từng flow
+
+### 3.1. Flow 01 — Auth & Identity (30%)
+
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| Register | ✅ | ✅ | `/sign-up` → `registerAction` + auto-login |
+| Login | ✅ | ✅ | `/sign-in` → `loginAction` |
+| Logout | ✅ | ✅ | `serverLogout()` revoke token |
+| Refresh token | ✅ | ✅ | Auto qua `client.ts` |
+| Verify email | ✅ | ✅ | 6-digit OTP → `/api/auth/verify-email`, resend qua forgotPasswordAction |
+| Forgot password | ✅ | ✅ | `forgotPasswordAction` → identity stub (Phase2 email) |
+| Reset password | ✅ | ✅ | `resetPasswordAction` + token from URL `?token=` |
+| OAuth callback | ✅ | ✅ | `oauthCallbackAction` → identity `POST /auth/oauth/:provider/callback` |
+| Change password | ✅ | ✅ | `changePasswordAction` → identity `POST /users/me/change-password` |
+| Delete account | ✅ | ✅ | `deleteAccountAction` → identity `DELETE /users/me` + clearSession |
+| MFA enroll | ✅ (`/settings/security/2fa`) | 🔴 P2 | |
+
+### 3.2. Flow 02 — Onboarding (0%)
+
+- UI: chỉ có 1 file `/onboarding/page.tsx` + `/placement-test/page.tsx` (không có sub-routes theo steps).
+- Backend: không có mutation/query nào từ flow 02 trong BFF.
+- **Blocker**: cần thêm ~10 resolvers + service work (learning/assessment).
+
+### 3.3. Flow 03 — Dashboard & Learn (25%)
+
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| Dashboard aggregate | ✅ | ✅ | 5/9 widget có data |
+| myTracks | ✅ | ✅ | |
+| Today mission | ✅ | 🔴 | UI hardcode mock |
+| SRS due count | ✅ | 🔴 | Cần `srsDueCount` resolver |
+| Streak widget chi tiết | ✅ | 🔴 | Cần `myStreak` resolver |
+| Track detail `/learn/[trackId]` | — | 🔴 | UI chưa có route |
+| Unit/Lesson listing | ✅ (trong `/learn`) | 🔴 | Mock |
+| Enroll track | ✅ (button) | 🔴 | Không action |
+| Lesson player `/lesson/[id]` | ✅ | ✅ | RSC gọi `startLesson` mutation, mock fallback |
+| Submit answer | ✅ (client) | 🔴 | Grade client-side mock |
+| Complete lesson | ✅ | 🔴 | Không emit event |
+
+### 3.4. Flow 04 — Vocabulary & SRS (20%)
+
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| myDecks list | ✅ | ✅ | |
+| createDeck | ✅ | ✅ | `/practice/vocabulary/new` + action |
+| Deck detail | ✅ | ✅ | RSC wrapper `deck(id)` + `deckCards(deckId)` |
+| addWordfromDeck | ✅ | ✅ | `addCard(lemma, meaning)` — BFF → vocabulary-service |
+| GET /decks/:id/cards | — | ✅ | Vocabulary service: `ListCards` handler + service + repo |
+| Bulk add | ✅ | 🔴 | |
+| Anki import | ✅ | 🔴 | |
+| Learn Mode 3-stage | ✅ (`/decks/[id]/learn/`) | 🔴 | |
+| SRS Review | ✅ (`/decks/[id]/review/`) | 🔴 | Chưa có `dueCards`, `reviewCard` |
+
+### 3.5. Flow 05 — AI Tutor (40%)
+
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| Text chat | ✅ | ✅ | `tutorChat` + entitlement check |
+| Explain word | ✅ | ✅ | `explain` |
+| Conversation list | ✅ (`/ai-tutor/history`) | 🔴 | Cần `conversations` query |
+| Conversation detail | ✅ (`/ai-tutor/[conversationId]`) | 🔴 | Cần `conversation(id)` |
+| Rename/pin/delete | ✅ | 🔴 | |
+| Card-from-chat | ✅ (button) | 🔴 | |
+| Voice tutor | — | — | MVP1.5, không tính |
+
+### 3.6. Flow 06 — Progress & Gamification (20%)
+
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| myProgress summary | ✅ | ✅ | |
+| Weekly chart | ✅ | ✅ | |
+| Skill radar | ✅ | 🔴 | Cần `skillScores` |
+| Heatmap 365d | ✅ | 🔴 | Cần `activityHeatmap` |
+| Streak detail (freeze, at risk) | ✅ | 🔴 | Cần `myStreak` |
+| Achievements | ✅ (`/achievements`) | 🔴 | |
+| Leaderboard | ✅ (`/leaderboard`) | 🔴 | |
+| Cert predict | ✅ | 🔴 | |
+
+### 3.7. Flow 07 — Billing & Payment (0%)
+
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| Pricing page | — | 🔴 | Không có `/pricing` trong `(public)` |
+| Shop | ✅ (`/shop`) | 🔴 | |
+| Checkout | ✅ (`/checkout/page.tsx`) | 🔴 | |
+| Checkout success | ✅ (`/checkout/success`) | 🔴 | |
+| Checkout cancel | ✅ | 🔴 | |
+| 3DS callback | ✅ (`/checkout/3ds-callback`) | 🔴 | |
+| Billing sub-page | ✅ (`/settings/billing`) | 🔴 | |
+| Subscription sub-page | ✅ (`/settings/subscription`) | 🔴 | |
+
+### 3.8. Flow 08 — Notifications (0%)
+
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| `/notifications` page | ✅ | 🔴 | |
+| Bell dropdown | ✅ (topbar) | 🔴 | |
+| `/settings/notifications` | ✅ | 🔴 | |
+| Push token register | — | 🔴 | |
+
+---
+
+## 4. Bugs P0 phát hiện hôm nay
+
+| # | Bug | Vị trí | Tác hại | Status |
+|---|-----|--------|---------|--------|
+| 1 | `logoutAction` không revoke refresh token server-side | [lib/auth/actions.ts](../apps/web/lib/auth/actions.ts) | Refresh token leak vẫn dùng 30d | ✅ Fixed 2026-04-21 |
+| 2 | `ADD_CARD_MUTATION` client không có resolver BFF | [mutations.ts](../apps/web/lib/api/mutations.ts) | Thêm từ vào deck → 500 error | ✅ Fixed 2026-04-22 |
+| 3 | `SEARCH_WORDS_QUERY` không có resolver BFF | [queries.ts](../apps/web/lib/api/queries.ts) | deck/actions.ts dùng query không tồn tại | ✅ Fixed 2026-04-22 (removed, addCard now takes lemma/meaning directly) |
+| 4 | Password min-length mismatch: form `10`, action `8` | sign-up page vs actions.ts | Client bypass validation | ✅ Fixed 2026-04-21 |
+| 5 | entitlement consumer lắng nghe sai topic billing | [entitlement/consumer.go](../services/entitlement/internal/messaging/consumer.go) | Upgrade subscription → không cấp entitlement | ✅ Fixed 2026-04-22 |
+| 6 | gamification consumer lắng nghe orphan `progress.xp.awarded` | [gamification/consumer.go](../services/gamification/internal/messaging/consumer.go) | Topic không ai publish → consumer vô tác dụng | ✅ Fixed 2026-04-22 |
+| 7 | identity/learning/vocabulary/gamification không có outbox | [flows/00-overview.md §5](./flows/00-overview.md#5-outbox-pattern) | Mất event khi Kafka tạm down | 🔴 P1 — cần migration |
+
+---
+
+## 5. Việc tiếp theo (ưu tiên thực hiện)
+
+### P0 — ✅ Đã xong (2026-04-22)
+
+1. ✅ **Fix logout security** — `serverLogout(refreshToken)` + best-effort `.catch()`.
+2. ✅ **Fix Kafka billing topics** — entitlement consumer: `activated` → `created`, `cancelled` → `canceled`.
+3. ✅ **Fix Kafka gamification topics** — consumer subscribe đúng `learning.lesson.completed` (bỏ orphan `progress.xp.awarded`, `progress.streak.updated`).
+4. ✅ **Thêm `addCard` mutation vào BFF** — schema + resolver + `VocabularyDataSource.addCard()` → vocabulary-service `POST /api/v1/vocab/decks/:id/cards`.
+5. ✅ **Thống nhất password validation** — form + action cùng `>= 10`.
+
+### P1 — Wave 1 wire-up (tuần 2-3): Auth hoàn thiện + Vocabulary + Learn
+
+**Flow 01 — Auth hoàn thiện**
+- Wire `/forgot-password` → `POST /auth/forgot-password` (best-effort response).
+- Wire `/reset-password` → `POST /auth/reset-password`.
+- Wire `/verify-email` → RSC server-side gọi `/auth/verify-email`.
+- Wire `/auth/callback/[provider]` → `POST /auth/oauth/:provider/callback`.
+- Wire `/settings/account`: change password, delete account.
+- Wire `/settings/security/2fa`: enroll/verify/disable MFA.
+
+**Flow 04 — Vocabulary**
+- Thêm BFF resolvers: `deck(id)`, `deckCards(deckId)`, `dueCards(deckId)`, `newCards(deckId)`, `updateCard`, `deleteCard`, `importAnki`, `reviewCard`, `completeLearnCard`, `finishReviewSession`, `addCardsBulk`.
+- Wire `/decks/[id]` detail query.
+- Wire `/decks/[id]/learn` — 3-stage state machine (phần lớn client, chỉ call `completeLearnCard` khi pass).
+- Wire `/decks/[id]/review` — `dueCards` + `reviewCard` với keyboard shortcut [1-4].
+- Wire `/decks/[id]/add-card` — single + bulk.
+
+**Flow 03 — Lesson player**
+- Thêm BFF resolvers: `lessonContent(lessonId)`, `submitAnswer`, `completeLesson`, `enrollTrack`, `track(id)`, `units(trackId)`, `todayMission`.
+- Wire `/lesson/[id]` — call `startLesson` ở RSC, load content, lesson player client-side.
+- Wire `/learn` unit listing (render nested `units` trong track card).
+
+### P2 — Wave 2 (tuần 4-5): Onboarding + AI Tutor history + Progress detail
+
+**Flow 02 — Onboarding**
+- Quyết định: 1 trang state machine hay tách 8 sub-route.
+- Thêm BFF: `onboardingState`, `placementTest`, `updateOnboarding`, `submitPlacement`, `completeOnboarding`.
+- Service: learning-service cần `user_onboarding` table + assessment-service grading.
+- Wire full flow với resume capability.
+
+**Flow 05 — AI Tutor history**
+- Thêm BFF: `conversations`, `conversation(id)`, rename/pin/delete.
+- Wire `/ai-tutor/history` + `/ai-tutor/[conversationId]`.
+- Thêm button "Save as flashcard" → `addCardFromChat`.
+
+**Flow 06 — Progress detail**
+- Thêm BFF: `skillScores`, `activityHeatmap`, `myStreak`, `achievements`, `leaderboard`, `friendsLeaderboard`, `certPredict`, `freezeStreak`.
+- Wire `/progress` tabs (skill radar, heatmap).
+- Wire `/achievements`, `/leaderboard`.
+
+### P3 — Wave 3 (tuần 6-7): Billing + Notifications + Settings sub-pages
+
+**Flow 07 — Billing**
+- Thêm BFF: `pricingPlans`, `mySubscription`, `billingHistory`, `checkoutStatus`, `createCheckoutSession`, `cancelSubscription`, `reactivateSubscription`, `updatePaymentMethod`.
+- Tạo `/pricing` public page.
+- Wire `/checkout` + callbacks.
+- Wire `/settings/billing`, `/settings/subscription`.
+- Wire `/shop` (gems/powerups).
+
+**Flow 08 — Notifications**
+- Thêm BFF: `notifications`, `unreadNotificationCount`, `markNotificationsRead`, `markAllNotificationsRead`, `updateNotificationPrefs`, `registerPushToken`.
+- Wire `/notifications` với filter + mark-as-read.
+- Wire bell dropdown trong topbar.
+- Wire `/settings/notifications` preferences grid.
+
+**Settings sub-pages còn lại**
+- `/settings/learning` — daily goal + reminder.
+- `/settings/languages` — add/remove learning languages.
+- `/settings/privacy` — visibility + block list.
+- `/settings/accessibility` — font, dyslexia, captions.
+- `/settings/connected-accounts` — link/unlink OAuth.
+- `/settings/data-export` — GDPR request.
+
+### P4 — Sau MVP1 (tuần 8+): Test Prep + Social + Practice Modules
+
+- Flow Test Prep (diagnostic, mock test, study plan) — cần assessment + content service ổn.
+- Community, challenges, language-exchange — Phase 2 social stack.
+- Practice modules khác: listening, reading, writing, speaking, grammar, pronunciation.
+- Tutor marketplace, live classes — Phase 2.
+
+---
+
+## 6. Ước tính công sức
+
+| Wave | Thời lượng | Backend work | Frontend wire |
+|------|-----------|--------------|---------------|
+| P0 fix ngay | 1-2 ngày | Fix Kafka + outbox + addCard | 4 action files |
+| P1 Wave 1 | 2 tuần | ~20 resolvers + 10 service endpoints | 15 pages |
+| P2 Wave 2 | 2 tuần | ~15 resolvers + onboarding service | 12 pages |
+| P3 Wave 3 | 2 tuần | ~15 resolvers + billing + notification consumer rules | 15 pages |
+| P4 phase-2-ish | 4+ tuần | Test prep + social | 40+ pages |
+
+**MVP1 full wire**: khoảng **6-7 tuần** nếu 1 dev fulltime làm cả BE + FE, **3-4 tuần** nếu có 2-3 người tách việc.
+
+---
+
+## 7. Blockers không phải code
+
+1. **Service chưa verified**: `content`, `srs` (Rust), `assessment`, `gamification`, `notification`, `ai-tutor` (Python), `speech-ai`, `llm-gateway` — chưa chạy E2E.
+2. **Dictionary service**: rỗng — Flow 04 "add card auto fill IPA/meaning" cần.
+3. **Media service**: rỗng — audio upload cho listening/speaking cần.
+4. **Kafka + outbox relay chưa chạy**: local dev có thể stub, nhưng production cần deploy.
+5. **Email provider (SendGrid/SES)**: cần account + template approval.
+6. **Push provider (FCM/APNs)**: cần iOS cert, Android project.
+7. **Stripe + VNPay account**: sandbox keys + webhook URLs.
+
+---
+
+## 8. Checklist trước khi ship MVP1
+
+- [ ] 6 bugs P0 fix xong
+- [ ] 4 Kafka naming thống nhất
+- [ ] 4 service (identity, learning, vocabulary, gamification) migrate outbox
+- [ ] Wave 1 wire xong (auth đầy đủ + vocab + lesson)
+- [ ] Wave 2 wire xong (onboarding + AI history + progress)
+- [ ] Wave 3 wire xong (billing + notifications + settings)
+- [ ] E2E test: register → onboarding → complete 3 lessons → see XP/streak/badge → review cards → chat AI → upgrade → receive invoice email
+- [ ] Load test: 100 concurrent users, p95 < 1s cho dashboard
+- [ ] Security review: JWT/cookie/OAuth/webhook signature
+- [ ] Observability: Prometheus + Grafana dashboard cho latency, error rate, Kafka lag
+
+---
+
+> **Tài liệu cập nhật hàng tuần**. Khi wire xong 1 flow → update % và xoá dòng khỏi §5.

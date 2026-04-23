@@ -91,3 +91,95 @@ export interface WeeklyProgress {
   xp: number;
   minutes: number;
 }
+
+/** Alias used by dashboard page.tsx */
+export type DashboardData = Dashboard;
+
+export interface VocabWord {
+  id: string;
+  lemma: string;
+  language: string;
+  definition: string;
+}
+
+export interface DeckCard {
+  id: string;
+  deckId: string;
+  lemma: string;
+  meaning: string;
+  ipa?: string;
+  pos?: string;
+  status?: string; // "new" | "learning" | "mastered"
+}
+
+export interface DeckDetail {
+  id: string;
+  name: string;
+  cardCount: number;
+  dueCount: number;
+  masteredCount: number;
+}
+
+export interface ConversationSummary {
+  id: string;
+  messageCount: number;
+  lastMessage: string;
+  ttlSeconds: number;
+}
+
+export interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface Conversation {
+  id: string;
+  messages: ChatHistoryMessage[];
+}
+
+export interface DueCard {
+  itemId: string;
+  state: string;
+  reps: number;
+}
+
+export interface SrsStats {
+  total: number;
+  dueToday: number;
+  matureCount: number;
+}
+
+export interface UserStreak {
+  current:     number;
+  longest:     number;
+  freezesLeft: number;
+  totalXp:     number;
+  level:       number;
+}
+
+export interface Achievement {
+  id:          string
+  code:        string
+  title:       string
+  description: string
+  icon:        string
+  rarity:      string
+  earnedAt:    string | null
+  xpReward:    number
+}
+
+export interface LeaderboardEntry {
+  rank:          number
+  userId:        string
+  displayName:   string
+  avatarUrl:     string | null
+  xp:            number
+  isCurrentUser: boolean
+}
+
+export interface Leaderboard {
+  league:  string
+  entries: LeaderboardEntry[]
+  myRank:  number
+  myXp:    number
+}

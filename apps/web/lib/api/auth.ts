@@ -109,3 +109,132 @@ export async function serverRefresh(refreshToken: string): Promise<string> {
   const data = await res.json();
   return data.access_token;
 }
+
+/**
+ * Revoke a refresh token on the identity server.
+ * Called from logoutAction before clearing cookies.
+ * Best-effort: failure does not block logout.
+ */
+export async function serverLogout(refreshToken: string): Promise<void> {
+  await fetch(`${AUTH_BASE}/logout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+}
+
+/**
+ * Verify email with a 6-digit OTP code.
+ * Identity endpoint: POST /auth/verify-email
+ */
+export async function serverVerifyEmail(token: string): Promise<void> {
+  const res = await fetch(`${AUTH_BASE}/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Email verification failed");
+  }
+}
+
+/**
+ * Send a password reset email.
+ * Identity endpoint: POST /auth/forgot-password
+ * Always returns success (server-side anti-enumeration).
+ */
+export async function serverForgotPassword(email: string): Promise<void> {
+  await fetch(`${AUTH_BASE}/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  // Always succeed (identity returns 200 regardless of email existence)
+}
+
+/**
+ * Reset password using token from email link.
+ * Identity endpoint: POST /auth/reset-password
+ */
+export async function serverResetPassword(token: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${AUTH_BASE}/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Password reset failed");
+  }
+}
+
+/**
+ * Exchange OAuth authorization code for tokens.
+ * Identity endpoint: POST /auth/oauth/:provider/callback
+ */
+export async function serverOAuthCallback(
+  provider: string,
+  code: string,
+  state: string,
+): Promise<AuthTokens & { isNewUser: boolean }> {
+  const res = await fetch(`${AUTH_BASE}/oauth/${provider}/callback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, state }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "OAuth login failed");
+  }
+  const data = await res.json();
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    isNewUser: data.is_new_user ?? false,
+  };
+}
+
+/**
+ * Change current user's password (requires Bearer token).
+ * Identity endpoint: POST /api/v1/users/me/change-password
+ */
+export async function serverChangePassword(
+  accessToken: string,
+  oldPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const USERS_BASE = `${IDENTITY_URL}/api/v1/users`;
+  const res = await fetch(`${USERS_BASE}/me/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Password change failed");
+  }
+}
+
+/**
+ * Delete the current user's account (GDPR soft-delete).
+ * Identity endpoint: DELETE /api/v1/users/me
+ */
+export async function serverDeleteAccount(accessToken: string, password: string): Promise<void> {
+  const USERS_BASE = `${IDENTITY_URL}/api/v1/users`;
+  const res = await fetch(`${USERS_BASE}/me`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message ?? "Account deletion failed");
+  }
+}
