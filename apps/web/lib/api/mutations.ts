@@ -146,3 +146,63 @@ export const ADD_CARD_FROM_CHAT_MUTATION = /* GraphQL */ `
     }
   }
 `;
+
+export const MARK_NOTIFICATIONS_READ_MUTATION = /* GraphQL */ `
+  mutation MarkNotificationsRead($ids: [ID!]!) {
+    markNotificationsRead(ids: $ids)
+  }
+`;
+
+export const MARK_ALL_NOTIFICATIONS_READ_MUTATION = /* GraphQL */ `
+  mutation MarkAllNotificationsRead {
+    markAllNotificationsRead
+  }
+`;
+
+export const UPDATE_NOTIFICATION_PREFS_MUTATION = /* GraphQL */ `
+  mutation UpdateNotificationPrefs($prefs: JSON!) {
+    updateNotificationPrefs(prefs: $prefs)
+  }
+`;
+
+export const CREATE_CHECKOUT_SESSION_MUTATION = /* GraphQL */ `
+  mutation CreateCheckoutSession(
+    $planId: ID!
+    $period: String!
+    $provider: String!
+    $successUrl: String!
+    $cancelUrl: String!
+  ) {
+    createCheckoutSession(
+      planId: $planId
+      period: $period
+      provider: $provider
+      successUrl: $successUrl
+      cancelUrl: $cancelUrl
+    ) {
+      sessionId
+      checkoutUrl
+    }
+  }
+`;
+
+export const CANCEL_SUBSCRIPTION_MUTATION = /* GraphQL */ `
+  mutation CancelSubscription($reason: String) {
+    cancelSubscription(reason: $reason) {
+      id
+      state
+      cancelAtPeriodEnd
+      currentPeriodEnd
+    }
+  }
+`;
+
+export const REACTIVATE_SUBSCRIPTION_MUTATION = /* GraphQL */ `
+  mutation ReactivateSubscription {
+    reactivateSubscription {
+      id
+      state
+      cancelAtPeriodEnd
+    }
+  }
+`;

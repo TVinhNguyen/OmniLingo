@@ -183,3 +183,70 @@ export interface Leaderboard {
   myRank:  number
   myXp:    number
 }
+
+export interface AppNotification {
+  id:        string
+  type:      string
+  title:     string
+  body:      string
+  targetUrl: string | null
+  icon:      string | null
+  priority:  number
+  read:      boolean
+  createdAt: string
+}
+
+export interface NotificationPage {
+  items:       AppNotification[]
+  nextCursor:  string | null
+  unreadCount: number
+}
+
+export interface Plan {
+  id:       string
+  name:     string
+  tier:     string
+  price:    number
+  currency: string
+  period:   string
+  features: string[]
+  popular:  boolean
+}
+
+export interface BillingSubscription {
+  id:                 string
+  planId:             string
+  planName:           string
+  state:              string
+  currentPeriodStart: string
+  currentPeriodEnd:   string
+  cancelAtPeriodEnd:  boolean
+  trialEndsAt:        string | null
+}
+
+export interface Invoice {
+  id:          string
+  amount:      number
+  currency:    string
+  paidAt:      string | null
+  pdfUrl:      string | null
+  description: string
+}
+
+export interface InvoicePage {
+  items:      Invoice[]
+  nextCursor: string | null
+}
+
+export interface CheckoutStatus {
+  sessionId:    string
+  state:        string
+  planId:       string | null
+  activatedAt:  string | null
+  errorMessage: string | null
+}
+
+export interface CheckoutSessionResult {
+  sessionId:   string
+  checkoutUrl: string
+}

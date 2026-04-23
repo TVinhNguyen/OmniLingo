@@ -538,6 +538,155 @@ export class SrsDataSource {
   }
 }
 
+// ─── Notification DataSource ──────────────────────────────────────────────────
+
+export class NotificationDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.notification, token };
+  }
+
+  /** GET /api/v1/notifications?filter=&cursor=&limit= */
+  async getNotifications(
+    filter?: string,
+    cursor?: string,
+    limit = 20,
+  ): Promise<{ items: unknown[]; nextCursor: string | null; unreadCount: number }> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (filter && filter !== "ALL") params.set("filter", filter);
+    if (cursor) params.set("cursor", cursor);
+    type Raw = { items?: unknown[]; next_cursor?: string | null; unread_count?: number };
+    const raw = await call<Raw>(
+      this.ds, `/api/v1/notifications?${params}`,
+    ).catch((): Raw => ({ items: [], next_cursor: null, unread_count: 0 }));
+    return {
+      items:       raw.items ?? [],
+      nextCursor:  raw.next_cursor ?? null,
+      unreadCount: Number(raw.unread_count ?? 0),
+    };
+  }
+
+  /** GET /api/v1/notifications/unread-count */
+  async getUnreadCount(): Promise<number> {
+    const raw = await call<{ count?: number }>(
+      this.ds, "/api/v1/notifications/unread-count",
+    ).catch(() => ({ count: 0 }));
+    return Number(raw.count ?? 0);
+  }
+
+  /** POST /api/v1/notifications/read { ids } */
+  async markRead(ids: string[]): Promise<number> {
+    const raw = await call<{ updated?: number }>(
+      this.ds, "/api/v1/notifications/read",
+      { method: "POST", body: { ids } },
+    ).catch(() => ({ updated: 0 }));
+    return Number(raw.updated ?? 0);
+  }
+
+  /** POST /api/v1/notifications/read-all */
+  async markAllRead(): Promise<number> {
+    const raw = await call<{ updated?: number }>(
+      this.ds, "/api/v1/notifications/read-all",
+      { method: "POST" },
+    ).catch(() => ({ updated: 0 }));
+    return Number(raw.updated ?? 0);
+  }
+
+  /** PATCH /api/v1/notifications/preferences */
+  async updatePrefs(prefs: unknown): Promise<boolean> {
+    await call(this.ds, "/api/v1/notifications/preferences", {
+      method: "PATCH",
+      body: prefs as Record<string, unknown>,
+    }).catch(() => {});
+    return true;
+  }
+}
+
+// ─── Billing DataSource ───────────────────────────────────────────────────────
+
+export class BillingDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.billing, token };
+  }
+
+  /** GET /billing/plans?currency=&country= */
+  async getPlans(currency = "VND", country = "VN"): Promise<unknown[]> {
+    const raw = await call<{ plans?: unknown[] }>(
+      this.ds, `/billing/plans?currency=${currency}&country=${country}`,
+    ).catch(() => ({ plans: [] }));
+    return raw.plans ?? [];
+  }
+
+  /** GET /billing/subscriptions/current */
+  async getMySubscription(): Promise<unknown | null> {
+    const raw = await call<Record<string, unknown>>(
+      this.ds, "/billing/subscriptions/current",
+    ).catch(() => null);
+    return raw;
+  }
+
+  /** GET /billing/invoices?cursor=&limit= */
+  async getBillingHistory(cursor?: string, limit = 10): Promise<{ items: unknown[]; nextCursor: string | null }> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (cursor) params.set("cursor", cursor);
+    const raw = await call<{ invoices?: unknown[]; next_cursor?: string }>(
+      this.ds, `/billing/invoices?${params}`,
+    ).catch(() => ({ invoices: [], next_cursor: null }));
+    return {
+      items: raw.invoices ?? [],
+      nextCursor: raw.next_cursor ?? null,
+    };
+  }
+
+  /** GET /billing/checkout/:sessionId/status */
+  async getCheckoutStatus(sessionId: string): Promise<Record<string, unknown>> {
+    const raw = await call<Record<string, unknown>>(
+      this.ds, `/billing/checkout/${sessionId}/status`,
+    ).catch(() => ({ session_id: sessionId, state: "pending" }));
+    return raw;
+  }
+
+  /** POST /billing/checkout */
+  async createCheckoutSession(
+    planId: string,
+    period: string,
+    provider: string,
+    successUrl: string,
+    cancelUrl: string,
+  ): Promise<{ sessionId: string; checkoutUrl: string }> {
+    const raw = await call<Record<string, unknown>>(
+      this.ds, "/billing/checkout",
+      {
+        method: "POST",
+        body: { plan_id: planId, period, provider, success_url: successUrl, cancel_url: cancelUrl },
+      },
+    );
+    return {
+      sessionId:   String(raw.session_id ?? raw.sessionId ?? ""),
+      checkoutUrl: String(raw.checkout_url ?? raw.checkoutUrl ?? ""),
+    };
+  }
+
+  /** POST /billing/subscriptions/cancel */
+  async cancelSubscription(reason?: string): Promise<unknown> {
+    const raw = await call<Record<string, unknown>>(
+      this.ds, "/billing/subscriptions/cancel",
+      { method: "POST", body: { reason: reason ?? null } },
+    ).catch(() => ({}));
+    return raw;
+  }
+
+  /** POST /billing/subscriptions/reactivate */
+  async reactivateSubscription(): Promise<unknown> {
+    const raw = await call<Record<string, unknown>>(
+      this.ds, "/billing/subscriptions/reactivate",
+      { method: "POST" },
+    ).catch(() => ({}));
+    return raw;
+  }
+}
+
 // ─── Context DataSources bundle ────────────────────────────────────────────────
 
 export interface DataSources {
@@ -549,6 +698,8 @@ export interface DataSources {
   progress:      ProgressDataSource;
   aiTutor:       AiTutorDataSource;
   srs:           SrsDataSource;
+  notification:  NotificationDataSource;
+  billing:       BillingDataSource;
 }
 
 /** Build all DataSources for a single request context. */
@@ -562,5 +713,7 @@ export function buildDataSources(cfg: Config, token?: string): DataSources {
     progress:     new ProgressDataSource(cfg, token),
     aiTutor:      new AiTutorDataSource(cfg, token),
     srs:          new SrsDataSource(cfg, token),
+    notification: new NotificationDataSource(cfg, token),
+    billing:      new BillingDataSource(cfg, token),
   };
 }
