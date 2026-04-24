@@ -40,6 +40,27 @@ export async function courseRoutes(
     return reply.send({ course });
   });
 
+  /** GET /api/v1/content/courses?trackId=:trackId */
+  fastify.get<{ Querystring: { trackId?: string } }>('/', async (req, reply) => {
+    const { trackId } = req.query;
+    if (!trackId) throw Errors.badRequest('trackId query param is required');
+
+    const cacheKey = `content:courses:track:${trackId}`;
+    const cached = await cache.get<unknown[]>(cacheKey);
+    if (cached) {
+      fastify.metrics.cacheHitsTotal.inc({ resource_type: 'courses' });
+      return reply.send({ courses: cached });
+    }
+
+    fastify.metrics.cacheMissesTotal.inc({ resource_type: 'courses' });
+    const courses = await Course.find({ trackId, status: 'published' })
+      .sort({ order: 1 })
+      .lean();
+
+    await cache.set(cacheKey, courses, cfg.cacheTtl.courses);
+    return reply.send({ courses });
+  });
+
   /** POST /api/v1/content/courses — content_admin only */
   fastify.post(
     '/',

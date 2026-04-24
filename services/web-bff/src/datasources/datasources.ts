@@ -477,6 +477,79 @@ export class EntitlementDataSource {
     );
   }
 }
+// ─── Content DataSource ──────────────────────────────────────────────────────
+
+/** Mirror of content-service ICourse shape (locale-picked title/description). */
+export interface CourseDTO {
+  id: string;
+  trackId: string;
+  language: string;
+  level: string;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  order: number;
+  unitIds: string[];
+}
+
+/** Mirror of content-service IUnit shape (locale-picked title). */
+export interface UnitDTO {
+  id: string;
+  courseId: string;
+  title: string;
+  order: number;
+  lessonIds: string[];
+}
+
+/** Shared locale-picker: prefers `language`, falls back to 'en', then first value. */
+function pickLocale(v: unknown, language: string): string {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object") {
+    const m = v as Record<string, string>;
+    return m[language] ?? m["en"] ?? Object.values(m)[0] ?? "";
+  }
+  return "";
+}
+
+export class ContentDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.content, token };
+  }
+
+  /** GET /api/v1/content/courses?trackId= → { courses: [...] } */
+  async listCoursesByTrack(trackId: string, language = "en"): Promise<CourseDTO[]> {
+    const raw = await call<{ courses?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/content/courses?trackId=${encodeURIComponent(trackId)}`,
+    ).catch(() => ({ courses: [] }));
+    return (raw.courses ?? []).map((c) => ({
+      id:           String(c.id ?? ""),
+      trackId:      String(c.trackId ?? trackId),
+      language:     String(c.language ?? language),
+      level:        String(c.level ?? ""),
+      title:        pickLocale(c.title, language),
+      description:  pickLocale(c.description, language) || undefined,
+      thumbnailUrl: c.thumbnailUrl != null ? String(c.thumbnailUrl) : undefined,
+      order:        Number(c.order ?? 0),
+      unitIds:      Array.isArray(c.unitIds) ? (c.unitIds as string[]) : [],
+    }));
+  }
+
+  /** GET /api/v1/content/units?courseId= → { units: [...] } */
+  async listUnitsByCourse(courseId: string, language = "en"): Promise<UnitDTO[]> {
+    const raw = await call<{ units?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/content/units?courseId=${encodeURIComponent(courseId)}`,
+    ).catch(() => ({ units: [] }));
+    return (raw.units ?? []).map((u) => ({
+      id:        String(u.id ?? ""),
+      courseId:  String(u.courseId ?? courseId),
+      title:     pickLocale(u.title, language),
+      order:     Number(u.order ?? 0),
+      lessonIds: Array.isArray(u.lessonIds) ? (u.lessonIds as string[]) : [],
+    }));
+  }
+}
+
 // ─── Gamification DataSource ──────────────────────────────────────────────────
 
 export class GamificationDataSource {

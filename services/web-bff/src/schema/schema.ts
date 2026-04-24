@@ -114,6 +114,28 @@ export const schema = /* GraphQL */ `
     progressPct: Float!
   }
 
+  """A course within a learning track."""
+  type Course {
+    id:          ID!
+    trackId:     String!
+    language:    String!
+    level:       String!
+    title:       String!
+    description: String
+    thumbnailUrl: String
+    order:       Int!
+    unitIds:     [String!]!
+  }
+
+  """A unit within a course."""
+  type Unit {
+    id:        ID!
+    courseId:  String!
+    title:     String!
+    order:     Int!
+    lessonIds: [String!]!
+  }
+
   type StartLessonResult {
     sessionId: String!
     lessonId:  String!
@@ -320,6 +342,12 @@ export const schema = /* GraphQL */ `
 
     """Lesson content (ordered exercises) — source: content-service."""
     lessonContent(lessonId: ID!, language: String): LessonContent!
+
+    """Courses in a track (published only, sorted by order)."""
+    courses(trackId: ID!, language: String): [Course!]!
+
+    """Units in a course (sorted by course.unitIds order)."""
+    units(courseId: ID!, language: String): [Unit!]!
 
     """Vocabulary decks owned by user."""
     myDecks: [Deck!]!

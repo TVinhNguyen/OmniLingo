@@ -90,6 +90,24 @@ export const resolvers = {
       return content;
     },
 
+    courses: async (
+      _: unknown,
+      { trackId, language }: { trackId: string; language?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.content.listCoursesByTrack(trackId, language ?? "en");
+    },
+
+    units: async (
+      _: unknown,
+      { courseId, language }: { courseId: string; language?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.content.listUnitsByCourse(courseId, language ?? "en");
+    },
+
     myDecks: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.vocabulary.getMyDecks();
