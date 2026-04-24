@@ -65,6 +65,30 @@ export const schema = /* GraphQL */ `
     level:        Int!
   }
 
+  """Per-skill proficiency score (0-100)."""
+  type SkillScore {
+    skill:     String!
+    score:     Float!
+    ciLow:     Float
+    ciHigh:    Float
+    updatedAt: DateTime
+  }
+
+  """All skill scores for a user/language pair."""
+  type SkillOverview {
+    language: String!
+    skills:   [SkillScore!]!
+  }
+
+  """Certification score prediction (IELTS, TOEIC, JLPT, HSK)."""
+  type CertPrediction {
+    certCode:       String!
+    predictedScore: Float!
+    predictedBand:  String
+    modelVersion:   String!
+    computedAt:     DateTime!
+  }
+
   # ─── Learning ─────────────────────────────────────────────────────────────
 
   enum LessonStatus {
@@ -93,6 +117,38 @@ export const schema = /* GraphQL */ `
   type StartLessonResult {
     sessionId: String!
     lessonId:  String!
+  }
+
+  """A single exercise within a lesson (content-service source)."""
+  type Exercise {
+    id:            ID!
+    kind:          String!       # multiple_choice | fill_in_blank | sentence_arrange | dictation | speaking_prompt | matching | translation
+    prompt:        String!       # localised prompt text
+    audioRef:      String
+    choices:       [String!]
+    correctAnswer: JSON
+    explanation:   String
+    skill:         String
+    maxScore:      Float!
+    language:      String!
+  }
+
+  """Full lesson payload with ordered exercises (source: content-service)."""
+  type LessonContent {
+    lessonId:         ID!
+    title:            String!
+    language:         String!
+    estimatedMinutes: Int!
+    exercises:        [Exercise!]!
+  }
+
+  """Result of grading a single exercise answer."""
+  type SubmitAnswerResult {
+    correct:     Boolean!
+    score:       Float!
+    maxScore:    Float!
+    xpDelta:     Int!
+    explanation: String
   }
 
   # ─── Vocabulary ───────────────────────────────────────────────────────────
@@ -262,6 +318,9 @@ export const schema = /* GraphQL */ `
     """Lessons in a unit."""
     lessons(unitId: ID!): [Lesson!]!
 
+    """Lesson content (ordered exercises) — source: content-service."""
+    lessonContent(lessonId: ID!, language: String): LessonContent!
+
     """Vocabulary decks owned by user."""
     myDecks: [Deck!]!
 
@@ -280,6 +339,12 @@ export const schema = /* GraphQL */ `
     """Weekly progress data for chart (default last 7 days)."""
     weeklyProgress(days: Int): [WeeklyProgress!]!
 
+    """Per-skill proficiency scores for a language (skill radar source)."""
+    skillScores(language: String!): SkillOverview!
+
+    """Predicted certification score (cert = ielts|toeic|jlpt|hsk)."""
+    certPredict(cert: String!): CertPrediction!
+
     """List all AI tutor conversation sessions for current user."""
     conversations: [ConversationSummary!]!
 
@@ -291,6 +356,9 @@ export const schema = /* GraphQL */ `
 
     """SRS aggregate stats for current user."""
     srsStats: SrsStats!
+
+    """Count of cards due today (shortcut for dashboard widgets)."""
+    srsDueCount: Int!
 
     """Streak + XP from gamification service."""
     myStreak: UserStreak!
@@ -416,6 +484,22 @@ export const schema = /* GraphQL */ `
       lessonId: ID!
       xpEarned: Int!
     ): CompleteLessonResult!
+
+    """
+    Submit a single exercise answer for server-side grading.
+    The caller provides the correctAnswer + maxScore (both obtained from a
+    previous lessonContent query); assessment-service computes Correct/Score.
+    """
+    submitAnswer(
+      lessonId:      ID!
+      exerciseId:    ID!
+      exerciseKind:  String!
+      answer:        JSON!
+      correctAnswer: JSON
+      maxScore:      Float!
+      skillTag:      String!
+      language:      String!
+    ): SubmitAnswerResult!
 
     """Enroll the user in a learning track (creates a new learning path)."""
     enrollTrack(language: String!, templateId: String): EnrollTrackResult!

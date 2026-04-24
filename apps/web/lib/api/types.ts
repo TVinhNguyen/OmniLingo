@@ -86,6 +86,35 @@ export interface StartLessonResult {
   lessonId: string;
 }
 
+export interface Exercise {
+  id: string;
+  kind: string;           // multiple_choice | fill_in_blank | sentence_arrange | dictation | speaking_prompt | matching | translation
+  prompt: string;
+  audioRef: string | null;
+  choices: string[] | null;
+  correctAnswer: unknown;  // JSON scalar from BFF
+  explanation: string | null;
+  skill: string | null;
+  maxScore: number;
+  language: string;
+}
+
+export interface LessonContent {
+  lessonId: string;
+  title: string;
+  language: string;
+  estimatedMinutes: number;
+  exercises: Exercise[];
+}
+
+export interface SubmitAnswerResult {
+  correct: boolean;
+  score: number;
+  maxScore: number;
+  xpDelta: number;
+  explanation: string | null;
+}
+
 export interface WeeklyProgress {
   date: string;
   xp: number;
@@ -249,4 +278,25 @@ export interface CheckoutStatus {
 export interface CheckoutSessionResult {
   sessionId:   string
   checkoutUrl: string
+}
+
+export interface SkillScore {
+  skill:     string
+  score:     number
+  ciLow:     number | null
+  ciHigh:    number | null
+  updatedAt: string | null
+}
+
+export interface SkillOverview {
+  language: string
+  skills:   SkillScore[]
+}
+
+export interface CertPrediction {
+  certCode:       string
+  predictedScore: number
+  predictedBand:  string | null
+  modelVersion:   string
+  computedAt:     string
 }

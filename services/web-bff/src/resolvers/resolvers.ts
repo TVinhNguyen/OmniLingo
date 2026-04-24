@@ -77,6 +77,19 @@ export const resolvers = {
       return ctx.dataSources.learning.getLessons(unitId);
     },
 
+    lessonContent: async (
+      _: unknown,
+      { lessonId, language }: { lessonId: string; language?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      const content = await ctx.dataSources.content.getLessonContent(lessonId, language ?? "en");
+      if (!content) {
+        throw Object.assign(new Error(`Lesson ${lessonId} not found`), { extensions: { code: "NOT_FOUND" } });
+      }
+      return content;
+    },
+
     myDecks: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.vocabulary.getMyDecks();
@@ -108,6 +121,24 @@ export const resolvers = {
       return ctx.dataSources.progress.getWeekly(days ?? 7);
     },
 
+    skillScores: async (
+      _: unknown,
+      { language }: { language: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.progress.getSkillOverview(language);
+    },
+
+    certPredict: async (
+      _: unknown,
+      { cert }: { cert: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.progress.getPredictedScore(cert);
+    },
+
     conversations: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.aiTutor.listConversations();
@@ -126,6 +157,12 @@ export const resolvers = {
     srsStats: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.srs.getStats();
+    },
+
+    srsDueCount: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      const stats = await ctx.dataSources.srs.getStats();
+      return stats.dueToday;
     },
 
     myStreak: async (_: unknown, __: unknown, ctx: BffContext) => {
@@ -301,6 +338,33 @@ export const resolvers = {
     ) => {
       requireAuth(ctx);
       return ctx.dataSources.learning.completeLesson(lessonId, xpEarned);
+    },
+
+    submitAnswer: async (
+      _: unknown,
+      args: {
+        lessonId:      string;
+        exerciseId:    string;
+        exerciseKind:  string;
+        answer:        unknown;
+        correctAnswer: unknown;
+        maxScore:      number;
+        skillTag:      string;
+        language:      string;
+      },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      void args.lessonId; // reserved for future session-scoped grading
+      return ctx.dataSources.assessment.submitExercise({
+        exerciseId:    args.exerciseId,
+        exerciseKind:  args.exerciseKind,
+        answer:        args.answer,
+        correctAnswer: args.correctAnswer,
+        maxScore:      args.maxScore,
+        skillTag:      args.skillTag,
+        language:      args.language,
+      });
     },
 
     enrollTrack: async (

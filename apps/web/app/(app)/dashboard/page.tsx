@@ -15,7 +15,7 @@ import { SkillRadar } from "@/components/app/skill-radar"
 import { StreakCalendar } from "@/components/app/streak-calendar"
 import { gql } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/auth/session"
-import { DASHBOARD_QUERY } from "@/lib/api/queries"
+import { DASHBOARD_QUERY, SRS_DUE_COUNT_QUERY } from "@/lib/api/queries"
 import type { DashboardData } from "@/lib/api/types"
 
 // Mock fallback when BFF is offline
@@ -30,13 +30,19 @@ const MOCK: DashboardData = {
 export default async function DashboardPage() {
   const token = await getAccessToken()
   let data: DashboardData = MOCK
+  let srsDueCount: number | null = null
   try {
-    const res = await gql<{ dashboard: DashboardData }>(DASHBOARD_QUERY, {}, token ?? undefined)
-    if (res?.dashboard) data = res.dashboard
+    const [dashRes, srsRes] = await Promise.allSettled([
+      gql<{ dashboard: DashboardData }>(DASHBOARD_QUERY, {}, token ?? undefined),
+      gql<{ srsDueCount: number }>(SRS_DUE_COUNT_QUERY, {}, token ?? undefined),
+    ])
+    if (dashRes.status === "fulfilled" && dashRes.value?.dashboard) data = dashRes.value.dashboard
+    if (srsRes.status === "fulfilled") srsDueCount = srsRes.value.srsDueCount
   } catch {}
 
   const { user, progress, myDecks } = data
-  const totalDue = myDecks.reduce((s, d) => s + (d.dueCount ?? 0), 0)
+  const deckDue = myDecks.reduce((s, d) => s + (d.dueCount ?? 0), 0)
+  const totalDue = srsDueCount ?? deckDue
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
