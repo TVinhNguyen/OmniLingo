@@ -297,9 +297,10 @@ export interface SubmitAnswerResultDTO {
 function mapExerciseKind(kind: string): string {
   switch (kind) {
     case "fill_in_blank": return "gap_fill";
-    case "speaking_prompt": return "speaking";
     case "sentence_arrange": return "gap_fill"; // order ≈ ordered slot fill
     case "translation": return "gap_fill";
+    // multiple_choice, matching, dictation, speaking_prompt, writing_prompt:
+    // content-service and assessment-service use the same constant, passthrough.
     default: return kind; // multiple_choice, dictation, matching pass through
   }
 }
