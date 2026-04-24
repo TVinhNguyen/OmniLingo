@@ -523,7 +523,6 @@ export const schema = /* GraphQL */ `
     """Update the current user's profile."""
     updateProfile(
       displayName:       String
-      bio:               String
       uiLanguage:        String
       timezone:          String
       avatarUrl:         String

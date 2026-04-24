@@ -109,13 +109,12 @@ export class IdentityDataSource {
   }
 
   async updateMe(patch: {
-    displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
+    displayName?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
     dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[];
   }): Promise<UserProfile> {
     // identity-service expects snake_case fields
     const body: Record<string, unknown> = {};
     if (patch.displayName !== undefined) body.display_name = patch.displayName;
-    if (patch.bio !== undefined) body.bio = patch.bio;
     if (patch.uiLanguage !== undefined) body.ui_language = patch.uiLanguage;
     if (patch.timezone !== undefined) body.timezone = patch.timezone;
     if (patch.avatarUrl !== undefined) body.avatar_url = patch.avatarUrl;

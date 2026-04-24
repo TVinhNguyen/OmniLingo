@@ -1,5 +1,13 @@
 -- T5 Activity Heatmap: daily aggregation table for user activity
 -- Used by GET /api/v1/progress/activity-heatmap?days=365
+--
+-- NOTE: This table is populated in real-time by HandleLessonCompleted (Kafka consumer).
+-- No historical backfill is performed here — progress-service has no direct access to
+-- learning-service's user_lesson_attempts table. Data starts accumulating from first
+-- lesson completed after this migration runs.
+
+-- +goose Up
+-- +goose StatementBegin
 
 CREATE TABLE IF NOT EXISTS user_activity_daily (
     user_id         UUID        NOT NULL,
@@ -14,18 +22,9 @@ CREATE TABLE IF NOT EXISTS user_activity_daily (
 CREATE INDEX IF NOT EXISTS idx_activity_user_date
     ON user_activity_daily (user_id, date DESC);
 
--- Backfill from existing lesson_completions if table exists
-INSERT INTO user_activity_daily (user_id, date, xp_earned, lessons_done, updated_at)
-SELECT
-    user_id,
-    DATE(completed_at),
-    COALESCE(SUM(xp_earned), 0),
-    COUNT(*),
-    NOW()
-FROM lesson_completions
-GROUP BY user_id, DATE(completed_at)
-ON CONFLICT (user_id, date)
-DO UPDATE
-    SET xp_earned    = EXCLUDED.xp_earned,
-        lessons_done  = EXCLUDED.lessons_done,
-        updated_at    = NOW();
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS user_activity_daily;
+-- +goose StatementEnd

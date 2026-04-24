@@ -140,7 +140,22 @@ func (s *progressService) HandleLessonCompleted(ctx context.Context, event *doma
 	if event.Language == "" || event.SkillEmphasis == "" { return nil }
 	userID, err := uuid.Parse(event.UserID)
 	if err != nil { return nil }
-	return s.updateSkillEMA(ctx, userID, event.Language, domain.Skill(event.SkillEmphasis), event.Score, event.EventID)
+
+	// Update skill EMA score
+	if err := s.updateSkillEMA(ctx, userID, event.Language, domain.Skill(event.SkillEmphasis), event.Score, event.EventID); err != nil {
+		return err
+	}
+
+	// C2 fix: Upsert today's activity aggregate so the heatmap stays current
+	minutes := event.TimeSpentSec / 60
+	if minutes < 1 && event.TimeSpentSec > 0 {
+		minutes = 1 // round up sub-minute sessions
+	}
+	if upsertErr := s.activityRepo.Upsert(ctx, userID, minutes, event.XPEarned, 1); upsertErr != nil {
+		// Non-fatal: log and continue — skill score update already succeeded
+		s.log.Warn("activityRepo.Upsert failed", zap.Error(upsertErr))
+	}
+	return nil
 }
 
 // updateSkillEMA applies Exponential Moving Average to skill score.

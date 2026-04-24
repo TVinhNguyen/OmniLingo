@@ -153,7 +153,6 @@ type UpdateMeRequest struct {
 	UILanguage        *string  `json:"ui_language,omitempty"`
 	Timezone          *string  `json:"timezone,omitempty"`
 	AvatarURL         *string  `json:"avatar_url,omitempty"`
-	Bio               *string  `json:"bio,omitempty"`
 	// Learning preferences
 	DailyGoalMinutes  *int     `json:"daily_goal_minutes,omitempty"`
 	ReminderTime      *string  `json:"reminder_time,omitempty"` // "HH:MM" 24h or null to disable

@@ -139,7 +139,6 @@ export const resolvers = {
       return ctx.dataSources.progress.getWeekly(days ?? 7);
     },
 
-<<<<<<< HEAD
     skillScores: async (
       _: unknown,
       { language }: { language: string },
@@ -156,7 +155,8 @@ export const resolvers = {
     ) => {
       requireAuth(ctx);
       return ctx.dataSources.progress.getPredictedScore(cert);
-=======
+    },
+
     activityHeatmap: async (_: unknown, { days }: { days?: number }, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.progress.getActivityHeatmap(days ?? 365);
@@ -164,8 +164,28 @@ export const resolvers = {
 
     todayMission: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
-      return ctx.dataSources.learning.getTodayMission();
->>>>>>> bb8d495 (feat(mvp1-backend): T2 identity prefs + T5 heatmap + T6 today-mission + T7/T8 leaderboard fix)
+
+      // C1 fix: Fan-out across 3 datasources in parallel then merge at BFF level.
+      // Learning service provides next-lesson stub; identity provides dailyGoalMinutes;
+      // SRS provides dueCardCount. None of those services can reach each other.
+      const [mission, me, srsStats, todayActivity] = await Promise.all([
+        ctx.dataSources.learning.getTodayMission(),
+        ctx.dataSources.identity.getMe(),
+        ctx.dataSources.srs.getStats(),
+        ctx.dataSources.progress.getActivityHeatmap(1), // just today
+      ]);
+
+      const dailyGoalMinutes = me.dailyGoalMinutes ?? 10;
+      const minutesToday     = todayActivity[0]?.minutes ?? 0;
+      const minutesToGoal    = Math.max(0, dailyGoalMinutes - minutesToday);
+
+      return {
+        lessonId:      mission.lessonId,
+        lessonTitle:   mission.lessonTitle,
+        minutesToGoal,
+        xpReward:      mission.xpReward,   // 50 XP default from learning svc
+        dueCardCount:  srsStats.dueToday,
+      };
     },
 
     conversations: async (_: unknown, __: unknown, ctx: BffContext) => {
@@ -345,7 +365,7 @@ export const resolvers = {
     updateProfile: async (
       _: unknown,
       args: {
-        displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
+        displayName?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
         dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[];
       },
       ctx: BffContext,
