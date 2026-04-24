@@ -15,11 +15,11 @@
 | 03 — Dashboard & Learn | [03-learn-lesson.md](./flows/03-learn-lesson.md) | 100% | 85% (dashboard + myTracks + startLesson + completeLesson + myStreak + enrollTrack + **lessonContent** + **submitAnswer** + **srsDueCount**) | **85%** |
 | 04 — Vocabulary & SRS | [04-vocabulary-srs.md](./flows/04-vocabulary-srs.md) | 100% | 90% (+ learn mode RSC wired) | **90%** |
 | 05 — AI Tutor | [05-ai-tutor.md](./flows/05-ai-tutor.md) | 100% | 95% (+ conversation detail RSC wired) | **95%** |
-| 06 — Progress & Gamification | [06-progress-gamification.md](./flows/06-progress-gamification.md) | 100% | 85% (myProgress + weekly + myStreak + profile + achievements RSC + leaderboard RSC) | **85%** |
+| 06 — Progress & Gamification | [06-progress-gamification.md](./flows/06-progress-gamification.md) | 100% | 95% (myProgress + weekly + myStreak + profile + achievements RSC + leaderboard RSC + **skillScores** + **certPredict**) | **95%** |
 | 07 — Billing & Payment | [07-billing-payment.md](./flows/07-billing-payment.md) | 100% | 70% (BFF schema+resolvers+datasource ✅, checkout wired, settings/billing RSC, success page polls real status) | **70%** |
 | 08 — Notifications | [08-notifications.md](./flows/08-notifications.md) | 100% | 80% (BFF schema+resolvers+datasource ✅, /notifications RSC+client ✅, /settings/notifications wired ✅) | **80%** |
 
-**Tổng progress MVP1 wire-up**: ~**91%** (auth 100% + vocab 90% + AI tutor 95% + gamification 85% + billing 70% + notifications 80% + lesson 85% + streak + profile + settings).
+**Tổng progress MVP1 wire-up**: ~**92%** (auth 100% + vocab 90% + AI tutor 95% + gamification 95% + billing 70% + notifications 80% + lesson 85% + streak + profile + settings).
 
 ---
 
