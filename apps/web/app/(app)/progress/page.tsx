@@ -38,6 +38,8 @@ export default async function ProgressPage() {
       gql<{ myProgress: ProgressSummary }>(MY_PROGRESS_QUERY, {}, token ?? undefined),
       gql<{ weeklyProgress: WeeklyProgress[] }>(WEEKLY_PROGRESS_QUERY, { days: 7 }, token ?? undefined),
       gql<{ myStreak: UserStreak }>(MY_STREAK_QUERY, {}, token ?? undefined),
+      // TODO: read language + cert from user preferences (me.uiLanguage / onboardingState.certGoal).
+      // Hardcoded "en"/"ielts" skews the radar and prediction for learners of other languages.
       gql<{ skillScores: SkillOverview }>(SKILL_SCORES_QUERY, { language: "en" }, token ?? undefined),
       gql<{ certPredict: CertPrediction }>(CERT_PREDICT_QUERY, { cert: "ielts" }, token ?? undefined),
     ])
