@@ -148,9 +148,11 @@ export default function SubscriptionClient({
                   </Badge>
                 )}
               </div>
-              <h2 className="mt-3 text-3xl font-bold">
-                199.000đ<span className="text-lg font-normal text-muted-foreground">/tháng</span>
-              </h2>
+              {!subscription && (
+                <h2 className="mt-3 text-3xl font-bold">
+                  Miễn phí
+                </h2>
+              )}
               <p className="mt-1 text-sm text-muted-foreground">
                 {subscription
                   ? willCancel
