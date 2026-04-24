@@ -162,6 +162,33 @@ export const WEEKLY_PROGRESS_QUERY = /* GraphQL */ `
   }
 `;
 
+export const SKILL_SCORES_QUERY = /* GraphQL */ `
+  query SkillScores($language: String!) {
+    skillScores(language: $language) {
+      language
+      skills {
+        skill
+        score
+        ciLow
+        ciHigh
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const CERT_PREDICT_QUERY = /* GraphQL */ `
+  query CertPredict($cert: String!) {
+    certPredict(cert: $cert) {
+      certCode
+      predictedScore
+      predictedBand
+      modelVersion
+      computedAt
+    }
+  }
+`;
+
 export const SEARCH_WORDS_QUERY = /* GraphQL */ `
   query SearchWords($query: String!, $language: String, $pageSize: Int) {
     searchWords(query: $query, language: $language, pageSize: $pageSize) {

@@ -9,7 +9,13 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-const data = [
+interface SkillDatum {
+  skill:    string
+  value:    number
+  fullMark: number
+}
+
+const MOCK: SkillDatum[] = [
   { skill: "Listen", value: 78, fullMark: 100 },
   { skill: "Read", value: 85, fullMark: 100 },
   { skill: "Speak", value: 62, fullMark: 100 },
@@ -18,11 +24,12 @@ const data = [
   { skill: "Grammar", value: 75, fullMark: 100 },
 ]
 
-export function SkillRadar() {
+export function SkillRadar({ data }: { data?: SkillDatum[] }) {
+  const chartData = data && data.length > 0 ? data : MOCK
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <RadarChart data={data} outerRadius="75%">
+        <RadarChart data={chartData} outerRadius="75%">
           <PolarGrid
             stroke="rgba(158, 174, 199, 0.3)"
             strokeDasharray="3 3"

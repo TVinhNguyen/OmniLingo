@@ -15,11 +15,11 @@
 | 03 — Dashboard & Learn | [03-learn-lesson.md](./flows/03-learn-lesson.md) | 100% | 85% (dashboard + myTracks + startLesson + completeLesson + myStreak + enrollTrack + **lessonContent** + **submitAnswer** + **srsDueCount**) | **85%** |
 | 04 — Vocabulary & SRS | [04-vocabulary-srs.md](./flows/04-vocabulary-srs.md) | 100% | 90% (+ learn mode RSC wired) | **90%** |
 | 05 — AI Tutor | [05-ai-tutor.md](./flows/05-ai-tutor.md) | 100% | 95% (+ conversation detail RSC wired) | **95%** |
-| 06 — Progress & Gamification | [06-progress-gamification.md](./flows/06-progress-gamification.md) | 100% | 85% (myProgress + weekly + myStreak + profile + achievements RSC + leaderboard RSC) | **85%** |
+| 06 — Progress & Gamification | [06-progress-gamification.md](./flows/06-progress-gamification.md) | 100% | 95% (myProgress + weekly + myStreak + profile + achievements RSC + leaderboard RSC + **skillScores** + **certPredict**) | **95%** |
 | 07 — Billing & Payment | [07-billing-payment.md](./flows/07-billing-payment.md) | 100% | 85% (BFF schema+resolvers+datasource ✅, checkout wired, settings/billing RSC, settings/subscription RSC + cancel/reactivate, /pricing RSC, success page polls real status) | **85%** |
-| 08 — Notifications | [08-notifications.md](./flows/08-notifications.md) | 100% | 80% (BFF schema+resolvers+datasource ✅, /notifications RSC+client ✅, /settings/notifications wired ✅) | **80%** |
+| 08 — Notifications | [08-notifications.md](./flows/08-notifications.md) | 100% | 90% (BFF schema+resolvers+datasource ✅, /notifications RSC+client ✅, /settings/notifications wired ✅, topbar bell polls unreadCount every 30s ✅) | **90%** |
 
-**Tổng progress MVP1 wire-up**: ~**92%** (auth 100% + vocab 90% + AI tutor 95% + gamification 85% + billing 85% + notifications 80% + lesson 85% + streak + profile + settings).
+**Tổng progress MVP1 wire-up**: ~**94%** (auth 100% + vocab 90% + AI tutor 95% + gamification 95% + billing 85% + notifications 90% + lesson 85% + streak + profile + settings).
 
 ---
 
@@ -167,12 +167,12 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | Subscription sub-page | ✅ (`/settings/subscription`) | ✅ | RSC loads `mySubscription` + `billingHistory`, cancel/reactivate wired (PR-D) |
 | BFF schema + resolvers | — | ✅ | pricingPlans, mySubscription, billingHistory, checkoutStatus, createCheckoutSession, cancelSubscription, reactivateSubscription (2026-04-23) |
 
-### 3.8. Flow 08 — Notifications (80%)
+### 3.8. Flow 08 — Notifications (90%)
 
 | Sub-flow | UI | Wire | Ghi chú |
 |----------|----|------|---------|
 | `/notifications` page | ✅ | ✅ | RSC + client, mark-read/mark-all-read actions (2026-04-23) |
-| Bell dropdown | ✅ (topbar) | 🔴 | Cần wire `unreadNotificationCount` poll mỗi 30s |
+| Bell dropdown | ✅ (topbar) | ✅ | `AppTopbar` polls `unreadNotificationCount` via server action every 30s, renders numeric badge (PR-E) |
 | `/settings/notifications` | ✅ | ✅ | `updateNotificationPrefs` server action wired (2026-04-23) |
 | Push token register | — | 🔴 | |
 | BFF schema + resolvers | — | ✅ | notifications, unreadNotificationCount, markNotificationsRead, markAllNotificationsRead, updateNotificationPrefs (2026-04-23) |
@@ -234,7 +234,7 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 - `/pricing` public page (cần thêm route trong `(public)` group).
 - `/settings/subscription` cancel/reactivate UI.
 - `/shop` gems/powerups.
-- Bell dropdown `unreadNotificationCount` poll mỗi 30s trong topbar.
+- ~~Bell dropdown `unreadNotificationCount` poll mỗi 30s trong topbar.~~ (✅ done in PR-E)
 
 **Settings sub-pages**:
 - `/settings/learning` — daily goal + reminder.

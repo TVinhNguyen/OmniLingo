@@ -28,6 +28,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { FlagIcon, flagMap, type LangCode } from "@/components/flag-icon"
 import { AppMobileMenu } from "./app-mobile-menu"
+import { getUnreadNotificationCountAction } from "@/app/(app)/notifications/actions"
+
+const UNREAD_POLL_INTERVAL_MS = 30_000
 
 export function AppTopbar() {
   const router = useRouter()
@@ -36,12 +39,27 @@ export function AppTopbar() {
   const [lang, setLang] = useState<LangCode>("ja")
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     setMounted(true)
     const isDarkMode = localStorage.getItem("theme") === "dark" || 
       (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
     setIsDark(isDarkMode)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const tick = async () => {
+      const n = await getUnreadNotificationCountAction()
+      if (!cancelled) setUnreadCount(n)
+    }
+    tick()
+    const id = window.setInterval(tick, UNREAD_POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
   }, [])
 
   function search() {
@@ -100,9 +118,20 @@ export function AppTopbar() {
             size="icon"
             className="relative rounded-full bg-surface-lowest shadow-ambient"
           >
-            <Link href="/notifications" aria-label="Thông báo">
+            <Link
+              href="/notifications"
+              aria-label={
+                unreadCount > 0
+                  ? `Thông báo (${unreadCount} chưa đọc)`
+                  : "Thông báo"
+              }
+            >
               <Bell className="h-4 w-4" />
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Link>
           </Button>
 

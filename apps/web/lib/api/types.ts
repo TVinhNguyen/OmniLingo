@@ -279,3 +279,24 @@ export interface CheckoutSessionResult {
   sessionId:   string
   checkoutUrl: string
 }
+
+export interface SkillScore {
+  skill:     string
+  score:     number
+  ciLow:     number | null
+  ciHigh:    number | null
+  updatedAt: string | null
+}
+
+export interface SkillOverview {
+  language: string
+  skills:   SkillScore[]
+}
+
+export interface CertPrediction {
+  certCode:       string
+  predictedScore: number
+  predictedBand:  string | null
+  modelVersion:   string
+  computedAt:     string
+}

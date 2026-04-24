@@ -19,18 +19,44 @@ import {
   Bar,
 } from "recharts"
 import { SkillRadar } from "@/components/app/skill-radar"
-import type { ProgressSummary, WeeklyProgress } from "@/lib/api/types"
+import type {
+  ProgressSummary,
+  WeeklyProgress,
+  SkillOverview,
+  CertPrediction,
+} from "@/lib/api/types"
+
+const SKILL_LABELS: Record<string, string> = {
+  listening: "Listen",
+  reading:   "Read",
+  speaking:  "Speak",
+  writing:   "Write",
+  vocab:     "Vocab",
+  grammar:   "Grammar",
+}
 
 export function ProgressClient({
   progress,
   weekly,
+  skillOverview,
+  certPrediction,
 }: {
-  progress: ProgressSummary
-  weekly: WeeklyProgress[]
+  progress:       ProgressSummary
+  weekly:         WeeklyProgress[]
+  skillOverview?: SkillOverview | null
+  certPrediction?: CertPrediction | null
 }) {
   // Map weekly data: ensure 'day' key used by chart
   const chartData = weekly.map((w) => ({ ...w, day: w.date }))
   const totalWeekXp = weekly.reduce((s, w) => s + w.xp, 0)
+
+  const radarData = skillOverview?.skills.length
+    ? skillOverview.skills.map((s) => ({
+        skill:    SKILL_LABELS[s.skill] ?? s.skill,
+        value:    Math.round(s.score),
+        fullMark: 100,
+      }))
+    : undefined
 
   const stats = [
     { icon: Flame, label: "Current streak", value: `${progress.streak}`, sub: "days", color: "text-destructive" },
@@ -113,11 +139,43 @@ export function ProgressClient({
         <Card className="border-border/60 bg-card/80 p-6">
           <div className="mb-4">
             <h2 className="font-serif text-xl font-semibold">Skill balance</h2>
-            <p className="text-sm text-muted-foreground">Your strengths across 6 core skills.</p>
+            <p className="text-sm text-muted-foreground">
+              {radarData
+                ? "Điểm kỹ năng thực tế từ tiến trình học."
+                : "Your strengths across 6 core skills."}
+            </p>
           </div>
-          <SkillRadar />
+          <SkillRadar data={radarData} />
         </Card>
       </div>
+
+      {certPrediction && (
+        <div className="mb-8">
+          <Card className="border-border/60 bg-card/80 p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-serif text-xl font-semibold">
+                  Dự đoán điểm {certPrediction.certCode.toUpperCase()}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Dựa trên tiến độ hiện tại. Mô hình: {certPrediction.modelVersion}.
+                </p>
+              </div>
+              <Target className="size-5 text-primary" />
+            </div>
+            <div className="flex items-end gap-4">
+              <div className="font-serif text-5xl font-bold text-foreground">
+                {certPrediction.predictedScore.toFixed(1)}
+              </div>
+              {certPrediction.predictedBand && (
+                <Badge variant="secondary" className="mb-2 rounded-full">
+                  Band {certPrediction.predictedBand}
+                </Badge>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Minutes per day + achievements */}
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
