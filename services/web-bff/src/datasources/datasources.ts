@@ -176,6 +176,178 @@ export class LearningDataSource {
   }
 }
 
+// ─── Content DataSource ────────────────────────────────────────────────────────
+
+/** Shape returned by GQL; mirrors a subset of content-service Exercise model. */
+export interface ExerciseDTO {
+  id:            string;
+  kind:          string;
+  prompt:        string;
+  audioRef?:     string;
+  choices?:      string[];
+  correctAnswer: unknown;
+  explanation?:  string;
+  skill?:        string;
+  maxScore:      number;
+  language:      string;
+}
+
+export interface LessonContentDTO {
+  lessonId:         string;
+  title:            string;
+  language:         string;
+  estimatedMinutes: number;
+  exercises:        ExerciseDTO[];
+}
+
+/**
+ * content-service persists lessons as ordered `blocks[]` where exercise blocks
+ * reference external exerciseId. This class fetches the lesson + its
+ * referenced exercises in two calls and flattens them into a single DTO.
+ */
+export class ContentDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.content, token };
+  }
+
+  /** GET /api/v1/content/lessons/:id — returns { lesson: {...} } */
+  async getLesson(lessonId: string): Promise<Record<string, unknown> | null> {
+    const raw = await call<{ lesson?: Record<string, unknown> }>(
+      this.ds, `/api/v1/content/lessons/${lessonId}`,
+    ).catch(() => ({ lesson: undefined }));
+    return raw.lesson ?? null;
+  }
+
+  /** GET /api/v1/content/exercises?ids=a,b,c — returns { exercises: [...] } */
+  async getExercisesBatch(ids: string[]): Promise<Array<Record<string, unknown>>> {
+    if (ids.length === 0) return [];
+    const raw = await call<{ exercises?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/content/exercises?ids=${ids.map(encodeURIComponent).join(",")}`,
+    ).catch(() => ({ exercises: [] }));
+    return raw.exercises ?? [];
+  }
+
+  /**
+   * Fetch full lesson content, resolving exercise blocks into inlined
+   * Exercise records. Locale is picked from `language` (defaults to "en")
+   * for any `Record<string, string>` fields (title / prompt / explanation).
+   */
+  async getLessonContent(lessonId: string, language = "en"): Promise<LessonContentDTO | null> {
+    const lesson = await this.getLesson(lessonId);
+    if (!lesson) return null;
+
+    const pickLocale = (v: unknown): string => {
+      if (typeof v === "string") return v;
+      if (v && typeof v === "object") {
+        const m = v as Record<string, string>;
+        return m[language] ?? m["en"] ?? Object.values(m)[0] ?? "";
+      }
+      return "";
+    };
+
+    const blocks = (lesson.blocks ?? []) as Array<Record<string, unknown>>;
+    const exerciseIds = blocks
+      .filter((b) => b.type === "exercise" && typeof b.exerciseId === "string")
+      .map((b) => b.exerciseId as string);
+
+    const exRows = await this.getExercisesBatch(exerciseIds);
+    const exMap = new Map(exRows.map((e) => [String(e.id ?? ""), e] as const));
+
+    const exercises: ExerciseDTO[] = [];
+    for (const id of exerciseIds) {
+      const e = exMap.get(id);
+      if (!e) continue;
+      const prompt = e.prompt as Record<string, unknown> | undefined;
+      exercises.push({
+        id,
+        kind:          String(e.type ?? ""),
+        prompt:        pickLocale(prompt?.text),
+        audioRef:      prompt?.audioRef as string | undefined,
+        choices:       Array.isArray(e.choices) ? (e.choices as string[]) : undefined,
+        correctAnswer: e.answer ?? e.referenceText ?? e.pairs ?? null,
+        explanation:   pickLocale(e.explanation) || undefined,
+        skill:         e.skill as string | undefined,
+        maxScore:      1.0,
+        language:      String(e.language ?? language),
+      });
+    }
+
+    return {
+      lessonId,
+      title:            pickLocale(lesson.title),
+      language:         String(lesson.language ?? language),
+      estimatedMinutes: Number(lesson.estimatedMinutes ?? 10),
+      exercises,
+    };
+  }
+}
+
+// ─── Assessment DataSource ─────────────────────────────────────────────────────
+
+export interface SubmitAnswerResultDTO {
+  correct:     boolean;
+  score:       number;
+  maxScore:    number;
+  xpDelta:     number;
+  explanation: string | null;
+}
+
+/** Maps content-service exercise kinds to assessment-service types. */
+function mapExerciseKind(kind: string): string {
+  switch (kind) {
+    case "fill_in_blank": return "gap_fill";
+    case "sentence_arrange": return "gap_fill"; // order ≈ ordered slot fill
+    case "translation": return "gap_fill";
+    // multiple_choice, matching, dictation, speaking_prompt, writing_prompt:
+    // content-service and assessment-service use the same constant, passthrough.
+    default: return kind; // multiple_choice, dictation, matching pass through
+  }
+}
+
+export class AssessmentDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.assessment, token };
+  }
+
+  /** POST /api/v1/assessments/exercises/:id/submit */
+  async submitExercise(args: {
+    exerciseId:    string;
+    exerciseKind:  string;
+    answer:        unknown;
+    correctAnswer: unknown;
+    maxScore:      number;
+    skillTag:      string;
+    language:      string;
+  }): Promise<SubmitAnswerResultDTO> {
+    const body = {
+      exercise_type:  mapExerciseKind(args.exerciseKind),
+      answer:         args.answer,
+      correct_answer: args.correctAnswer,
+      max_score:      args.maxScore,
+      skill_tag:      args.skillTag,
+      language:       args.language,
+    };
+    type Raw = { submission?: { result?: { correct?: boolean; score?: number; max_score?: number; explanation?: string } } };
+    const raw = await call<Raw>(
+      this.ds, `/api/v1/assessments/exercises/${encodeURIComponent(args.exerciseId)}/submit`,
+      { method: "POST", body },
+    ).catch((): Raw => ({ submission: { result: { correct: false, score: 0, max_score: args.maxScore } } }));
+    const r = raw.submission?.result ?? {};
+    const correct = Boolean(r.correct);
+    const score   = Number(r.score ?? 0);
+    // Simple XP formula: 12 XP on correct, 0 otherwise (matches existing FE)
+    return {
+      correct,
+      score,
+      maxScore:    Number(r.max_score ?? args.maxScore),
+      xpDelta:     correct ? 12 : 0,
+      explanation: (r.explanation as string | undefined) ?? null,
+    };
+  }
+}
+
 export class VocabularyDataSource {
   private ds: DS;
 
@@ -753,12 +925,14 @@ export class BillingDataSource {
 export interface DataSources {
   identity:      IdentityDataSource;
   learning:      LearningDataSource;
+  content:       ContentDataSource;
   vocabulary:    VocabularyDataSource;
   entitlement:   EntitlementDataSource;
   gamification:  GamificationDataSource;
   progress:      ProgressDataSource;
   aiTutor:       AiTutorDataSource;
   srs:           SrsDataSource;
+  assessment:    AssessmentDataSource;
   notification:  NotificationDataSource;
   billing:       BillingDataSource;
 }
@@ -768,12 +942,14 @@ export function buildDataSources(cfg: Config, token?: string): DataSources {
   return {
     identity:     new IdentityDataSource(cfg, token),
     learning:     new LearningDataSource(cfg, token),
+    content:      new ContentDataSource(cfg, token),
     vocabulary:   new VocabularyDataSource(cfg, token),
     entitlement:  new EntitlementDataSource(cfg, token),
     gamification: new GamificationDataSource(cfg, token),
     progress:     new ProgressDataSource(cfg, token),
     aiTutor:      new AiTutorDataSource(cfg, token),
     srs:          new SrsDataSource(cfg, token),
+    assessment:   new AssessmentDataSource(cfg, token),
     notification: new NotificationDataSource(cfg, token),
     billing:      new BillingDataSource(cfg, token),
   };

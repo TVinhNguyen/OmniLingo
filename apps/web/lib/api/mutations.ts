@@ -11,6 +11,36 @@ export const START_LESSON_MUTATION = /* GraphQL */ `
   }
 `;
 
+export const SUBMIT_ANSWER_MUTATION = /* GraphQL */ `
+  mutation SubmitAnswer(
+    $lessonId: ID!
+    $exerciseId: ID!
+    $exerciseKind: String!
+    $answer: JSON!
+    $correctAnswer: JSON
+    $maxScore: Float!
+    $skillTag: String!
+    $language: String!
+  ) {
+    submitAnswer(
+      lessonId: $lessonId
+      exerciseId: $exerciseId
+      exerciseKind: $exerciseKind
+      answer: $answer
+      correctAnswer: $correctAnswer
+      maxScore: $maxScore
+      skillTag: $skillTag
+      language: $language
+    ) {
+      correct
+      score
+      maxScore
+      xpDelta
+      explanation
+    }
+  }
+`;
+
 export const CREATE_DECK_MUTATION = /* GraphQL */ `
   mutation CreateDeck($name: String!, $language: String!) {
     createDeck(name: $name, language: $language) {

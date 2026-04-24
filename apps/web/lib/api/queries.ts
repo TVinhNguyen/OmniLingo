@@ -82,6 +82,29 @@ export const LESSONS_QUERY = /* GraphQL */ `
   }
 `;
 
+export const LESSON_CONTENT_QUERY = /* GraphQL */ `
+  query LessonContent($lessonId: ID!, $language: String) {
+    lessonContent(lessonId: $lessonId, language: $language) {
+      lessonId
+      title
+      language
+      estimatedMinutes
+      exercises {
+        id
+        kind
+        prompt
+        audioRef
+        choices
+        correctAnswer
+        explanation
+        skill
+        maxScore
+        language
+      }
+    }
+  }
+`;
+
 export const MY_DECKS_QUERY = /* GraphQL */ `
   query MyDecks {
     myDecks {
@@ -243,6 +266,12 @@ export const SRS_STATS_QUERY = /* GraphQL */ `
       dueToday
       matureCount
     }
+  }
+`;
+
+export const SRS_DUE_COUNT_QUERY = /* GraphQL */ `
+  query SrsDueCount {
+    srsDueCount
   }
 `;
 

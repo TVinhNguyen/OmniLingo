@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "motion/react"
 import { X, Heart, Check, Volume2, Mic, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { completeLessonAction } from "./actions"
+import { completeLessonAction, submitAnswerAction } from "./actions"
+import type { Exercise, LessonContent } from "@/lib/api/types"
 
 type Activity =
   | {
@@ -43,7 +44,7 @@ type Activity =
       reading: string
     }
 
-const activities: Activity[] = [
+const mockActivities: Activity[] = [
   {
     kind: "mcq",
     prompt: "Dịch câu sau sang tiếng Anh",
@@ -82,12 +83,67 @@ const activities: Activity[] = [
   },
 ]
 
+/**
+ * Map a BFF Exercise to the local Activity shape. Returns null for kinds the
+ * player cannot render (matching is not supported by any sub-component yet).
+ */
+function exerciseToActivity(e: Exercise): Activity | null {
+  switch (e.kind) {
+    case "multiple_choice": {
+      if (!e.choices || e.choices.length === 0) return null
+      const answerIdx = Number(e.correctAnswer ?? 0)
+      return {
+        kind: "mcq",
+        prompt: e.prompt,
+        options: e.choices,
+        answer: Number.isFinite(answerIdx) ? answerIdx : 0,
+      }
+    }
+    case "fill_in_blank":
+    case "translation":
+      return {
+        kind: "typing",
+        prompt: e.prompt,
+        hint: e.prompt,
+        answer: String(e.correctAnswer ?? ""),
+      }
+    case "sentence_arrange": {
+      const answer = Array.isArray(e.correctAnswer) ? (e.correctAnswer as string[]) : []
+      if (answer.length === 0) return null
+      return {
+        kind: "order",
+        prompt: e.prompt,
+        words: [...answer].sort(() => Math.random() - 0.5),
+        answer,
+      }
+    }
+    case "dictation":
+      return {
+        kind: "listen",
+        prompt: e.prompt,
+        audio: e.audioRef ?? "",
+        answer: String(e.correctAnswer ?? ""),
+      }
+    case "speaking_prompt":
+      return {
+        kind: "speak",
+        prompt: "Đọc to câu sau",
+        target: String(e.correctAnswer ?? e.prompt),
+        reading: e.prompt,
+      }
+    default:
+      return null
+  }
+}
+
 export default function LessonClient({
   sessionId,
   lessonId,
+  content,
 }: {
   sessionId: string
   lessonId:  string
+  content?:  LessonContent | null
 }) {
   void sessionId
   const router = useRouter()
@@ -97,6 +153,29 @@ export default function LessonClient({
   const [result, setResult] = useState<"idle" | "correct" | "wrong">("idle")
   const [, startTransition] = useTransition()
 
+  /**
+   * When real lesson content is available, map each exercise to an Activity
+   * and keep a parallel Exercise[] for server-side grading dispatch. Falls
+   * back to hardcoded mock activities when content is unavailable.
+   */
+  const { activities, realExercises } = useMemo(() => {
+    if (content && content.exercises.length > 0) {
+      const pairs = content.exercises
+        .map((e) => {
+          const a = exerciseToActivity(e)
+          return a ? { activity: a, exercise: e } : null
+        })
+        .filter((p): p is { activity: Activity; exercise: Exercise } => p !== null)
+      if (pairs.length > 0) {
+        return {
+          activities: pairs.map((p) => p.activity),
+          realExercises: pairs.map((p) => p.exercise),
+        }
+      }
+    }
+    return { activities: mockActivities, realExercises: null as Exercise[] | null }
+  }, [content])
+
   if (step >= activities.length) {
     return <LessonComplete xp={xp} />
   }
@@ -104,10 +183,27 @@ export default function LessonClient({
   const activity = activities[step]
   const progress = (step / activities.length) * 100
 
-  const handleCheck = (isCorrect: boolean) => {
+  const handleCheck = (isCorrect: boolean, userAnswer?: unknown) => {
     setResult(isCorrect ? "correct" : "wrong")
     if (isCorrect) setXp((x) => x + 12)
     else setHearts((h) => Math.max(0, h - 1))
+
+    const ex = realExercises?.[step]
+    if (ex && userAnswer !== undefined) {
+      // Fire-and-forget: record attempt in assessment-service
+      startTransition(async () => {
+        await submitAnswerAction({
+          lessonId,
+          exerciseId:    ex.id,
+          exerciseKind:  ex.kind,
+          answer:        userAnswer,
+          correctAnswer: ex.correctAnswer,
+          maxScore:      ex.maxScore,
+          skillTag:      ex.skill ?? "general",
+          language:      ex.language,
+        })
+      })
+    }
   }
 
   const handleContinue = () => {
@@ -259,7 +355,7 @@ function MCQActivity({
   onCheck,
 }: {
   activity: Extract<Activity, { kind: "mcq" }>
-  onCheck: (correct: boolean) => void
+  onCheck: (correct: boolean, userAnswer: unknown) => void
 }) {
   const [selected, setSelected] = useState<number | null>(null)
 
@@ -309,7 +405,7 @@ function MCQActivity({
       <Button
         size="lg"
         disabled={selected === null}
-        onClick={() => onCheck(selected === activity.answer)}
+        onClick={() => onCheck(selected === activity.answer, selected)}
         className="mt-8 w-full rounded-full bg-gradient-primary text-primary-foreground shadow-ambient disabled:opacity-40"
       >
         Kiểm tra
@@ -323,7 +419,7 @@ function TypingActivity({
   onCheck,
 }: {
   activity: Extract<Activity, { kind: "typing" }>
-  onCheck: (correct: boolean) => void
+  onCheck: (correct: boolean, userAnswer: unknown) => void
 }) {
   const [value, setValue] = useState("")
 
@@ -339,7 +435,7 @@ function TypingActivity({
       <Button
         size="lg"
         disabled={!value}
-        onClick={() => onCheck(value.trim() === activity.answer)}
+        onClick={() => onCheck(value.trim() === activity.answer, value.trim())}
         className="mt-8 w-full rounded-full bg-gradient-primary text-primary-foreground shadow-ambient"
       >
         Kiểm tra
@@ -353,7 +449,7 @@ function OrderActivity({
   onCheck,
 }: {
   activity: Extract<Activity, { kind: "order" }>
-  onCheck: (correct: boolean) => void
+  onCheck: (correct: boolean, userAnswer: unknown) => void
 }) {
   const [selected, setSelected] = useState<string[]>([])
   const remaining = activity.words.filter(
@@ -390,7 +486,7 @@ function OrderActivity({
         size="lg"
         disabled={selected.length !== activity.answer.length}
         onClick={() =>
-          onCheck(selected.join("") === activity.answer.join(""))
+          onCheck(selected.join("") === activity.answer.join(""), selected)
         }
         className="mt-8 w-full rounded-full bg-gradient-primary text-primary-foreground shadow-ambient"
       >
@@ -405,7 +501,7 @@ function ListenActivity({
   onCheck,
 }: {
   activity: Extract<Activity, { kind: "listen" }>
-  onCheck: (correct: boolean) => void
+  onCheck: (correct: boolean, userAnswer: unknown) => void
 }) {
   const [value, setValue] = useState("")
 
@@ -435,7 +531,7 @@ function ListenActivity({
       <Button
         size="lg"
         disabled={!value}
-        onClick={() => onCheck(value.trim() === activity.answer)}
+        onClick={() => onCheck(value.trim() === activity.answer, value.trim())}
         className="mt-6 w-full rounded-full bg-gradient-primary text-primary-foreground shadow-ambient"
       >
         Kiểm tra
@@ -449,7 +545,7 @@ function SpeakActivity({
   onCheck,
 }: {
   activity: Extract<Activity, { kind: "speak" }>
-  onCheck: (correct: boolean) => void
+  onCheck: (correct: boolean, userAnswer: unknown) => void
 }) {
   const [recording, setRecording] = useState(false)
 
@@ -469,7 +565,7 @@ function SpeakActivity({
           onMouseDown={() => setRecording(true)}
           onMouseUp={() => {
             setRecording(false)
-            setTimeout(() => onCheck(true), 600)
+            setTimeout(() => onCheck(true, activity.target), 600)
           }}
           className={cn(
             "relative flex h-24 w-24 items-center justify-center rounded-full text-white shadow-hover transition-all",
