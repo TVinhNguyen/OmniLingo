@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
 import {
   Crown,
   Check,
   Download,
-  CreditCard,
   AlertTriangle,
   Sparkles,
   Calendar,
@@ -19,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import {
   Table,
   TableBody,
@@ -66,11 +65,9 @@ export default function SubscriptionClient({
   subscription,
   invoices,
 }: SubscriptionClientProps) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
-
-  const used = 42
-  const limit = 100
 
   const handleCancel = () => {
     if (!confirm("Bạn chắc chắn muốn huỷ gia hạn? Gói tiếp tục hoạt động đến hết kỳ hiện tại.")) return
@@ -78,7 +75,7 @@ export default function SubscriptionClient({
       setError(null)
       const res = await cancelSubscriptionAction("user_requested")
       if (res && "error" in res && res.error) setError(res.error)
-      else window.location.reload()
+      else router.refresh()
     })
   }
 
@@ -87,7 +84,7 @@ export default function SubscriptionClient({
       setError(null)
       const res = await reactivateSubscriptionAction()
       if (res && "error" in res && res.error) setError(res.error)
-      else window.location.reload()
+      else router.refresh()
     })
   }
 
@@ -193,16 +190,6 @@ export default function SubscriptionClient({
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-xl bg-surface-low p-4">
-                <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">AI Tutor tháng này</span>
-                  <span className="font-medium">
-                    {used}/{limit}
-                  </span>
-                </div>
-                <Progress value={(used / limit) * 100} className="h-2" />
-                <p className="mt-2 text-xs text-muted-foreground">Reset vào ngày 15 hàng tháng</p>
-              </div>
               <div className="rounded-xl bg-surface-low p-4">
                 <div className="mb-2 flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -312,31 +299,7 @@ export default function SubscriptionClient({
           )}
         </Card>
 
-        {/* Payment method */}
         <div className="space-y-4">
-          <Card className="p-5 shadow-ambient">
-            <div className="mb-3 flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Phương thức thanh toán</h3>
-            </div>
-            <div className="rounded-xl border bg-gradient-to-br from-primary/10 to-accent/10 p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">VISA</span>
-                <Badge variant="outline" className="text-[10px]">
-                  Mặc định
-                </Badge>
-              </div>
-              <div className="mt-6 font-mono text-lg tracking-widest">•••• •••• •••• 4242</div>
-              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                <span>NGUYEN VAN A</span>
-                <span>12/27</span>
-              </div>
-            </div>
-            <Button variant="outline" className="mt-3 w-full bg-transparent">
-              Thêm phương thức
-            </Button>
-          </Card>
-
           <Card className="border-warning/30 bg-warning/5 p-5 shadow-ambient">
             <div className="flex gap-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />

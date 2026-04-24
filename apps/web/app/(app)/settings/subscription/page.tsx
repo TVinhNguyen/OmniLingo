@@ -16,16 +16,12 @@ export default async function SubscriptionPage() {
   let subscription: BillingSubscription | null = null
   let invoicePage: InvoicePage = { items: [], nextCursor: null }
 
-  try {
-    const [subRes, invRes] = await Promise.all([
-      gql<{ mySubscription: BillingSubscription | null }>(MY_SUBSCRIPTION_QUERY, {}, token),
-      gql<{ billingHistory: InvoicePage }>(BILLING_HISTORY_QUERY, { limit: 10 }, token),
-    ])
-    subscription = subRes?.mySubscription ?? null
-    invoicePage = invRes?.billingHistory ?? { items: [], nextCursor: null }
-  } catch {
-    // billing-service unavailable → client renders empty state
-  }
+  const [subRes, invRes] = await Promise.allSettled([
+    gql<{ mySubscription: BillingSubscription | null }>(MY_SUBSCRIPTION_QUERY, {}, token),
+    gql<{ billingHistory: InvoicePage }>(BILLING_HISTORY_QUERY, { limit: 10 }, token),
+  ])
+  if (subRes.status === "fulfilled") subscription = subRes.value?.mySubscription ?? null
+  if (invRes.status === "fulfilled" && invRes.value?.billingHistory) invoicePage = invRes.value.billingHistory
 
   return <SubscriptionClient subscription={subscription} invoices={invoicePage.items} />
 }
