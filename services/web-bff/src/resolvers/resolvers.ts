@@ -139,6 +139,7 @@ export const resolvers = {
       return ctx.dataSources.progress.getWeekly(days ?? 7);
     },
 
+<<<<<<< HEAD
     skillScores: async (
       _: unknown,
       { language }: { language: string },
@@ -155,6 +156,16 @@ export const resolvers = {
     ) => {
       requireAuth(ctx);
       return ctx.dataSources.progress.getPredictedScore(cert);
+=======
+    activityHeatmap: async (_: unknown, { days }: { days?: number }, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.progress.getActivityHeatmap(days ?? 365);
+    },
+
+    todayMission: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.getTodayMission();
+>>>>>>> bb8d495 (feat(mvp1-backend): T2 identity prefs + T5 heatmap + T6 today-mission + T7/T8 leaderboard fix)
     },
 
     conversations: async (_: unknown, __: unknown, ctx: BffContext) => {
@@ -333,7 +344,10 @@ export const resolvers = {
 
     updateProfile: async (
       _: unknown,
-      args: { displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string },
+      args: {
+        displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
+        dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[];
+      },
       ctx: BffContext,
     ) => {
       requireAuth(ctx);

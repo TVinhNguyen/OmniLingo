@@ -20,11 +20,14 @@ export const schema = /* GraphQL */ `
   # ─── User ─────────────────────────────────────────────────────────────────
 
   type User {
-    id:        ID!
-    username:  String!
-    avatarUrl: String
-    bio:       String
-    createdAt: DateTime!
+    id:                  ID!
+    username:            String!
+    avatarUrl:           String
+    bio:                 String
+    createdAt:           DateTime!
+    dailyGoalMinutes:    Int!
+    reminderTime:        String
+    learningLanguages:   [String!]!
   }
 
   # ─── Entitlement ──────────────────────────────────────────────────────────
@@ -54,6 +57,23 @@ export const schema = /* GraphQL */ `
     date:    String!
     xp:      Int!
     minutes: Int!
+  }
+
+  """One day of activity \u2014 used for the 365-day heatmap."""
+  type ActivityDay {
+    date:             String!
+    minutes:          Int!
+    xp:               Int!
+    lessonsCompleted: Int!
+  }
+
+  """Today's recommended mission \u2014 next lesson + daily goal progress."""
+  type TodayMission {
+    lessonId:      String
+    lessonTitle:   String
+    minutesToGoal: Int!
+    xpReward:      Int!
+    dueCardCount:  Int!
   }
 
   """Streak data from the gamification service."""
@@ -367,11 +387,19 @@ export const schema = /* GraphQL */ `
     """Weekly progress data for chart (default last 7 days)."""
     weeklyProgress(days: Int): [WeeklyProgress!]!
 
+<<<<<<< HEAD
     """Per-skill proficiency scores for a language (skill radar source)."""
     skillScores(language: String!): SkillOverview!
 
     """Predicted certification score (cert = ielts|toeic|jlpt|hsk)."""
     certPredict(cert: String!): CertPrediction!
+=======
+    """Activity heatmap for last N days (default 365)."""
+    activityHeatmap(days: Int): [ActivityDay!]!
+
+    """Today's mission — next lesson + progress-to-daily-goal."""
+    todayMission: TodayMission!
+>>>>>>> bb8d495 (feat(mvp1-backend): T2 identity prefs + T5 heatmap + T6 today-mission + T7/T8 leaderboard fix)
 
     """List all AI tutor conversation sessions for current user."""
     conversations: [ConversationSummary!]!
@@ -494,11 +522,14 @@ export const schema = /* GraphQL */ `
 
     """Update the current user's profile."""
     updateProfile(
-      displayName: String
-      bio:         String
-      uiLanguage:  String
-      timezone:    String
-      avatarUrl:   String
+      displayName:       String
+      bio:               String
+      uiLanguage:        String
+      timezone:          String
+      avatarUrl:         String
+      dailyGoalMinutes:  Int
+      reminderTime:      String
+      learningLanguages: [String!]
     ): User!
 
     """Submit SRS review rating for a card."""

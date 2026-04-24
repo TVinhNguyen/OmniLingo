@@ -66,9 +66,14 @@ type User struct {
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 
+	// Learning preferences
+	DailyGoalMinutes   int        `json:"daily_goal_minutes"`
+	ReminderTime       *string    `json:"reminder_time,omitempty"` // "HH:MM" or nil
+	LearningLanguages  []string   `json:"learning_languages"`
+
 	// Internal — never serialized to clients
-	PasswordHash        string `json:"-"`
-	FailedLoginCount    int    `json:"-"`
+	PasswordHash        string     `json:"-"`
+	FailedLoginCount    int        `json:"-"`
 	LockedUntil         *time.Time `json:"-"`
 }
 
@@ -144,10 +149,15 @@ type TokenPair struct {
 
 // UpdateMeRequest contains allowable fields for self-service profile update.
 type UpdateMeRequest struct {
-	DisplayName *string `json:"display_name,omitempty"`
-	UILanguage  *string `json:"ui_language,omitempty"`
-	Timezone    *string `json:"timezone,omitempty"`
-	AvatarURL   *string `json:"avatar_url,omitempty"`
+	DisplayName       *string  `json:"display_name,omitempty"`
+	UILanguage        *string  `json:"ui_language,omitempty"`
+	Timezone          *string  `json:"timezone,omitempty"`
+	AvatarURL         *string  `json:"avatar_url,omitempty"`
+	Bio               *string  `json:"bio,omitempty"`
+	// Learning preferences
+	DailyGoalMinutes  *int     `json:"daily_goal_minutes,omitempty"`
+	ReminderTime      *string  `json:"reminder_time,omitempty"` // "HH:MM" 24h or null to disable
+	LearningLanguages []string `json:"learning_languages,omitempty"`
 }
 
 // ─── Domain Errors ───────────────────────────────────────────────────────────

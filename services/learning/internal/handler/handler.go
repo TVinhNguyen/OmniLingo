@@ -35,6 +35,9 @@ func (h *LearningHandler) Register(r fiber.Router) {
 	v1.Post("/lessons/:id/start", h.StartLesson)
 	v1.Post("/lessons/:id/complete", h.CompleteLesson)
 	v1.Get("/history", h.GetHistory)
+
+	// GET /api/v1/learning/today-mission
+	v1.Get("/today-mission", h.GetTodayMission)
 }
 
 func (h *LearningHandler) GetProfile(c *fiber.Ctx) error {
@@ -134,6 +137,15 @@ func (h *LearningHandler) GetHistory(c *fiber.Ctx) error {
 		"history": list,
 		"meta": fiber.Map{"total": total, "limit": limit, "offset": offset},
 	})
+}
+
+// GetTodayMission — GET /api/v1/learning/today-mission
+// Returns: next lesson in active path + minutes remaining to daily goal + due SRS card count.
+func (h *LearningHandler) GetTodayMission(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uuid.UUID)
+	mission, err := h.svc.GetTodayMission(c.Context(), userID)
+	if err != nil { return handleError(c, err) }
+	return c.JSON(fiber.Map{"mission": mission})
 }
 
 func handleError(c *fiber.Ctx, err error) error {

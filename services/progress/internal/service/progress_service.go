@@ -36,22 +36,25 @@ type ProgressService interface {
 	GetOverview(ctx context.Context, userID uuid.UUID, language string) (*domain.SkillOverview, error)
 	GetSkillHistory(ctx context.Context, userID uuid.UUID, language, skill string, days int) ([]*domain.ScoreHistoryEntry, error)
 	GetPredictedScore(ctx context.Context, userID uuid.UUID, certCode string) (*domain.CertPrediction, error)
+	GetActivityHeatmap(ctx context.Context, userID uuid.UUID, days int) ([]*domain.ActivityDay, error)
 	HandleExerciseGraded(ctx context.Context, event *domain.ExerciseGradedEvent) error
 	HandleLessonCompleted(ctx context.Context, event *domain.LessonCompletedEvent) error
 }
 
 type progressService struct {
-	scoreRepo   repository.SkillScoreRepository
-	predRepo    repository.CertPredictionRepository
-	log         *zap.Logger
+	scoreRepo    repository.SkillScoreRepository
+	predRepo     repository.CertPredictionRepository
+	activityRepo repository.ActivityDailyRepository
+	log          *zap.Logger
 }
 
 func NewProgressService(
-	scoreRepo repository.SkillScoreRepository,
-	predRepo repository.CertPredictionRepository,
-	log *zap.Logger,
+	scoreRepo    repository.SkillScoreRepository,
+	predRepo     repository.CertPredictionRepository,
+	activityRepo repository.ActivityDailyRepository,
+	log          *zap.Logger,
 ) ProgressService {
-	return &progressService{scoreRepo: scoreRepo, predRepo: predRepo, log: log}
+	return &progressService{scoreRepo: scoreRepo, predRepo: predRepo, activityRepo: activityRepo, log: log}
 }
 
 // GetOverview returns all skill scores for a user in a language.
@@ -76,6 +79,12 @@ func (s *progressService) GetSkillHistory(ctx context.Context, userID uuid.UUID,
 	limit := days
 	if limit <= 0 || limit > 90 { limit = 30 }
 	return s.scoreRepo.GetHistory(ctx, userID, language, skill, limit)
+}
+
+// GetActivityHeatmap returns per-day activity for the heatmap UI.
+func (s *progressService) GetActivityHeatmap(ctx context.Context, userID uuid.UUID, days int) ([]*domain.ActivityDay, error) {
+	if days <= 0 || days > 365 { days = 365 }
+	return s.activityRepo.GetHeatmap(ctx, userID, days)
 }
 
 // GetPredictedScore computes or retrieves a cert score prediction.

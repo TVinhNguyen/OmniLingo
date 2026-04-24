@@ -93,7 +93,9 @@ func (r *userRepository) Create(ctx context.Context, u *domain.User) error {
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
 		SELECT id, email, password_hash, display_name, ui_language, timezone, status,
-		       email_verified, mfa_enabled, failed_login_count, locked_until, created_at, updated_at
+		       email_verified, mfa_enabled, failed_login_count, locked_until,
+		       daily_goal_minutes, reminder_time, learning_languages,
+		       created_at, updated_at
 		FROM users WHERE email = $1 AND status != 'deleted'
 	`
 	u := &domain.User{}
@@ -101,6 +103,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 		&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName,
 		&u.UILanguage, &u.Timezone, &u.Status,
 		&u.EmailVerified, &u.MFAEnabled, &u.FailedLoginCount, &u.LockedUntil,
+		&u.DailyGoalMinutes, &u.ReminderTime, &u.LearningLanguages,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -120,7 +123,9 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	const q = `
 		SELECT id, email, password_hash, display_name, ui_language, timezone, status,
-		       email_verified, mfa_enabled, failed_login_count, locked_until, created_at, updated_at
+		       email_verified, mfa_enabled, failed_login_count, locked_until,
+		       daily_goal_minutes, reminder_time, learning_languages,
+		       created_at, updated_at
 		FROM users WHERE id = $1 AND status != 'deleted'
 	`
 	u := &domain.User{}
@@ -128,6 +133,7 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 		&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName,
 		&u.UILanguage, &u.Timezone, &u.Status,
 		&u.EmailVerified, &u.MFAEnabled, &u.FailedLoginCount, &u.LockedUntil,
+		&u.DailyGoalMinutes, &u.ReminderTime, &u.LearningLanguages,
 		&u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
@@ -232,6 +238,21 @@ func (r *userRepository) UpdateProfile(ctx context.Context, id uuid.UUID, req do
 	if req.AvatarURL != nil {
 		sets = append(sets, fmt.Sprintf("avatar_url = $%d", argIdx))
 		args = append(args, *req.AvatarURL)
+		argIdx++
+	}
+	if req.DailyGoalMinutes != nil {
+		sets = append(sets, fmt.Sprintf("daily_goal_minutes = $%d", argIdx))
+		args = append(args, *req.DailyGoalMinutes)
+		argIdx++
+	}
+	if req.ReminderTime != nil {
+		sets = append(sets, fmt.Sprintf("reminder_time = $%d", argIdx))
+		args = append(args, *req.ReminderTime)
+		argIdx++
+	}
+	if req.LearningLanguages != nil {
+		sets = append(sets, fmt.Sprintf("learning_languages = $%d", argIdx))
+		args = append(args, req.LearningLanguages)
 		argIdx++
 	}
 

@@ -32,6 +32,7 @@ type LearningService interface {
 	StartLesson(ctx context.Context, userID uuid.UUID, lessonID string, opts StartOpts) (*domain.LessonAttempt, error)
 	CompleteLesson(ctx context.Context, req CompleteRequest) (*domain.LessonAttempt, error)
 	GetHistory(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.LessonAttempt, int, error)
+	GetTodayMission(ctx context.Context, userID uuid.UUID) (*domain.TodayMission, error)
 }
 
 type StartOpts struct {
@@ -174,4 +175,26 @@ func (s *learningService) CompleteLesson(ctx context.Context, req CompleteReques
 func (s *learningService) GetHistory(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.LessonAttempt, int, error) {
 	if limit <= 0 || limit > 100 { limit = 20 }
 	return s.attemptRepo.ListByUser(ctx, userID, limit, offset)
+}
+
+// GetTodayMission assembles the user's daily mission widget data.
+// MVP logic: pull active path, set default XP reward; NextLessonID requires content-service join (Phase 2).
+func (s *learningService) GetTodayMission(ctx context.Context, userID uuid.UUID) (*domain.TodayMission, error) {
+	mission := &domain.TodayMission{
+		MinutesToGoal: 15, // default daily goal
+		XPReward:      50,
+		DueCardCount:  0,
+	}
+
+	// Attempt to pull active learning paths
+	paths, err := s.ListPaths(ctx, userID)
+	if err != nil || len(paths) == 0 {
+		return mission, nil // no active path — return stub
+	}
+
+	// Active path exists — language determined from first path
+	// NextLessonID join with content-service is deferred to Phase 2 (requires content-service grpc)
+	_ = paths[0] // suppress unused var
+
+	return mission, nil
 }

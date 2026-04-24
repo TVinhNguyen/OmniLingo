@@ -17,6 +17,9 @@ export interface UserProfile {
   avatarUrl?: string;
   bio?: string;
   createdAt: string;
+  dailyGoalMinutes: number;
+  reminderTime: string | null;
+  learningLanguages: string[];
 }
 
 export interface LearningTrack {
@@ -84,6 +87,9 @@ export class IdentityDataSource {
       avatarUrl: (raw.avatar_url ?? raw.avatarUrl) as string | undefined,
       bio: (raw.bio ?? "") as string,
       createdAt: (raw.created_at ?? raw.createdAt ?? new Date().toISOString()) as string,
+      dailyGoalMinutes: Number(raw.daily_goal_minutes ?? 10),
+      reminderTime: raw.reminder_time != null ? String(raw.reminder_time) : null,
+      learningLanguages: Array.isArray(raw.learning_languages) ? raw.learning_languages as string[] : [],
     };
   }
 
@@ -96,17 +102,26 @@ export class IdentityDataSource {
       avatarUrl: (raw.avatar_url ?? raw.avatarUrl) as string | undefined,
       bio: (raw.bio ?? "") as string,
       createdAt: (raw.created_at ?? raw.createdAt ?? new Date().toISOString()) as string,
+      dailyGoalMinutes: Number(raw.daily_goal_minutes ?? 10),
+      reminderTime: raw.reminder_time != null ? String(raw.reminder_time) : null,
+      learningLanguages: Array.isArray(raw.learning_languages) ? raw.learning_languages as string[] : [],
     };
   }
 
-  async updateMe(patch: { displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string }): Promise<UserProfile> {
+  async updateMe(patch: {
+    displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
+    dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[];
+  }): Promise<UserProfile> {
     // identity-service expects snake_case fields
-    const body: Record<string, string> = {};
+    const body: Record<string, unknown> = {};
     if (patch.displayName !== undefined) body.display_name = patch.displayName;
     if (patch.bio !== undefined) body.bio = patch.bio;
     if (patch.uiLanguage !== undefined) body.ui_language = patch.uiLanguage;
     if (patch.timezone !== undefined) body.timezone = patch.timezone;
     if (patch.avatarUrl !== undefined) body.avatar_url = patch.avatarUrl;
+    if (patch.dailyGoalMinutes !== undefined) body.daily_goal_minutes = patch.dailyGoalMinutes;
+    if (patch.reminderTime !== undefined) body.reminder_time = patch.reminderTime;
+    if (patch.learningLanguages !== undefined) body.learning_languages = patch.learningLanguages;
 
     const raw = await call<Record<string, unknown>>(this.ds, "/api/v1/users/me", {
       method: "PATCH",
@@ -119,6 +134,9 @@ export class IdentityDataSource {
       avatarUrl: (raw.avatar_url ?? raw.avatarUrl) as string | undefined,
       bio: (raw.bio ?? "") as string,
       createdAt: (raw.created_at ?? raw.createdAt ?? new Date().toISOString()) as string,
+      dailyGoalMinutes: Number(raw.daily_goal_minutes ?? 10),
+      reminderTime: raw.reminder_time != null ? String(raw.reminder_time) : null,
+      learningLanguages: Array.isArray(raw.learning_languages) ? raw.learning_languages as string[] : [],
     };
   }
 }
@@ -173,6 +191,28 @@ export class LearningDataSource {
     ).catch(() => ({})) as Record<string, unknown>;
     const id = (res?.path as Record<string, unknown>)?.id as string ?? res?.id as string ?? "";
     return { trackId: id, ok: !!id };
+  }
+
+  /** GET /api/v1/learning/today-mission */
+  async getTodayMission(): Promise<{
+    lessonId: string | null;
+    lessonTitle: string | null;
+    minutesToGoal: number;
+    xpReward: number;
+    dueCardCount: number;
+  }> {
+    type Body = { mission?: Record<string, unknown> };
+    const raw = await call<Body>(
+      this.ds, "/api/v1/learning/today-mission",
+    ).catch(() => ({ mission: undefined }));
+    const m = raw.mission ?? {};
+    return {
+      lessonId:      m.lesson_id != null ? String(m.lesson_id) : null,
+      lessonTitle:   m.lesson_title != null ? String(m.lesson_title) : null,
+      minutesToGoal: Number(m.minutes_to_goal ?? 0),
+      xpReward:      Number(m.xp_reward ?? 50),
+      dueCardCount:  Number(m.due_card_count ?? 0),
+    };
   }
 }
 
@@ -604,22 +644,26 @@ export class GamificationDataSource {
     }));
   }
 
-  /** GET /api/v1/gamification/leaderboard — league leaderboard */
-  async getMyLeaderboard(): Promise<{
+  /** GET /api/v1/gamification/leaderboard/:leagueId — league leaderboard
+   * Service route: /leaderboard/:leagueId (default leagueId = "global")
+   * Response: { leaderboard: [...], league: "global" }
+   */
+  async getMyLeaderboard(leagueId = "global"): Promise<{
     league: string;
     entries: Array<{ rank: number; userId: string; displayName: string; avatarUrl: string | null; xp: number; isCurrentUser: boolean }>;
     myRank: number;
     myXp:   number;
   }> {
-    type Body = { league?: string; entries?: Array<Record<string, unknown>>; my_rank?: number; my_xp?: number };
+    type Body = { league?: string; leaderboard?: Array<Record<string, unknown>>; my_rank?: number; my_xp?: number };
     const raw = await call<Body>(
-      this.ds, "/api/v1/gamification/leaderboard",
-    ).catch(() => ({ league: "Bronze", entries: [], my_rank: 0, my_xp: 0 }));
+      this.ds, `/api/v1/gamification/leaderboard/${leagueId}`,
+    ).catch(() => ({ league: "Bronze", leaderboard: [], my_rank: 0, my_xp: 0 }));
     return {
       league:  String(raw.league ?? "Bronze"),
       myRank:  Number(raw.my_rank ?? 0),
       myXp:    Number(raw.my_xp ?? 0),
-      entries: (raw.entries ?? []).map((e) => ({
+      // Response key is `leaderboard` (not `entries`) per handler.go
+      entries: (raw.leaderboard ?? []).map((e) => ({
         rank:          Number(e.rank ?? 0),
         userId:        String(e.user_id ?? e.userId ?? ""),
         displayName:   String(e.display_name ?? e.displayName ?? ""),
@@ -722,6 +766,20 @@ export class ProgressDataSource {
       modelVersion:   p?.model_version    ?? "unknown",
       computedAt:     p?.computed_at      ?? new Date().toISOString(),
     };
+  }
+
+  /** GET /api/v1/progress/activity-heatmap?days=N */
+  async getActivityHeatmap(days = 365): Promise<Array<{ date: string; minutes: number; xp: number; lessonsCompleted: number }>> {
+    type Body = { heatmap?: Array<Record<string, unknown>> };
+    const raw = await call<Body>(
+      this.ds, `/api/v1/progress/activity-heatmap?days=${days}`,
+    ).catch(() => ({ heatmap: [] }));
+    return (raw.heatmap ?? []).map((d) => ({
+      date:             String(d.date ?? ""),
+      minutes:          Number(d.minutes ?? d.minutes_studied ?? 0),
+      xp:               Number(d.xp ?? d.xp_earned ?? 0),
+      lessonsCompleted: Number(d.lessonsCompleted ?? d.lessons_done ?? 0),
+    }));
   }
 }
 
