@@ -108,6 +108,24 @@ export const resolvers = {
       return ctx.dataSources.progress.getWeekly(days ?? 7);
     },
 
+    skillScores: async (
+      _: unknown,
+      { language }: { language: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.progress.getSkillOverview(language);
+    },
+
+    certPredict: async (
+      _: unknown,
+      { cert }: { cert: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.progress.getPredictedScore(cert);
+    },
+
     conversations: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.aiTutor.listConversations();

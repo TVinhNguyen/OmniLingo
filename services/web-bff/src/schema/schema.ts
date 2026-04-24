@@ -65,6 +65,30 @@ export const schema = /* GraphQL */ `
     level:        Int!
   }
 
+  """Per-skill proficiency score (0-100)."""
+  type SkillScore {
+    skill:     String!
+    score:     Float!
+    ciLow:     Float
+    ciHigh:    Float
+    updatedAt: DateTime
+  }
+
+  """All skill scores for a user/language pair."""
+  type SkillOverview {
+    language: String!
+    skills:   [SkillScore!]!
+  }
+
+  """Certification score prediction (IELTS, TOEIC, JLPT, HSK)."""
+  type CertPrediction {
+    certCode:       String!
+    predictedScore: Float!
+    predictedBand:  String
+    modelVersion:   String!
+    computedAt:     DateTime!
+  }
+
   # ─── Learning ─────────────────────────────────────────────────────────────
 
   enum LessonStatus {
@@ -279,6 +303,12 @@ export const schema = /* GraphQL */ `
 
     """Weekly progress data for chart (default last 7 days)."""
     weeklyProgress(days: Int): [WeeklyProgress!]!
+
+    """Per-skill proficiency scores for a language (skill radar source)."""
+    skillScores(language: String!): SkillOverview!
+
+    """Predicted certification score (cert = ielts|toeic|jlpt|hsk)."""
+    certPredict(cert: String!): CertPrediction!
 
     """List all AI tutor conversation sessions for current user."""
     conversations: [ConversationSummary!]!

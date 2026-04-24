@@ -417,6 +417,67 @@ export class ProgressDataSource {
       this.ds, `/api/v1/progress/history?language=en&skill=overall&days=${days}`,
     ).then(r => r.history ?? []).catch(() => []);
   }
+
+  async getSkillOverview(language: string): Promise<{
+    language: string;
+    skills:   Array<{
+      skill:     string;
+      score:     number;
+      ciLow:     number | null;
+      ciHigh:    number | null;
+      updatedAt: string | null;
+    }>;
+  }> {
+    const raw = await call<{ overview?: {
+      language?: string;
+      skills?:   Record<string, {
+        score?:      number;
+        ci_low?:     number;
+        ci_high?:    number;
+        updated_at?: string;
+      }>;
+    } }>(
+      this.ds, `/api/v1/progress/overview?language=${encodeURIComponent(language)}`,
+    ).catch(() => ({ overview: undefined }));
+
+    const o = raw.overview;
+    if (!o || !o.skills) return { language, skills: [] };
+    const skills = Object.entries(o.skills).map(([skill, v]) => ({
+      skill,
+      score:     Number(v.score ?? 0),
+      ciLow:     v.ci_low  !== undefined ? Number(v.ci_low)  : null,
+      ciHigh:    v.ci_high !== undefined ? Number(v.ci_high) : null,
+      updatedAt: v.updated_at ?? null,
+    }));
+    return { language: o.language ?? language, skills };
+  }
+
+  async getPredictedScore(cert: string): Promise<{
+    certCode:       string;
+    predictedScore: number;
+    predictedBand:  string | null;
+    modelVersion:   string;
+    computedAt:     string;
+  }> {
+    const raw = await call<{ prediction?: {
+      cert_code?:       string;
+      predicted_score?: number;
+      predicted_band?:  string;
+      model_version?:   string;
+      computed_at?:     string;
+    } }>(
+      this.ds, `/api/v1/progress/predicted-score?cert=${encodeURIComponent(cert)}`,
+    ).catch(() => ({ prediction: undefined }));
+
+    const p = raw.prediction;
+    return {
+      certCode:       p?.cert_code        ?? cert,
+      predictedScore: Number(p?.predicted_score ?? 0),
+      predictedBand:  p?.predicted_band   ?? null,
+      modelVersion:   p?.model_version    ?? "unknown",
+      computedAt:     p?.computed_at      ?? new Date().toISOString(),
+    };
+  }
 }
 
 export class AiTutorDataSource {
