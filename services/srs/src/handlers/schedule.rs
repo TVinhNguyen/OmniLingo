@@ -1,11 +1,10 @@
 use axum::{
-    extract::{Extension, Path, Query},
+    extract::Extension,
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
 use chrono::Utc;
-use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -66,6 +65,14 @@ pub async fn schedule_handler(
     let new_lapses = if req.rating == Rating::Again { lapses + 1 } else { lapses };
     let new_reps = reps + 1;
 
+    let mut tx = state.db.begin().await.map_err(|e| {
+        tracing::error!("tx begin error: {e}");
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":"INTERNAL_ERROR","message":"failed to start transaction"})),
+        )
+    }).unwrap();
+
     // Upsert srs_states
     let upsert = sqlx::query(
         r#"INSERT INTO srs_states
@@ -86,7 +93,7 @@ pub async fn schedule_handler(
     .bind(result.new_state.as_str())
     .bind(reviewed_at)
     .bind(result.next_due_at)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await;
 
     if let Err(e) = upsert {
@@ -112,8 +119,25 @@ pub async fn schedule_handler(
     .bind(elapsed_days)
     .bind(result.interval_days)
     .bind(reviewed_at)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await;
+
+    // Insert outbox event for progress tracking
+    let event_payload = json!({
+        "event_id": Uuid::new_v4().to_string(),
+        "user_id": user_id.to_string(),
+        "item_kind": req.item_kind,
+        "item_id": req.item_id,
+        "rating": req.rating.as_i16(),
+        "reps": new_reps,
+        "created_at": reviewed_at,
+    });
+    
+    if let Err(e) = crate::kafka::outbox::enqueue_event(&mut tx, "srs.review.completed", &event_payload).await {
+        tracing::warn!("failed to enqueue srs.review.completed outbox event: {e}");
+    }
+
+    let _ = tx.commit().await;
 
     metrics::REVIEWS_TOTAL
         .with_label_values(&[&req.rating.as_i16().to_string()])

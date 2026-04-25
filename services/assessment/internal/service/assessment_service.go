@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,21 +40,21 @@ type SubmitTestRequest struct {
 type assessmentService struct {
 	subRepo     repository.SubmissionRepository
 	testRepo    repository.TestSessionRepository
-	publisher   messaging.Publisher
+	outbox      *messaging.OutboxRepository
 	log         *zap.Logger
 }
 
 func NewAssessmentService(
 	subRepo repository.SubmissionRepository,
 	testRepo repository.TestSessionRepository,
-	publisher messaging.Publisher,
+	outbox *messaging.OutboxRepository,
 	log *zap.Logger,
 ) AssessmentService {
 	return &assessmentService{
-		subRepo:   subRepo,
-		testRepo:  testRepo,
-		publisher: publisher,
-		log:       log,
+		subRepo:  subRepo,
+		testRepo: testRepo,
+		outbox:   outbox,
+		log:      log,
 	}
 }
 
@@ -88,14 +87,11 @@ func (s *assessmentService) SubmitExercise(ctx context.Context, req SubmitExerci
 		return nil, domain.ErrInternalError
 	}
 
-	// Publish event (fire-and-forget)
+	// Publish event (fire-and-forget outbox enqueue)
 	event := domain.NewExerciseGradedEvent(sub)
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "assessment.exercise.graded", payload); err != nil {
-			s.log.Warn("failed to publish exercise graded event", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.Enqueue(ctx, "assessment.exercise.graded", event); err != nil {
+		s.log.Warn("failed to enqueue exercise graded event", zap.Error(err))
+	}
 
 	return sub, nil
 }
@@ -141,7 +137,7 @@ func (s *assessmentService) SubmitTest(ctx context.Context, req SubmitTestReques
 		return nil, domain.ErrInternalError
 	}
 
-	// Publish test completed event
+	// Publish test completed event to outbox
 	event := domain.TestCompletedEvent{
 		EventID:     uuid.New().String(),
 		UserID:      session.UserID.String(),
@@ -151,12 +147,9 @@ func (s *assessmentService) SubmitTest(ctx context.Context, req SubmitTestReques
 		SkillScores: session.SkillScores,
 		CreatedAt:   time.Now().UTC(),
 	}
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "assessment.test.completed", payload); err != nil {
-			s.log.Warn("failed to publish test completed event", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.Enqueue(ctx, "assessment.test.completed", event); err != nil {
+		s.log.Warn("failed to enqueue test completed event", zap.Error(err))
+	}
 
 	return session, nil
 }

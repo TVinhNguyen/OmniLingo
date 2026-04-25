@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'identity-service'
+    static_configs:
+      - targets: ['identity:3001']
+
+  - job_name: 'learning-service'
+    static_configs:
+      - targets: ['learning:3002']
+
+  - job_name: 'content-service'
+    static_configs:
+      - targets: ['content:3003']
+
+  - job_name: 'gamification-service'
+    static_configs:
+      - targets: ['gamification:3004']
+
+  - job_name: 'vocabulary-service'
+    static_configs:
+      - targets: ['vocabulary:3005']
+
+  - job_name: 'srs-service'
+    static_configs:
+      - targets: ['srs:3006']
+
+  - job_name: 'assessment-service'
+    static_configs:
+      - targets: ['assessment:3007']
+
+  - job_name: 'web-bff'
+    static_configs:
+      - targets: ['web-bff:4000']

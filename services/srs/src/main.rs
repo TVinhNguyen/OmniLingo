@@ -56,11 +56,12 @@ async fn main() -> anyhow::Result<()> {
     let db = repository::db::new_pool(&cfg.database_url).await?;
     let _redis = repository::cache::new_pool(&cfg.redis_url).await.ok();
 
-    // ─── Kafka consumer ───────────────────────────────────────────────────────
+    // ─── Kafka consumer & Outbox relay ────────────────────────────────────────
     if cfg.kafka_enabled {
         kafka::consumer::start_consumer(&cfg.kafka_brokers, &cfg.kafka_group_id, db.clone()).await;
+        kafka::outbox::start_relay(&cfg.kafka_brokers, db.clone()).await;
     } else {
-        info!("Kafka disabled — skipping consumer");
+        info!("Kafka disabled — skipping consumer and outbox relay");
     }
 
     // ─── State & CORS ─────────────────────────────────────────────────────────
