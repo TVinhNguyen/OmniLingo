@@ -165,13 +165,13 @@ Commit 4 — feat(infra): outbox pattern for 4 producer services (Bug #7)
 
 | # | Task | Owner | Effort | DoD |
 |---|------|-------|--------|-----|
-| W2.1 | Wire `/learn` unit listing (expand track card show units) | Devin | 1d | Click track → thấy unit list từ DB |
-| W2.2 | Wire `/onboarding` 5 sub-route state machine (`language` → `goal` → `level` → `placement` → `done`) | Devin | 2d | User mới register → guided flow → enrollTrack |
-| W2.3 | Wire `/placement-test` chấm CEFR thật | Devin | 0.5d | Submit → hiện CEFR + recommendedTrackId |
-| W2.4 | Wire `/settings/learning` (dailyGoal + reminderTime) + `/settings/languages` (BCP-47 list add/remove) | Devin | 1d | Save → reload → giữ giá trị |
-| W2.5 | Wire `/progress` heatmap calendar 365d | Devin | 0.5d | Hiện activity thật từ `activityHeatmap` query |
-| W2.6 | Wire dashboard "Nhiệm vụ hôm nay" widget | Devin | 0.5d | Hiển thị `minutesToGoal`, `dueCardCount` thật. Note: `lessonId/Title` còn null → fallback "Chọn lesson" CTA |
-| W2.7 | Wire `/achievements` + `/leaderboard` | Devin | 1d | Render từ `myAchievements` + `leaderboard(global)` |
+| W2.1 | Wire `/learn` unit listing (expand track card show units) | Devin | 1d | ⏳ D8 đang làm |
+| ~~W2.2~~ | ~~Wire `/onboarding` 5 sub-route state machine~~ | Devin | 2d | ✅ D5 merged |
+| ~~W2.3~~ | ~~Wire `/placement-test` chấm CEFR thật~~ | Devin | 0.5d | ✅ D5 (gộp vào /onboarding/placement) |
+| ~~W2.4~~ | ~~Wire `/settings/learning` + `/settings/languages`~~ | Devin | 1d | ✅ D6 merged |
+| ~~W2.5~~ | ~~Wire `/progress` heatmap calendar 365d~~ | Devin | 0.5d | ✅ D7 merged |
+| ~~W2.6~~ | ~~Wire dashboard "Nhiệm vụ hôm nay" widget~~ | Devin | 0.5d | ✅ D6 merged |
+| ~~W2.7~~ | ~~Wire `/achievements` + `/leaderboard`~~ | Devin | 1d | ✅ D7 merged |
 | ~~W2.8~~ | ~~Polish `/checkout/3ds-callback` + `/checkout/cancel` (FE-only)~~ | ~~Devin~~ | ~~0.5d~~ | ✅ **Done** — 4 nhánh `devin/d1-3ds-callback`, `devin/d2-cancel-polish`, `devin/d3-split-billing-subscription`, `devin/fix-pr5-review-bugs` (2026-04-25) |
 
 **Tổng**: ~7 ngày Devin → 1 PR/page hoặc gộp 2-3 (gọn cho review).
@@ -194,9 +194,9 @@ Trước khi ship production, đóng các gap kiến trúc Phase 1.
 
 | # | Task | Brief | Owner | Effort | DoD |
 |---|------|-------|-------|--------|-----|
-| W3.1 | CI workflow GitHub Actions | G2 | Gemini | 1d | `.github/workflows/ci.yml` chạy xanh, branch protection enable |
-| W3.2 | Bổ sung `/metrics` cho 4 service thiếu | G3 | Gemini | 0.5d | 17/17 service expose Prometheus |
-| W3.3 | OpenAPI spec cho 5 service core | G4 | Gemini | 2d | Generate được client TS bằng `openapi-typescript` |
+| ~~W3.1~~ | ~~CI workflow GitHub Actions~~ | G2 | Gemini | 1d | ✅ Merged `955b460` |
+| ~~W3.2~~ | ~~Bổ sung `/metrics` cho 4 service thiếu~~ | G3 | Gemini | 0.5d | ✅ Merged (17/17 service, kèm 8 bug fix scope creep) |
+| ~~W3.3~~ | ~~OpenAPI spec cho 5 service core~~ | G4 | Gemini | 2d | ✅ Merged (5 spec, 48 paths, gen-openapi.sh + CI) |
 | W3.4 | ADR-009 REST vs gRPC + ADR-010 outbox non-tx | G1 (ADR-010) + bạn (ADR-009) | bạn | 1h | 2 ADR file commit |
 | W3.5 | Outbox cho assessment + srs | G6 | Gemini | 1d | 6 service có outbox đầy đủ |
 | W3.6 | Kafka topic naming audit | G5 | Gemini | 1h | `kafka-topic-registry.md` đầy đủ 21+ topic |

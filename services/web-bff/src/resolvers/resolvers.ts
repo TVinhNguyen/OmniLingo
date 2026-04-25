@@ -301,6 +301,12 @@ export const resolvers = {
       requireAuth(ctx);
       return ctx.dataSources.assessment.getPlacementTest(lang, targetLang);
     },
+
+    // G15: certGoal exposure
+    myLearningProfile: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.getMyLearningProfile();
+    },
   },
 
   // ─── Dashboard field resolvers (parallel execution) ─────────────────────

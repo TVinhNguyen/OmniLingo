@@ -5,26 +5,27 @@
 
 ---
 
-## Tổng quan 14 task — sắp xếp theo priority
+## Tổng quan 15 task — sắp xếp theo priority
 
-| # | Task | Loại | Effort | Block ship? |
-|---|------|------|--------|------------|
-| **G1** | Rename `InsertTx` → `Enqueue` + ADR-010 outbox tradeoff | Cleanup | 2h | No |
-| **G2** | GitHub Actions CI workflow | Infra | 1d | **YES** |
-| **G3** | Prometheus `/metrics` cho 4 service thiếu | Observability | 0.5d | No |
-| **G4** | OpenAPI spec cho 5 service core | Type safety | 2d | No |
-| **G5** | Kafka topic naming audit + fix lệch | Cleanup | 1h | No |
-| **G6** | Outbox cho 2 service còn thiếu (assessment + srs) | Infra | 1d | No |
-| **G7** | `learning.GetTodayMission` lookup lessonId/Title qua content gRPC | Feature complete | 0.5d | No |
-| **G8** | `writing-ai-service` minimal stub (proxy LLM gateway) | New service | 1d | No |
-| **G9** | `dictionary-service` stub (auto-fill IPA + meaning) | New service | 1d | No |
-| **G10** | `media-service` stub (audio upload S3 signed URL) | New service | 1.5d | No |
-| **G11** | Local Prometheus + Grafana docker-compose extension | Observability | 0.5d | No |
-| **G12** | E2E test scaffold Playwright (register → onboarding → lesson) | QA | 1d | **YES** |
-| **G13** | Load test k6 scenario 100 concurrent dashboard | QA | 0.5d | No |
-| **G14** | Security audit OWASP top 10 checklist | Security | 1d | **YES** |
+| # | Task | Loại | Effort | Block ship? | Status |
+|---|------|------|--------|------------|--------|
+| ~~**G2**~~ | ~~GitHub Actions CI workflow~~ | Infra | 1d | **YES** | ✅ Merged `955b460` |
+| ~~**G3**~~ | ~~Prometheus `/metrics`~~ | Observability | 0.5d | No | ✅ Merged (kèm 8 fix scope creep) |
+| ~~**G4**~~ | ~~OpenAPI spec 5 service~~ | Type safety | 2d | No | ✅ Merged (5 spec, 48 paths) |
+| **G1** | Rename `InsertTx` → `Enqueue` + ADR-010 outbox tradeoff | Cleanup | 2h | No | ⏳ |
+| **G5** | Kafka topic naming audit + fix lệch | Cleanup | 1h | No | ⏳ |
+| **G6** | Outbox cho 2 service còn thiếu (assessment + srs) | Infra | 1d | No | ⏳ |
+| **G7** | `learning.GetTodayMission` lookup lessonId/Title qua content | Feature complete | 0.5d | No | ⏳ |
+| **G8** | `writing-ai-service` minimal stub (proxy LLM gateway) | New service | 1d | No | ⏳ |
+| **G9** | `dictionary-service` stub (auto-fill IPA + meaning) | New service | 1d | No | ⏳ |
+| **G10** | `media-service` stub (audio upload S3 signed URL) | New service | 1.5d | No | ⏳ |
+| **G11** | Local Prometheus + Grafana docker-compose extension | Observability | 0.5d | No | ⏳ |
+| **G12** | E2E test scaffold Playwright | QA | 1d | **YES** | ⏳ |
+| **G13** | Load test k6 scenario 100 concurrent dashboard | QA | 0.5d | No | ⏳ |
+| **G14** | Security audit OWASP top 10 checklist | Security | 1d | **YES** | ⏳ |
+| **G15** | BFF expose `myLearningProfile.certGoal` (fix D7 TODO) | Cleanup | 1h | No | ⏳ |
 
-**Tổng**: ~12 ngày 1 dev. Ship blocker (G2 + G12 + G14) = ~3 ngày critical path.
+**Tổng còn lại**: ~9 ngày. Ship blocker còn lại (G12 + G14) = **2 ngày critical path**.
 
 ---
 
@@ -635,6 +636,46 @@ Verify (DoD):
 
 Branch: chore/g14-security-audit
 Effort: 1 ngày
+```
+
+---
+
+---
+
+## G15 — BFF expose `myLearningProfile.certGoal`
+
+```
+Task: D7 review phát hiện cert hardcode "ielts" trong /progress page. BE đã có
+user_learning_profiles.cert_goal nhưng chưa expose qua BFF schema. Fix nhanh
+để Devin có thể cleanup TODO sau.
+
+Background:
+- D7 commit aaf9ae1 ghi rõ TODO trong apps/web/app/(app)/progress/page.tsx:
+    // TODO: replace hardcoded "ielts" once BE exposes a `certGoal`
+    // (LearningProfile is not in the BFF schema yet — verified in
+    //  services/web-bff/src/schema/schema.ts).
+- learning-service repo đã lưu cert_goal trong user_learning_profiles table
+  (commit 3955e75 + earlier).
+
+Goal:
+1. services/web-bff/src/schema/schema.ts:
+   - Type LearningProfile (nếu chưa có): thêm field certGoal: String
+   - Query myLearningProfile: LearningProfile (nếu chưa expose)
+2. services/web-bff/src/datasources/datasources.ts:
+   - LearningDataSource.getMyProfile(): include cert_goal mapping → certGoal
+3. services/web-bff/src/resolvers/resolvers.ts:
+   - myLearningProfile resolver pass through certGoal
+4. apps/web/lib/api/types.ts: type LearningProfile { certGoal: string | null }
+5. apps/web/lib/api/queries.ts: ME_QUERY (hoặc thêm MY_LEARNING_PROFILE_QUERY)
+   include certGoal field
+
+Verify (DoD):
+- GraphQL playground: query { myLearningProfile { certGoal } } trả "ielts" hoặc null
+- /progress page có thể dùng me?.learningProfile?.certGoal ?? "ielts" (Devin cleanup task riêng sau)
+- Existing tests không gãy
+
+Branch: feat/g15-expose-cert-goal
+Effort: 1h
 ```
 
 ---

@@ -387,3 +387,10 @@ export interface PlacementAnswerInput {
   questionId: string
   choice:     number
 }
+
+export interface LearningProfile {
+  certGoal:          string | null
+  dailyGoalMinutes:  number
+  reminderTime:      string | null
+  learningLanguages: string[]
+}

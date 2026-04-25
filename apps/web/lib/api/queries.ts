@@ -489,3 +489,14 @@ export const PLACEMENT_TEST_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+export const MY_LEARNING_PROFILE_QUERY = /* GraphQL */ `
+  query MyLearningProfile {
+    myLearningProfile {
+      certGoal
+      dailyGoalMinutes
+      reminderTime
+      learningLanguages
+    }
+  }
+`;
