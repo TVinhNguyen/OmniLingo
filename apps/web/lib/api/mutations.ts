@@ -95,6 +95,27 @@ export const UPDATE_PROFILE_MUTATION = /* GraphQL */ `
       avatarUrl
       bio
       createdAt
+      dailyGoalMinutes
+      reminderTime
+      learningLanguages
+    }
+  }
+`;
+
+export const UPDATE_LEARNING_PREFERENCES_MUTATION = /* GraphQL */ `
+  mutation UpdateLearningPreferences(
+    $dailyGoalMinutes: Int
+    $reminderTime: String
+    $learningLanguages: [String!]
+  ) {
+    updateLearningPreferences(
+      dailyGoalMinutes: $dailyGoalMinutes
+      reminderTime: $reminderTime
+      learningLanguages: $learningLanguages
+    ) {
+      dailyGoalMinutes
+      reminderTime
+      learningLanguages
     }
   }
 `;

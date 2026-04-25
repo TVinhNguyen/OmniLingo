@@ -4,7 +4,7 @@ import { ME_QUERY, MY_TRACKS_QUERY, MY_STREAK_QUERY } from "@/lib/api/queries"
 import type { User, LearningTrack, UserStreak } from "@/lib/api/types"
 import { ProfileClient } from "./profile-client"
 
-const MOCK_USER: User = { id: "0", username: "Người dùng", avatarUrl: null, bio: null, createdAt: new Date().toISOString() }
+const MOCK_USER: User = { id: "0", username: "Người dùng", avatarUrl: null, bio: null, createdAt: new Date().toISOString(), dailyGoalMinutes: 15, reminderTime: null, learningLanguages: [] }
 
 export default async function ProfilePage() {
   const token = await getAccessToken()

@@ -11,6 +11,9 @@ export interface User {
   avatarUrl: string | null;
   bio: string | null;
   createdAt: string;
+  dailyGoalMinutes: number;
+  reminderTime: string | null;
+  learningLanguages: string[];
 }
 
 export interface FeatureSummary {
@@ -184,6 +187,20 @@ export interface UserStreak {
   freezesLeft: number;
   totalXp:     number;
   level:       number;
+}
+
+export interface TodayMission {
+  lessonId:      string | null;
+  lessonTitle:   string | null;
+  minutesToGoal: number;
+  xpReward:      number;
+  dueCardCount:  number;
+}
+
+export interface LearningPreferencesResult {
+  dailyGoalMinutes:  number;
+  reminderTime:      string | null;
+  learningLanguages: string[];
 }
 
 export interface Achievement {
