@@ -15,12 +15,12 @@ import { SkillRadar } from "@/components/app/skill-radar"
 import { StreakCalendar } from "@/components/app/streak-calendar"
 import { gql } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/auth/session"
-import { DASHBOARD_QUERY, SRS_DUE_COUNT_QUERY } from "@/lib/api/queries"
-import type { DashboardData } from "@/lib/api/types"
+import { DASHBOARD_QUERY, SRS_DUE_COUNT_QUERY, TODAY_MISSION_QUERY } from "@/lib/api/queries"
+import type { DashboardData, TodayMission } from "@/lib/api/types"
 
 // Mock fallback when BFF is offline
 const MOCK: DashboardData = {
-  user: { id: "0", username: "Bạn", avatarUrl: null, bio: "", createdAt: "" },
+  user: { id: "0", username: "Bạn", avatarUrl: null, bio: "", createdAt: "", dailyGoalMinutes: 10, reminderTime: null, learningLanguages: [] },
   progress: { streak: 0, totalXp: 0, minutesLearned: 0, wordsMastered: 0 },
   entitlement: { planTier: "free", validUntil: null, features: [] },
   myTracks: [],
@@ -31,18 +31,28 @@ export default async function DashboardPage() {
   const token = await getAccessToken()
   let data: DashboardData = MOCK
   let srsDueCount: number | null = null
+  let mission: TodayMission | null = null
   try {
-    const [dashRes, srsRes] = await Promise.allSettled([
+    const [dashRes, srsRes, missionRes] = await Promise.allSettled([
       gql<{ dashboard: DashboardData }>(DASHBOARD_QUERY, {}, token ?? undefined),
       gql<{ srsDueCount: number }>(SRS_DUE_COUNT_QUERY, {}, token ?? undefined),
+      gql<{ todayMission: TodayMission }>(TODAY_MISSION_QUERY, {}, token ?? undefined),
     ])
     if (dashRes.status === "fulfilled" && dashRes.value?.dashboard) data = dashRes.value.dashboard
     if (srsRes.status === "fulfilled") srsDueCount = srsRes.value.srsDueCount
+    if (missionRes.status === "fulfilled" && missionRes.value?.todayMission) {
+      mission = missionRes.value.todayMission
+    }
   } catch {}
 
   const { user, progress, myDecks } = data
   const deckDue = myDecks.reduce((s, d) => s + (d.dueCount ?? 0), 0)
-  const totalDue = srsDueCount ?? deckDue
+  const totalDue = mission?.dueCardCount ?? srsDueCount ?? deckDue
+  const dailyGoal = user.dailyGoalMinutes || 10
+  const minutesDone = mission ? Math.max(0, dailyGoal - mission.minutesToGoal) : progress.minutesLearned
+  const missionTitle =
+    mission?.lessonTitle ?? data.myTracks[0]?.title ?? "Bắt đầu học ngay"
+  const missionHref = mission?.lessonId ? `/lesson/${mission.lessonId}` : "/learn"
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -86,15 +96,19 @@ export default async function DashboardPage() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
               <Sparkles className="h-3 w-3" />
-              Nhiệm vụ hôm nay · {progress.minutesLearned}/10 phút
+              Nhiệm vụ hôm nay · {minutesDone}/{dailyGoal} phút
             </span>
             <h2 className="mt-4 text-3xl font-extrabold leading-tight sm:text-4xl">
-              {data.myTracks[0]?.title ?? "Bắt đầu học ngay"}
+              {missionTitle}
             </h2>
             <p className="mt-2 max-w-md text-white/85">
-              {data.myTracks.length > 0
-                ? `Tiếp tục lộ trình học của bạn. Tiến độ: ${Math.round(data.myTracks[0]?.progressPct ?? 0)}%`
-                : "Chọn một lộ trình học để bắt đầu hành trình."}
+              {mission && mission.minutesToGoal > 0
+                ? `Còn ${mission.minutesToGoal} phút để đạt mục tiêu hôm nay${
+                    mission.dueCardCount > 0 ? ` · ${mission.dueCardCount} thẻ cần ôn` : ""
+                  } · +${mission.xpReward} XP`
+                : data.myTracks.length > 0
+                  ? `Tiếp tục lộ trình học của bạn. Tiến độ: ${Math.round(data.myTracks[0]?.progressPct ?? 0)}%`
+                  : "Chọn một lộ trình học để bắt đầu hành trình."}
             </p>
             <div className="mt-5 flex items-center gap-3">
               <Button
@@ -102,9 +116,9 @@ export default async function DashboardPage() {
                 size="lg"
                 className="rounded-full bg-white text-primary hover:bg-white/90 shadow-ambient"
               >
-                <Link href="/learn">
+                <Link href={missionHref}>
                   <Play className="mr-2 h-4 w-4 fill-current" />
-                  Tiếp tục học
+                  {mission?.lessonId ? "Tiếp tục học" : "Chọn bài học"}
                 </Link>
               </Button>
               <Button

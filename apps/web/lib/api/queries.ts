@@ -11,6 +11,10 @@ export const DASHBOARD_QUERY = /* GraphQL */ `
         username
         avatarUrl
         bio
+        createdAt
+        dailyGoalMinutes
+        reminderTime
+        learningLanguages
       }
       progress {
         streak
@@ -53,6 +57,9 @@ export const ME_QUERY = /* GraphQL */ `
       avatarUrl
       bio
       createdAt
+      dailyGoalMinutes
+      reminderTime
+      learningLanguages
     }
   }
 `;
@@ -272,6 +279,18 @@ export const SRS_STATS_QUERY = /* GraphQL */ `
 export const SRS_DUE_COUNT_QUERY = /* GraphQL */ `
   query SrsDueCount {
     srsDueCount
+  }
+`;
+
+export const TODAY_MISSION_QUERY = /* GraphQL */ `
+  query TodayMission {
+    todayMission {
+      lessonId
+      lessonTitle
+      minutesToGoal
+      xpReward
+      dueCardCount
+    }
   }
 `;
 
