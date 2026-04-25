@@ -126,6 +126,7 @@ func main() {
 
 	// T9: Outbox relay worker
 	outboxCtx, outboxCancel := context.WithCancel(context.Background())
+	defer outboxCancel()
 	if cfg.KafkaEnabled {
 		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
 		go outboxWorker.Run(outboxCtx)
