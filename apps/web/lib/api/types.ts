@@ -197,6 +197,13 @@ export interface TodayMission {
   dueCardCount:  number;
 }
 
+export interface ActivityDay {
+  date:             string;
+  minutes:          number;
+  xp:               number;
+  lessonsCompleted: number;
+}
+
 export interface LearningPreferencesResult {
   dailyGoalMinutes:  number;
   reminderTime:      string | null;
