@@ -59,7 +59,11 @@ export const resolvers = {
 
     me: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
-      return ctx.dataSources.identity.getMe();
+      const [user, prefs] = await Promise.all([
+        ctx.dataSources.identity.getMe(),
+        ctx.dataSources.learning.getMyProfile(),
+      ]);
+      return { ...user, ...prefs };
     },
 
     myEntitlements: async (_: unknown, __: unknown, ctx: BffContext) => {
@@ -303,7 +307,11 @@ export const resolvers = {
 
   Dashboard: {
     user: async (_: unknown, __: unknown, ctx: BffContext) => {
-      return ctx.dataSources.identity.getMe();
+      const [user, prefs] = await Promise.all([
+        ctx.dataSources.identity.getMe(),
+        ctx.dataSources.learning.getMyProfile(),
+      ]);
+      return { ...user, ...prefs };
     },
     progress: async (_: unknown, __: unknown, ctx: BffContext) => {
       return ctx.dataSources.progress.getMySummary();
@@ -382,7 +390,11 @@ export const resolvers = {
       ctx: BffContext,
     ) => {
       requireAuth(ctx);
-      return ctx.dataSources.identity.updateMe(args);
+      const [user, prefs] = await Promise.all([
+        ctx.dataSources.identity.updateMe(args),
+        ctx.dataSources.learning.getMyProfile(),
+      ]);
+      return { ...user, ...prefs };
     },
 
     // T2: update learning prefs via learning-service
@@ -565,11 +577,11 @@ export const resolvers = {
     // T4: Placement test mutation
     submitPlacement: async (
       _: unknown,
-      { testId, answers }: { testId: string; answers: Array<{ questionId: string; choice: number }> },
+      { testId, answers, targetLang }: { testId: string; answers: Array<{ questionId: string; choice: number }>; targetLang: string },
       ctx: BffContext,
     ) => {
       requireAuth(ctx);
-      return ctx.dataSources.assessment.submitPlacement(testId, answers);
+      return ctx.dataSources.assessment.submitPlacement(testId, answers, targetLang);
     },
   },
 };

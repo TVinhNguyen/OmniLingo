@@ -191,13 +191,14 @@ func (h *AssessmentHandler) GetPlacementTest(c *fiber.Ctx) error {
 // SubmitPlacement — POST /api/v1/assessments/placement/submit
 func (h *AssessmentHandler) SubmitPlacement(c *fiber.Ctx) error {
 	var body struct {
-		TestID  string                   `json:"testId"`
-		Answers []domain.PlacementAnswer `json:"answers"`
+		TestID     string                   `json:"testId"`
+		Answers    []domain.PlacementAnswer `json:"answers"`
+		TargetLang string                   `json:"targetLang"`
 	}
 	if err := c.BodyParser(&body); err != nil || body.TestID == "" || len(body.Answers) == 0 {
 		return c.Status(400).JSON(fiber.Map{"error": "BAD_REQUEST", "message": "testId and answers required"})
 	}
-	result, err := h.placementSvc.SubmitTest(body.TestID, body.Answers)
+	result, err := h.placementSvc.SubmitTest(body.TestID, body.Answers, body.TargetLang)
 	if err != nil { return handleError(c, err) }
 	return c.JSON(fiber.Map{"result": result})
 }

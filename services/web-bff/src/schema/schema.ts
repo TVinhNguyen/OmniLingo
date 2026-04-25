@@ -673,8 +673,9 @@ export const schema = /* GraphQL */ `
     # T4: Placement test mutation
     """Submit placement test answers and receive CEFR result."""
     submitPlacement(
-      testId:  String!
-      answers: [PlacementAnswerInput!]!
+      testId:     String!
+      answers:    [PlacementAnswerInput!]!
+      targetLang: String!
     ): PlacementResult!
   }
 

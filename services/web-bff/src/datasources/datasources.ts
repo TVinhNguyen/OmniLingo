@@ -527,12 +527,12 @@ export class AssessmentDataSource {
   }
 
   /** POST /api/v1/assessments/placement/submit */
-  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>): Promise<{
+  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>, targetLang: string): Promise<{
     cefr: string; score: number; correctCount: number; totalCount: number; recommendedTrackId: string;
   }> {
     const raw = await call<{ result?: Record<string, unknown> }>(
       this.ds, "/api/v1/assessments/placement/submit",
-      { method: "POST", body: { testId, answers } },
+      { method: "POST", body: { testId, answers, targetLang } },
     );
     const r = (raw.result ?? {}) as Record<string, unknown>;
     return {
