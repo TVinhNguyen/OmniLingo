@@ -16,10 +16,10 @@
 | 04 — Vocabulary & SRS | [04-vocabulary-srs.md](./flows/04-vocabulary-srs.md) | 100% | 90% (+ learn mode RSC wired) | **90%** |
 | 05 — AI Tutor | [05-ai-tutor.md](./flows/05-ai-tutor.md) | 100% | 95% (+ conversation detail RSC wired) | **95%** |
 | 06 — Progress & Gamification | [06-progress-gamification.md](./flows/06-progress-gamification.md) | 100% | 95% (myProgress + weekly + myStreak + profile + achievements RSC + leaderboard RSC + **skillScores** + **certPredict**) | **95%** |
-| 07 — Billing & Payment | [07-billing-payment.md](./flows/07-billing-payment.md) | 100% | 85% (BFF schema+resolvers+datasource ✅, checkout wired, settings/billing RSC, settings/subscription RSC + cancel/reactivate, /pricing RSC, success page polls real status) | **85%** |
+| 07 — Billing & Payment | [07-billing-payment.md](./flows/07-billing-payment.md) | 100% | 88% (BFF schema+resolvers+datasource ✅, checkout wired, settings/billing RSC, settings/subscription RSC + cancel/reactivate, /pricing RSC, success page polls real status, **3ds-callback RSC**) | **88%** |
 | 08 — Notifications | [08-notifications.md](./flows/08-notifications.md) | 100% | 90% (BFF schema+resolvers+datasource ✅, /notifications RSC+client ✅, /settings/notifications wired ✅, topbar bell polls unreadCount every 30s ✅) | **90%** |
 
-**Tổng progress MVP1 wire-up**: ~**94%** (auth 100% + vocab 90% + AI tutor 95% + gamification 95% + billing 85% + notifications 90% + lesson 85% + streak + profile + settings).
+**Tổng progress MVP1 wire-up**: ~**94%** (auth 100% + vocab 90% + AI tutor 95% + gamification 95% + billing 88% + notifications 90% + lesson 85% + streak + profile + settings).
 
 ---
 
@@ -162,7 +162,7 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | Checkout | ✅ (`/checkout/page.tsx`) | ✅ | Confirm step calls `createCheckoutSession` → redirect (2026-04-23) |
 | Checkout success | ✅ (`/checkout/success`) | ✅ | RSC polls `checkoutStatus`, renders real plan/activatedAt (2026-04-23) |
 | Checkout cancel | ✅ | 🟡 | Static cancel page (acceptable for MVP1) |
-| 3DS callback | ✅ (`/checkout/3ds-callback`) | 🔴 | |
+| 3DS callback | ✅ (`/checkout/3ds-callback`) | ✅ | RSC polls `checkoutStatus`, redirects to success or shows failed state (D1) |
 | Billing sub-page | ✅ (`/settings/billing`) | ✅ | RSC loads real subscription + invoices (2026-04-23) |
 | Subscription sub-page | ✅ (`/settings/subscription`) | ✅ | RSC loads `mySubscription` + `billingHistory`, cancel/reactivate wired (PR-D) |
 | BFF schema + resolvers | — | ✅ | pricingPlans, mySubscription, billingHistory, checkoutStatus, createCheckoutSession, cancelSubscription, reactivateSubscription (2026-04-23) |
