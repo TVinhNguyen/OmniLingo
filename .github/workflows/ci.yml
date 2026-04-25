@@ -395,7 +395,7 @@ jobs:
       - changes
       - frontend
       - node-services
-    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' }}
+    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' && vars.E2E_CI_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
