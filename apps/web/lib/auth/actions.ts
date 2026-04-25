@@ -156,14 +156,16 @@ export async function oauthCallbackAction(
   code: string,
   state: string,
 ): Promise<{ error?: string }> {
+  let redirectPath: string;
   try {
     const tokens = await serverOAuthCallback(provider, code, state);
     await setSession({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
-    redirect(tokens.isNewUser ? "/onboarding" : "/dashboard");
+    redirectPath = tokens.isNewUser ? "/onboarding" : "/dashboard";
   } catch (err) {
     const msg = err instanceof Error ? err.message : "OAuth đăng nhập thất bại.";
     return { error: msg };
   }
+  redirect(redirectPath);
 }
 
 // ─── Change Password ──────────────────────────────────────────────────────────

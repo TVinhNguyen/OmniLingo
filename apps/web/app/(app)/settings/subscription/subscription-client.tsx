@@ -49,13 +49,14 @@ const FEATURES = [
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  })
+  const d = new Date(iso)
+  const dd = String(d.getDate()).padStart(2, "0")
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const yyyy = d.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
 }
 
+/** VND amounts from billing-service are whole đồng; all others are in cents. */
 function fmtAmount(amount: number, currency: string): string {
   if (currency === "VND") return `${amount.toLocaleString("vi-VN")}đ`
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount / 100)
@@ -190,15 +191,17 @@ export default function SubscriptionClient({
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-xl bg-surface-low p-4">
-                <div className="mb-2 flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Kỳ hạn hiện tại</span>
+              {subscription && (
+                <div className="rounded-xl bg-surface-low p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Kỳ hạn hiện tại</span>
+                  </div>
+                  <div className="text-sm font-medium">
+                    {fmtDate(periodStart)} - {fmtDate(periodEnd)}
+                  </div>
                 </div>
-                <div className="text-sm font-medium">
-                  {fmtDate(periodStart)} - {fmtDate(periodEnd)}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </Card>
@@ -245,15 +248,9 @@ export default function SubscriptionClient({
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Invoices */}
         <Card className="p-6 shadow-ambient">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold">Lịch sử hoá đơn</h3>
-            </div>
-            <Button variant="ghost" size="sm">
-              <Download className="mr-2 h-3.5 w-3.5" />
-              Xuất tất cả
-            </Button>
+          <div className="mb-4 flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-semibold">Lịch sử hoá đơn</h3>
           </div>
           {invoices.length === 0 ? (
             <p className="text-sm text-muted-foreground">Chưa có hoá đơn nào.</p>
@@ -271,7 +268,7 @@ export default function SubscriptionClient({
               <TableBody>
                 {invoices.map((inv) => (
                   <TableRow key={inv.id}>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="font-mono text-xs" title={inv.id}>
                       {inv.id.slice(0, 8).toUpperCase()}
                     </TableCell>
                     <TableCell>{fmtDate(inv.paidAt)}</TableCell>

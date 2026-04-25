@@ -85,7 +85,13 @@ function mapPlan(p: Plan): DisplayPlan {
   const tier = p.tier.toLowerCase()
   const isFree = tier === "free" || p.price === 0
   const currency = p.currency === "VND" ? "đ" : p.currency
-  const period = isFree ? "" : p.period === "year" ? "/năm" : "/tháng"
+  const period = isFree
+    ? ""
+    : p.period === "year"
+    ? "/năm"
+    : p.period === "month"
+    ? "/tháng"
+    : `/${p.period}`
   const tagline =
     tier === "plus" || tier === "premium"
       ? "Trải nghiệm đầy đủ cho người học nghiêm túc."
