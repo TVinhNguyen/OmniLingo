@@ -165,17 +165,15 @@ export const resolvers = {
     todayMission: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
 
-      // C1 fix: Fan-out across 3 datasources in parallel then merge at BFF level.
-      // Learning service provides next-lesson stub; identity provides dailyGoalMinutes;
-      // SRS provides dueCardCount. None of those services can reach each other.
-      const [mission, me, srsStats, todayActivity] = await Promise.all([
+      // Fan-out in parallel: learning/today-mission + learning prefs + SRS stats + today's activity
+      const [mission, prefs, srsStats, todayActivity] = await Promise.all([
         ctx.dataSources.learning.getTodayMission(),
-        ctx.dataSources.identity.getMe(),
+        ctx.dataSources.learning.getMyProfile(),  // T2: prefs now live in learning-service
         ctx.dataSources.srs.getStats(),
-        ctx.dataSources.progress.getActivityHeatmap(1), // just today
+        ctx.dataSources.progress.getActivityHeatmap(1),
       ]);
 
-      const dailyGoalMinutes = me.dailyGoalMinutes ?? 10;
+      const dailyGoalMinutes = prefs.dailyGoalMinutes ?? 10;
       const minutesToday     = todayActivity[0]?.minutes ?? 0;
       const minutesToGoal    = Math.max(0, dailyGoalMinutes - minutesToday);
 
@@ -183,7 +181,7 @@ export const resolvers = {
         lessonId:      mission.lessonId,
         lessonTitle:   mission.lessonTitle,
         minutesToGoal,
-        xpReward:      mission.xpReward,   // 50 XP default from learning svc
+        xpReward:      mission.xpReward,
         dueCardCount:  srsStats.dueToday,
       };
     },
@@ -283,6 +281,22 @@ export const resolvers = {
         errorMessage: raw.error_message != null ? String(raw.error_message) : null,
       };
     },
+
+    // T3: Onboarding query
+    onboardingState: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.getOnboardingState();
+    },
+
+    // T4: Placement test query
+    placementTest: async (
+      _: unknown,
+      { lang, targetLang }: { lang: string; targetLang: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.assessment.getPlacementTest(lang, targetLang);
+    },
   },
 
   // ─── Dashboard field resolvers (parallel execution) ─────────────────────
@@ -364,14 +378,21 @@ export const resolvers = {
 
     updateProfile: async (
       _: unknown,
-      args: {
-        displayName?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
-        dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[];
-      },
+      args: { displayName?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string; },
       ctx: BffContext,
     ) => {
       requireAuth(ctx);
       return ctx.dataSources.identity.updateMe(args);
+    },
+
+    // T2: update learning prefs via learning-service
+    updateLearningPreferences: async (
+      _: unknown,
+      args: { dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[] },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.updateLearningPreferences(args);
     },
 
     reviewCard: async (
@@ -520,6 +541,35 @@ export const resolvers = {
     reactivateSubscription: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.billing.reactivateSubscription();
+    },
+
+    // T3: Onboarding mutations
+    updateOnboarding: async (
+      _: unknown,
+      { step, data }: { step: string; data: Record<string, unknown> },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.updateOnboardingStep(step, data);
+    },
+
+    completeOnboarding: async (
+      _: unknown,
+      { placementCefr, recommendedTrackId }: { placementCefr?: string; recommendedTrackId?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.completeOnboarding(placementCefr, recommendedTrackId);
+    },
+
+    // T4: Placement test mutation
+    submitPlacement: async (
+      _: unknown,
+      { testId, answers }: { testId: string; answers: Array<{ questionId: string; choice: number }> },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.assessment.submitPlacement(testId, answers);
     },
   },
 };

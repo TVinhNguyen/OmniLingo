@@ -442,6 +442,54 @@ export const schema = /* GraphQL */ `
 
     """Poll checkout session state (pending→succeeded|failed)."""
     checkoutStatus(sessionId: ID!): CheckoutStatus!
+
+    # T3: Onboarding
+    """Current user's onboarding progress."""
+    onboardingState: OnboardingState!
+
+    # T4: Placement Test
+    """CEFR placement test questions for a language pair."""
+    placementTest(lang: String!, targetLang: String!): PlacementTest!
+  }
+
+  # ─── T3: Onboarding types ────────────────────────────────
+
+  """User's onboarding state machine state."""
+  type OnboardingState {
+    step:               String!   # language_select|goal_select|level_select|placement|done
+    answers:            JSON!     # accumulated step answers
+    placementCefr:      String    # A1–C2, set after placement test
+    recommendedTrackId: String
+    completedAt:        DateTime
+  }
+
+  # ─── T4: Placement test types ──────────────────────────────
+
+  type PlacementQuestion {
+    id:      ID!
+    prompt:  String!
+    choices: [String!]!
+    skill:   String!   # vocabulary|grammar|reading|listening
+  }
+
+  type PlacementTest {
+    testId:     String!
+    lang:       String!
+    targetLang: String!
+    questions:  [PlacementQuestion!]!
+  }
+
+  type PlacementResult {
+    cefr:               String!  # A1|A2|B1|B2|C1|C2
+    score:              Float!
+    correctCount:       Int!
+    totalCount:         Int!
+    recommendedTrackId: String!
+  }
+
+  input PlacementAnswerInput {
+    questionId: String!
+    choice:     Int!   # 0-indexed
   }
 
   """An SRS due item (card)."""
@@ -520,16 +568,20 @@ export const schema = /* GraphQL */ `
       language: String
     ): ExplainResult!
 
-    """Update the current user's profile."""
+    """Update the current user's identity profile (display name, avatar, locale)."""
     updateProfile(
       displayName:       String
       uiLanguage:        String
       timezone:          String
       avatarUrl:         String
+    ): User!
+
+    """Update learning preferences (owned by learning-service)."""
+    updateLearningPreferences(
       dailyGoalMinutes:  Int
       reminderTime:      String
       learningLanguages: [String!]
-    ): User!
+    ): LearningPreferencesResult!
 
     """Submit SRS review rating for a card."""
     reviewCard(
@@ -606,6 +658,26 @@ export const schema = /* GraphQL */ `
 
     """Reactivate a subscription that was set to cancel."""
     reactivateSubscription: BillingSubscription
+
+    # T3: Onboarding mutations
+    """Advance onboarding to the next step."""
+    updateOnboarding(
+      step: String!
+      data: JSON!
+    ): OnboardingState!
+
+    """Mark onboarding complete and trigger track enrollment."""
+    completeOnboarding(
+      placementCefr:      String
+      recommendedTrackId: String
+    ): OnboardingState!
+
+    # T4: Placement test mutation
+    """Submit placement test answers and receive CEFR result."""
+    submitPlacement(
+      testId:  String!
+      answers: [PlacementAnswerInput!]!
+    ): PlacementResult!
   }
 
   """Result of an SRS review submission."""
@@ -627,5 +699,12 @@ export const schema = /* GraphQL */ `
   """Generic mutation success indicator."""
   type MutationOk {
     ok: Boolean!
+  }
+
+  """Learning preferences result (source: learning-service)."""
+  type LearningPreferencesResult {
+    dailyGoalMinutes:  Int!
+    reminderTime:      String
+    learningLanguages: [String!]!
   }
 `;

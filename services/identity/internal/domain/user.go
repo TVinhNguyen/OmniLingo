@@ -66,11 +66,6 @@ type User struct {
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 
-	// Learning preferences
-	DailyGoalMinutes   int        `json:"daily_goal_minutes"`
-	ReminderTime       *string    `json:"reminder_time,omitempty"` // "HH:MM" or nil
-	LearningLanguages  []string   `json:"learning_languages"`
-
 	// Internal — never serialized to clients
 	PasswordHash        string     `json:"-"`
 	FailedLoginCount    int        `json:"-"`

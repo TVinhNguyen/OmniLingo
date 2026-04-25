@@ -17,6 +17,9 @@ export interface UserProfile {
   avatarUrl?: string;
   bio?: string;
   createdAt: string;
+}
+
+export interface LearningPreferences {
   dailyGoalMinutes: number;
   reminderTime: string | null;
   learningLanguages: string[];
@@ -78,7 +81,6 @@ export class IdentityDataSource {
   }
 
   async getMe(): Promise<UserProfile> {
-    // identity-service returns `display_name`, GQL schema expects `username`
     const raw = await call<Record<string, unknown>>(this.ds, "/api/v1/users/me");
     return {
       id: raw.id as string,
@@ -87,9 +89,6 @@ export class IdentityDataSource {
       avatarUrl: (raw.avatar_url ?? raw.avatarUrl) as string | undefined,
       bio: (raw.bio ?? "") as string,
       createdAt: (raw.created_at ?? raw.createdAt ?? new Date().toISOString()) as string,
-      dailyGoalMinutes: Number(raw.daily_goal_minutes ?? 10),
-      reminderTime: raw.reminder_time != null ? String(raw.reminder_time) : null,
-      learningLanguages: Array.isArray(raw.learning_languages) ? raw.learning_languages as string[] : [],
     };
   }
 
@@ -102,25 +101,17 @@ export class IdentityDataSource {
       avatarUrl: (raw.avatar_url ?? raw.avatarUrl) as string | undefined,
       bio: (raw.bio ?? "") as string,
       createdAt: (raw.created_at ?? raw.createdAt ?? new Date().toISOString()) as string,
-      dailyGoalMinutes: Number(raw.daily_goal_minutes ?? 10),
-      reminderTime: raw.reminder_time != null ? String(raw.reminder_time) : null,
-      learningLanguages: Array.isArray(raw.learning_languages) ? raw.learning_languages as string[] : [],
     };
   }
 
   async updateMe(patch: {
     displayName?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
-    dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[];
   }): Promise<UserProfile> {
-    // identity-service expects snake_case fields
     const body: Record<string, unknown> = {};
     if (patch.displayName !== undefined) body.display_name = patch.displayName;
     if (patch.uiLanguage !== undefined) body.ui_language = patch.uiLanguage;
     if (patch.timezone !== undefined) body.timezone = patch.timezone;
     if (patch.avatarUrl !== undefined) body.avatar_url = patch.avatarUrl;
-    if (patch.dailyGoalMinutes !== undefined) body.daily_goal_minutes = patch.dailyGoalMinutes;
-    if (patch.reminderTime !== undefined) body.reminder_time = patch.reminderTime;
-    if (patch.learningLanguages !== undefined) body.learning_languages = patch.learningLanguages;
 
     const raw = await call<Record<string, unknown>>(this.ds, "/api/v1/users/me", {
       method: "PATCH",
@@ -133,9 +124,6 @@ export class IdentityDataSource {
       avatarUrl: (raw.avatar_url ?? raw.avatarUrl) as string | undefined,
       bio: (raw.bio ?? "") as string,
       createdAt: (raw.created_at ?? raw.createdAt ?? new Date().toISOString()) as string,
-      dailyGoalMinutes: Number(raw.daily_goal_minutes ?? 10),
-      reminderTime: raw.reminder_time != null ? String(raw.reminder_time) : null,
-      learningLanguages: Array.isArray(raw.learning_languages) ? raw.learning_languages as string[] : [],
     };
   }
 }
@@ -211,6 +199,86 @@ export class LearningDataSource {
       minutesToGoal: Number(m.minutes_to_goal ?? 0),
       xpReward:      Number(m.xp_reward ?? 50),
       dueCardCount:  Number(m.due_card_count ?? 0),
+    };
+  }
+
+  /** GET /api/v1/learning/profile — includes learning preferences */
+  async getMyProfile(): Promise<LearningPreferences> {
+    const raw = await call<{ profile?: Record<string, unknown> }>(this.ds, "/api/v1/learning/profile")
+      .catch(() => ({ profile: undefined }));
+    const p = raw.profile ?? {};
+    return {
+      dailyGoalMinutes: Number(p.daily_goal_minutes ?? 10),
+      reminderTime: p.reminder_time != null ? String(p.reminder_time) : null,
+      learningLanguages: Array.isArray(p.learning_languages) ? p.learning_languages as string[] : [],
+    };
+  }
+
+  /** PUT /api/v1/learning/profile — update learning preferences */
+  async updateLearningPreferences(patch: {
+    dailyGoalMinutes?: number;
+    reminderTime?: string | null;
+    learningLanguages?: string[];
+  }): Promise<LearningPreferences> {
+    const body: Record<string, unknown> = {};
+    if (patch.dailyGoalMinutes !== undefined) body.daily_goal_minutes = patch.dailyGoalMinutes;
+    if (patch.reminderTime !== undefined) body.reminder_time = patch.reminderTime;
+    if (patch.learningLanguages !== undefined) body.learning_languages = patch.learningLanguages;
+    await call<unknown>(this.ds, "/api/v1/learning/profile", { method: "PUT", body });
+    return this.getMyProfile();
+  }
+
+  // ─── T3: Onboarding ─────────────────────────────────────────────────────────
+
+  async getOnboardingState(): Promise<{
+    step: string; answers: Record<string, unknown>;
+    placementCefr: string | null; recommendedTrackId: string | null; completedAt: string | null;
+  }> {
+    const raw = await call<{ state?: Record<string, unknown> }>(this.ds, "/api/v1/onboarding/state")
+      .catch(() => ({ state: undefined }));
+    const s = raw.state ?? {};
+    return {
+      step:               (s.step ?? "language_select") as string,
+      answers:            (s.answers ?? {}) as Record<string, unknown>,
+      placementCefr:      s.placementCefr != null ? String(s.placementCefr) : null,
+      recommendedTrackId: s.recommendedTrackId != null ? String(s.recommendedTrackId) : null,
+      completedAt:        s.completedAt != null ? String(s.completedAt) : null,
+    };
+  }
+
+  async updateOnboardingStep(step: string, data: Record<string, unknown>): Promise<{
+    step: string; answers: Record<string, unknown>;
+    placementCefr: string | null; recommendedTrackId: string | null; completedAt: string | null;
+  }> {
+    const raw = await call<{ state?: Record<string, unknown> }>(this.ds, "/api/v1/onboarding/step", {
+      method: "POST",
+      body: { step, data },
+    });
+    const s = raw.state ?? {};
+    return {
+      step:               (s.step ?? step) as string,
+      answers:            (s.answers ?? {}) as Record<string, unknown>,
+      placementCefr:      s.placementCefr != null ? String(s.placementCefr) : null,
+      recommendedTrackId: s.recommendedTrackId != null ? String(s.recommendedTrackId) : null,
+      completedAt:        s.completedAt != null ? String(s.completedAt) : null,
+    };
+  }
+
+  async completeOnboarding(placementCefr?: string | null, recommendedTrackId?: string | null): Promise<{
+    step: string; answers: Record<string, unknown>;
+    placementCefr: string | null; recommendedTrackId: string | null; completedAt: string | null;
+  }> {
+    const raw = await call<{ state?: Record<string, unknown> }>(this.ds, "/api/v1/onboarding/complete", {
+      method: "POST",
+      body: { placementCefr: placementCefr ?? null, recommendedTrackId: recommendedTrackId ?? null },
+    });
+    const s = raw.state ?? {};
+    return {
+      step:               (s.step ?? "done") as string,
+      answers:            (s.answers ?? {}) as Record<string, unknown>,
+      placementCefr:      s.placementCefr != null ? String(s.placementCefr) : null,
+      recommendedTrackId: s.recommendedTrackId != null ? String(s.recommendedTrackId) : null,
+      completedAt:        s.completedAt != null ? String(s.completedAt) : null,
     };
   }
 }
@@ -1050,6 +1118,50 @@ export class BillingDataSource {
   }
 }
 
+// ─── T4: Assessment DataSource ─────────────────────────────────────────────────
+
+export class AssessmentDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.assessment, token };
+  }
+
+  /** GET /api/v1/assessments/placement?lang=en&targetLang=vi */
+  async getPlacementTest(lang: string, targetLang: string): Promise<{
+    testId: string; lang: string; targetLang: string;
+    questions: Array<{ id: string; prompt: string; choices: string[]; skill: string }>;
+  }> {
+    const raw = await call<{ test?: Record<string, unknown> }>(
+      this.ds, `/api/v1/assessments/placement?lang=${encodeURIComponent(lang)}&targetLang=${encodeURIComponent(targetLang)}`,
+    ).catch(() => ({ test: undefined }));
+    const t = (raw.test ?? {}) as Record<string, unknown>;
+    return {
+      testId:     (t.testId ?? "") as string,
+      lang:       (t.lang   ?? lang) as string,
+      targetLang: (t.targetLang ?? targetLang) as string,
+      questions:  Array.isArray(t.questions) ? t.questions as Array<{ id: string; prompt: string; choices: string[]; skill: string }> : [],
+    };
+  }
+
+  /** POST /api/v1/assessments/placement/submit */
+  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>): Promise<{
+    cefr: string; score: number; correctCount: number; totalCount: number; recommendedTrackId: string;
+  }> {
+    const raw = await call<{ result?: Record<string, unknown> }>(
+      this.ds, "/api/v1/assessments/placement/submit",
+      { method: "POST", body: { testId, answers } },
+    );
+    const r = (raw.result ?? {}) as Record<string, unknown>;
+    return {
+      cefr:               (r.cefr ?? "A1") as string,
+      score:              Number(r.score ?? 0),
+      correctCount:       Number(r.correctCount ?? 0),
+      totalCount:         Number(r.totalCount ?? 0),
+      recommendedTrackId: (r.recommendedTrackId ?? "") as string,
+    };
+  }
+}
+
 // ─── Context DataSources bundle ────────────────────────────────────────────────
 
 export interface DataSources {
@@ -1065,6 +1177,7 @@ export interface DataSources {
   assessment:    AssessmentDataSource;
   notification:  NotificationDataSource;
   billing:       BillingDataSource;
+  assessment:    AssessmentDataSource;
 }
 
 /** Build all DataSources for a single request context. */
@@ -1082,5 +1195,6 @@ export function buildDataSources(cfg: Config, token?: string): DataSources {
     assessment:   new AssessmentDataSource(cfg, token),
     notification: new NotificationDataSource(cfg, token),
     billing:      new BillingDataSource(cfg, token),
+    assessment:   new AssessmentDataSource(cfg, token),
   };
 }
