@@ -388,6 +388,38 @@ export class ContentDataSource {
       exercises,
     };
   }
+
+  /** GET /api/v1/content/courses?trackId= → { courses: [...] } */
+  async listCoursesByTrack(trackId: string, language = "en"): Promise<CourseDTO[]> {
+    const raw = await call<{ courses?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/content/courses?trackId=${encodeURIComponent(trackId)}`,
+    ).catch(() => ({ courses: [] }));
+    return (raw.courses ?? []).map((c) => ({
+      id:           String(c.id ?? ""),
+      trackId:      String(c.trackId ?? trackId),
+      language:     String(c.language ?? language),
+      level:        String(c.level ?? ""),
+      title:        pickLocale(c.title, language),
+      description:  pickLocale(c.description, language) || undefined,
+      thumbnailUrl: c.thumbnailUrl != null ? String(c.thumbnailUrl) : undefined,
+      order:        Number(c.order ?? 0),
+      unitIds:      Array.isArray(c.unitIds) ? (c.unitIds as string[]) : [],
+    }));
+  }
+
+  /** GET /api/v1/content/units?courseId= → { units: [...] } */
+  async listUnitsByCourse(courseId: string, language = "en"): Promise<UnitDTO[]> {
+    const raw = await call<{ units?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/content/units?courseId=${encodeURIComponent(courseId)}`,
+    ).catch(() => ({ units: [] }));
+    return (raw.units ?? []).map((u) => ({
+      id:        String(u.id ?? ""),
+      courseId:  String(u.courseId ?? courseId),
+      title:     pickLocale(u.title, language),
+      order:     Number(u.order ?? 0),
+      lessonIds: Array.isArray(u.lessonIds) ? (u.lessonIds as string[]) : [],
+    }));
+  }
 }
 
 // ─── Assessment DataSource ─────────────────────────────────────────────────────
@@ -451,6 +483,41 @@ export class AssessmentDataSource {
       maxScore:    Number(r.max_score ?? args.maxScore),
       xpDelta:     correct ? 12 : 0,
       explanation: (r.explanation as string | undefined) ?? null,
+    };
+  }
+
+  /** GET /api/v1/assessments/placement?lang=en&targetLang=vi */
+  async getPlacementTest(lang: string, targetLang: string): Promise<{
+    testId: string; lang: string; targetLang: string;
+    questions: Array<{ id: string; prompt: string; choices: string[]; skill: string }>;
+  }> {
+    const raw = await call<{ test?: Record<string, unknown> }>(
+      this.ds, `/api/v1/assessments/placement?lang=${encodeURIComponent(lang)}&targetLang=${encodeURIComponent(targetLang)}`,
+    ).catch(() => ({ test: undefined }));
+    const t = (raw.test ?? {}) as Record<string, unknown>;
+    return {
+      testId:     (t.testId ?? "") as string,
+      lang:       (t.lang   ?? lang) as string,
+      targetLang: (t.targetLang ?? targetLang) as string,
+      questions:  Array.isArray(t.questions) ? t.questions as Array<{ id: string; prompt: string; choices: string[]; skill: string }> : [],
+    };
+  }
+
+  /** POST /api/v1/assessments/placement/submit */
+  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>): Promise<{
+    cefr: string; score: number; correctCount: number; totalCount: number; recommendedTrackId: string;
+  }> {
+    const raw = await call<{ result?: Record<string, unknown> }>(
+      this.ds, "/api/v1/assessments/placement/submit",
+      { method: "POST", body: { testId, answers } },
+    );
+    const r = (raw.result ?? {}) as Record<string, unknown>;
+    return {
+      cefr:               (r.cefr ?? "A1") as string,
+      score:              Number(r.score ?? 0),
+      correctCount:       Number(r.correctCount ?? 0),
+      totalCount:         Number(r.totalCount ?? 0),
+      recommendedTrackId: (r.recommendedTrackId ?? "") as string,
     };
   }
 }
@@ -616,45 +683,6 @@ function pickLocale(v: unknown, language: string): string {
     return m[language] ?? m["en"] ?? Object.values(m)[0] ?? "";
   }
   return "";
-}
-
-export class ContentDataSource {
-  private ds: DS;
-  constructor(cfg: Config, token?: string) {
-    this.ds = { baseUrl: cfg.services.content, token };
-  }
-
-  /** GET /api/v1/content/courses?trackId= → { courses: [...] } */
-  async listCoursesByTrack(trackId: string, language = "en"): Promise<CourseDTO[]> {
-    const raw = await call<{ courses?: Array<Record<string, unknown>> }>(
-      this.ds, `/api/v1/content/courses?trackId=${encodeURIComponent(trackId)}`,
-    ).catch(() => ({ courses: [] }));
-    return (raw.courses ?? []).map((c) => ({
-      id:           String(c.id ?? ""),
-      trackId:      String(c.trackId ?? trackId),
-      language:     String(c.language ?? language),
-      level:        String(c.level ?? ""),
-      title:        pickLocale(c.title, language),
-      description:  pickLocale(c.description, language) || undefined,
-      thumbnailUrl: c.thumbnailUrl != null ? String(c.thumbnailUrl) : undefined,
-      order:        Number(c.order ?? 0),
-      unitIds:      Array.isArray(c.unitIds) ? (c.unitIds as string[]) : [],
-    }));
-  }
-
-  /** GET /api/v1/content/units?courseId= → { units: [...] } */
-  async listUnitsByCourse(courseId: string, language = "en"): Promise<UnitDTO[]> {
-    const raw = await call<{ units?: Array<Record<string, unknown>> }>(
-      this.ds, `/api/v1/content/units?courseId=${encodeURIComponent(courseId)}`,
-    ).catch(() => ({ units: [] }));
-    return (raw.units ?? []).map((u) => ({
-      id:        String(u.id ?? ""),
-      courseId:  String(u.courseId ?? courseId),
-      title:     pickLocale(u.title, language),
-      order:     Number(u.order ?? 0),
-      lessonIds: Array.isArray(u.lessonIds) ? (u.lessonIds as string[]) : [],
-    }));
-  }
 }
 
 // ─── Gamification DataSource ──────────────────────────────────────────────────
@@ -1118,50 +1146,6 @@ export class BillingDataSource {
   }
 }
 
-// ─── T4: Assessment DataSource ─────────────────────────────────────────────────
-
-export class AssessmentDataSource {
-  private ds: DS;
-  constructor(cfg: Config, token?: string) {
-    this.ds = { baseUrl: cfg.services.assessment, token };
-  }
-
-  /** GET /api/v1/assessments/placement?lang=en&targetLang=vi */
-  async getPlacementTest(lang: string, targetLang: string): Promise<{
-    testId: string; lang: string; targetLang: string;
-    questions: Array<{ id: string; prompt: string; choices: string[]; skill: string }>;
-  }> {
-    const raw = await call<{ test?: Record<string, unknown> }>(
-      this.ds, `/api/v1/assessments/placement?lang=${encodeURIComponent(lang)}&targetLang=${encodeURIComponent(targetLang)}`,
-    ).catch(() => ({ test: undefined }));
-    const t = (raw.test ?? {}) as Record<string, unknown>;
-    return {
-      testId:     (t.testId ?? "") as string,
-      lang:       (t.lang   ?? lang) as string,
-      targetLang: (t.targetLang ?? targetLang) as string,
-      questions:  Array.isArray(t.questions) ? t.questions as Array<{ id: string; prompt: string; choices: string[]; skill: string }> : [],
-    };
-  }
-
-  /** POST /api/v1/assessments/placement/submit */
-  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>): Promise<{
-    cefr: string; score: number; correctCount: number; totalCount: number; recommendedTrackId: string;
-  }> {
-    const raw = await call<{ result?: Record<string, unknown> }>(
-      this.ds, "/api/v1/assessments/placement/submit",
-      { method: "POST", body: { testId, answers } },
-    );
-    const r = (raw.result ?? {}) as Record<string, unknown>;
-    return {
-      cefr:               (r.cefr ?? "A1") as string,
-      score:              Number(r.score ?? 0),
-      correctCount:       Number(r.correctCount ?? 0),
-      totalCount:         Number(r.totalCount ?? 0),
-      recommendedTrackId: (r.recommendedTrackId ?? "") as string,
-    };
-  }
-}
-
 // ─── Context DataSources bundle ────────────────────────────────────────────────
 
 export interface DataSources {
@@ -1177,7 +1161,6 @@ export interface DataSources {
   assessment:    AssessmentDataSource;
   notification:  NotificationDataSource;
   billing:       BillingDataSource;
-  assessment:    AssessmentDataSource;
 }
 
 /** Build all DataSources for a single request context. */
@@ -1195,6 +1178,5 @@ export function buildDataSources(cfg: Config, token?: string): DataSources {
     assessment:   new AssessmentDataSource(cfg, token),
     notification: new NotificationDataSource(cfg, token),
     billing:      new BillingDataSource(cfg, token),
-    assessment:   new AssessmentDataSource(cfg, token),
   };
 }
