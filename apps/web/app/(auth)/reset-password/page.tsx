@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useActionState } from "react"
+import { Suspense, useState, useActionState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "motion/react"
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { resetPasswordAction } from "@/lib/auth/actions"
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token") ?? ""
   const [state, formAction, isPending] = useActionState(resetPasswordAction, undefined)
@@ -157,5 +157,21 @@ export default function ResetPasswordPage() {
         </form>
       )}
     </AuthShell>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell title="Đặt lại mật khẩu" subtitle="Đang tải…">
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </AuthShell>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
