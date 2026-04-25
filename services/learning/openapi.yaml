@@ -1,0 +1,327 @@
+openapi: 3.1.0
+info:
+  title: OmniLingo Learning Service API
+  version: 1.0.0
+  description: Learning profile, goals, paths, lesson lifecycle, and attempt history endpoints.
+servers:
+  - url: http://localhost:3002
+    description: Local development
+  - url: https://staging-api.omnilingo.com/learning
+    description: Staging
+tags:
+  - name: infrastructure
+  - name: learning
+paths:
+  /healthz:
+    get:
+      tags: [infrastructure]
+      operationId: getHealth
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/HealthResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /readyz:
+    get:
+      tags: [infrastructure]
+      operationId: getReady
+      responses:
+        "200": { description: Ready, content: { application/json: { schema: { $ref: "#/components/schemas/ReadyResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "503": { description: Not ready, content: { application/json: { schema: { $ref: "#/components/schemas/ReadyResponse" } } } }
+  /metrics:
+    get:
+      tags: [infrastructure]
+      operationId: getMetrics
+      responses:
+        "200": { description: Prometheus exposition format, content: { text/plain: { schema: { type: string } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/learning/profile:
+    get:
+      tags: [learning]
+      operationId: getProfile
+      security: [{ bearerJwt: [] }]
+      responses:
+        "200":
+          description: Learning profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile]
+                properties:
+                  profile: { $ref: "#/components/schemas/LearningProfile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    put:
+      tags: [learning]
+      operationId: setProfile
+      security: [{ bearerJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LearningProfileInput" }
+      responses:
+        "200": { description: Profile updated, content: { application/json: { schema: { $ref: "#/components/schemas/MessageResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/learning/goals:
+    post:
+      tags: [learning]
+      operationId: setGoals
+      security: [{ bearerJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetGoalsRequest" }
+      responses:
+        "200": { description: Goals updated, content: { application/json: { schema: { $ref: "#/components/schemas/GoalsResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/learning/paths:
+    get:
+      tags: [learning]
+      operationId: listPaths
+      security: [{ bearerJwt: [] }]
+      responses:
+        "200": { description: Learning paths, content: { application/json: { schema: { $ref: "#/components/schemas/PathsResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    post:
+      tags: [learning]
+      operationId: createPath
+      security: [{ bearerJwt: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePathRequest" }
+      responses:
+        "201": { description: Path created, content: { application/json: { schema: { $ref: "#/components/schemas/PathResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/learning/lessons/{id}/start:
+    post:
+      tags: [learning]
+      operationId: startLesson
+      security: [{ bearerJwt: [] }]
+      parameters:
+        - $ref: "#/components/parameters/StringId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StartLessonRequest" }
+      responses:
+        "201": { description: Lesson attempt started, content: { application/json: { schema: { $ref: "#/components/schemas/AttemptResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/learning/lessons/{id}/complete:
+    post:
+      tags: [learning]
+      operationId: completeLesson
+      security: [{ bearerJwt: [] }]
+      parameters:
+        - $ref: "#/components/parameters/StringId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompleteLessonRequest" }
+      responses:
+        "200": { description: Lesson completed, content: { application/json: { schema: { $ref: "#/components/schemas/AttemptResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/learning/history:
+    get:
+      tags: [learning]
+      operationId: getHistory
+      security: [{ bearerJwt: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200": { description: Lesson attempt history, content: { application/json: { schema: { $ref: "#/components/schemas/HistoryResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    StringId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest: { description: Bad request, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    Unauthorized: { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    InternalError: { description: Internal server error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string }
+        message: { type: string }
+    HealthResponse:
+      type: object
+      required: [ok, service, version]
+      properties:
+        ok: { type: boolean }
+        service: { type: string, example: learning-service }
+        version: { type: string }
+    ReadyResponse:
+      type: object
+      required: [ready, checks]
+      properties:
+        ready: { type: boolean }
+        checks:
+          type: object
+          additionalProperties: { type: string }
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    Goal:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, description: "cert | skill | vocab_count" }
+        cert: { type: string }
+        target: { type: number }
+        deadline: { type: string, format: date }
+    Prefs:
+      type: object
+      properties:
+        daily_goal_minutes: { type: integer, default: 15 }
+        notif_enabled: { type: boolean }
+        ui_theme: { type: string, enum: [light, dark] }
+    LearningProfile:
+      type: object
+      required: [user_id, primary_language, secondary_languages, goals, preferences, created_at, updated_at]
+      properties:
+        user_id: { type: string, format: uuid }
+        primary_language: { type: string }
+        secondary_languages: { type: array, items: { type: string } }
+        starting_level: { type: string }
+        goals: { type: array, items: { $ref: "#/components/schemas/Goal" } }
+        preferences: { $ref: "#/components/schemas/Prefs" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    LearningProfileInput:
+      type: object
+      required: [primary_language, secondary_languages, goals, preferences]
+      properties:
+        primary_language: { type: string }
+        secondary_languages: { type: array, items: { type: string } }
+        starting_level: { type: string }
+        goals: { type: array, items: { $ref: "#/components/schemas/Goal" } }
+        preferences: { $ref: "#/components/schemas/Prefs" }
+      description: user_id, created_at, and updated_at are managed by the server.
+    SetGoalsRequest:
+      type: object
+      required: [goals]
+      properties:
+        goals: { type: array, items: { $ref: "#/components/schemas/Goal" } }
+    GoalsResponse:
+      type: object
+      required: [message, count]
+      properties:
+        message: { type: string }
+        count: { type: integer }
+    LearningPath:
+      type: object
+      required: [id, user_id, language, path_template_id, progress_pct, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        language: { type: string }
+        path_template_id: { type: string }
+        current_unit_id: { type: string }
+        progress_pct: { type: number }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreatePathRequest:
+      type: object
+      required: [language, path_template_id]
+      properties:
+        language: { type: string }
+        path_template_id: { type: string }
+    PathResponse:
+      type: object
+      required: [path]
+      properties:
+        path: { $ref: "#/components/schemas/LearningPath" }
+    PathsResponse:
+      type: object
+      required: [paths]
+      properties:
+        paths: { type: array, items: { $ref: "#/components/schemas/LearningPath" } }
+    LessonAttempt:
+      type: object
+      required: [id, user_id, lesson_id, lesson_version, started_at]
+      properties:
+        id: { type: integer, format: int64 }
+        user_id: { type: string, format: uuid }
+        lesson_id: { type: string }
+        lesson_version: { type: integer }
+        path_id: { type: string, format: uuid }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        score: { type: number }
+        xp_earned: { type: integer }
+        time_spent_sec: { type: integer }
+    StartLessonRequest:
+      type: object
+      properties:
+        language: { type: string }
+        lesson_version: { type: integer, default: 1 }
+    CompleteLessonRequest:
+      type: object
+      required: [attempt_id]
+      properties:
+        attempt_id: { type: integer, format: int64 }
+        score: { type: number }
+        time_spent_sec: { type: integer }
+        language: { type: string }
+        skill_tag: { type: string }
+    AttemptResponse:
+      type: object
+      required: [attempt]
+      properties:
+        attempt: { $ref: "#/components/schemas/LessonAttempt" }
+    HistoryResponse:
+      type: object
+      required: [history, meta]
+      properties:
+        history: { type: array, items: { $ref: "#/components/schemas/LessonAttempt" } }
+        meta:
+          type: object
+          required: [total, limit, offset]
+          properties:
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
