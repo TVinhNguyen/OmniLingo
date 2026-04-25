@@ -7,7 +7,6 @@ import { motion } from "motion/react"
 import {
   Crown,
   Check,
-  Download,
   AlertTriangle,
   Sparkles,
   Calendar,
@@ -20,22 +19,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
   cancelSubscriptionAction,
   reactivateSubscriptionAction,
 } from "../../../checkout/actions"
-import type { BillingSubscription, Invoice } from "@/lib/api/types"
+import type { BillingSubscription } from "@/lib/api/types"
 
 interface SubscriptionClientProps {
   subscription: BillingSubscription | null
-  invoices: Invoice[]
 }
 
 const FEATURES = [
@@ -56,14 +46,8 @@ function fmtDate(iso: string | null | undefined): string {
   })
 }
 
-function fmtAmount(amount: number, currency: string): string {
-  if (currency === "VND") return `${amount.toLocaleString("vi-VN")}đ`
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount / 100)
-}
-
 export default function SubscriptionClient({
   subscription,
-  invoices,
 }: SubscriptionClientProps) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -243,60 +227,25 @@ export default function SubscriptionClient({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Invoices */}
+        {/* Invoice history pointer (full table lives in /settings/billing) */}
         <Card className="p-6 shadow-ambient">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-muted-foreground" />
-              <h3 className="font-semibold">Lịch sử hoá đơn</h3>
+              <div>
+                <h3 className="font-semibold">Lịch sử hoá đơn</h3>
+                <p className="text-sm text-muted-foreground">
+                  Hoá đơn, phương thức thanh toán và hoá đơn VAT được quản lý tại trang Thanh toán.
+                </p>
+              </div>
             </div>
-            <Button variant="ghost" size="sm">
-              <Download className="mr-2 h-3.5 w-3.5" />
-              Xuất tất cả
+            <Button asChild variant="outline" size="sm">
+              <Link href="/settings/billing">
+                Xem hoá đơn
+                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
             </Button>
           </div>
-          {invoices.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Chưa có hoá đơn nào.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mã</TableHead>
-                  <TableHead>Ngày</TableHead>
-                  <TableHead>Gói</TableHead>
-                  <TableHead className="text-right">Số tiền</TableHead>
-                  <TableHead className="w-20"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.map((inv) => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-mono text-xs">
-                      {inv.id.slice(0, 8).toUpperCase()}
-                    </TableCell>
-                    <TableCell>{fmtDate(inv.paidAt)}</TableCell>
-                    <TableCell>{inv.description || planName}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {fmtAmount(inv.amount, inv.currency)}
-                    </TableCell>
-                    <TableCell>
-                      {inv.pdfUrl ? (
-                        <Button asChild variant="ghost" size="icon" aria-label="Tải hoá đơn">
-                          <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer">
-                            <Download className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="icon" aria-label="Tải hoá đơn" disabled>
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
         </Card>
 
         <div className="space-y-4">

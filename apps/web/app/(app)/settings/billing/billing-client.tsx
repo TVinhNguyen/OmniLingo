@@ -1,19 +1,9 @@
 "use client"
 
-import { useState, useTransition } from "react"
 import Link from "next/link"
 import { ArrowLeft, Check, CreditCard, Download, Crown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { cancelSubscriptionAction } from "../../../checkout/actions"
 import type { BillingSubscription, Invoice } from "@/lib/api/types"
 
 interface BillingClientProps {
@@ -22,16 +12,6 @@ interface BillingClientProps {
 }
 
 export default function BillingClient({ subscription, invoices }: BillingClientProps) {
-  const [cancelOpen, setCancelOpen] = useState(false)
-  const [, startTransition] = useTransition()
-
-  const handleCancel = () => {
-    startTransition(async () => {
-      await cancelSubscriptionAction("user_requested")
-      setCancelOpen(false)
-    })
-  }
-
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
 
@@ -78,11 +58,6 @@ export default function BillingClient({ subscription, invoices }: BillingClientP
             <Button asChild>
               <Link href="/settings/subscription">Quản lý gói</Link>
             </Button>
-            {!subscription.cancelAtPeriodEnd && (
-              <Button variant="outline" onClick={() => setCancelOpen(true)}>
-                Huỷ gia hạn
-              </Button>
-            )}
           </div>
         </div>
       ) : (
@@ -163,22 +138,6 @@ export default function BillingClient({ subscription, invoices }: BillingClientP
           </div>
         )}
       </div>
-
-      {/* Cancel confirm dialog */}
-      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Huỷ gói Plus?</DialogTitle>
-            <DialogDescription>
-              Bạn vẫn được dùng Plus đến hết kỳ đã trả. Sau đó tài khoản sẽ về Free.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelOpen(false)}>Giữ lại</Button>
-            <Button variant="destructive" onClick={handleCancel}>Xác nhận huỷ</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
