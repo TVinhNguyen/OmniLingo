@@ -24,6 +24,7 @@ jobs:
       rust_services: ${{ steps.filter.outputs.rust_services }}
       frontend_run: ${{ steps.filter.outputs.frontend_run }}
       migration_run: ${{ steps.filter.outputs.migration_run }}
+      e2e_run: ${{ steps.filter.outputs.e2e_run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,6 +98,11 @@ jobs:
             migration_run=true
           fi
 
+          e2e_run=false
+          if changed '^apps/web-e2e/|^apps/web/|^services/identity/|^\.github/workflows/ci\.yml$'; then
+            e2e_run=true
+          fi
+
           {
             echo "go_services=$go_services"
             echo "node_services=$node_services"
@@ -104,6 +110,7 @@ jobs:
             echo "rust_services=$rust_services"
             echo "frontend_run=$frontend_run"
             echo "migration_run=$migration_run"
+            echo "e2e_run=$e2e_run"
           } >> "$GITHUB_OUTPUT"
 
   go-services:
@@ -385,9 +392,10 @@ jobs:
   e2e:
     name: E2E Playwright
     needs:
+      - changes
       - frontend
       - node-services
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -437,6 +445,7 @@ jobs:
             curl -sf http://localhost:3001/healthz && break
             sleep 1
           done
+          curl -sf http://localhost:3001/healthz || { echo "::error::Identity service failed to start within 30s"; exit 1; }
         working-directory: .
         env:
           DATABASE_URL: postgres://omnilingo:omnilingo_dev@localhost:5432/identity_db?sslmode=disable
@@ -458,6 +467,7 @@ jobs:
             curl -sf http://localhost:3000 && break
             sleep 1
           done
+          curl -sf http://localhost:3000 || { echo "::error::Web app failed to start within 30s"; exit 1; }
         working-directory: apps/web
 
       - name: Run E2E tests (Chromium only in CI)
@@ -474,4 +484,3 @@ jobs:
           name: playwright-report
           path: apps/web-e2e/playwright-report/
           retention-days: 7
-
