@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createTestUser, deleteTestUser } from '../fixtures/user';
+import { buildTestUser, deleteTestUser } from '../fixtures/user';
 
 /**
  * G12 — onboarding.spec.ts
@@ -7,9 +7,9 @@ import { createTestUser, deleteTestUser } from '../fixtures/user';
  */
 test.describe('Onboarding', () => {
   test('complete 5-step onboarding flow', async ({ page, request }) => {
-    const user = await createTestUser(request);
+    const user = buildTestUser();
 
-    // ── Register
+    // ── Register via UI (not pre-registered via API)
     await page.goto('/register');
     await page.getByLabel(/name/i).fill(user.name);
     await page.getByLabel(/email/i).fill(user.email);

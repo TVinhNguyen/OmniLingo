@@ -22,7 +22,7 @@ export const options = {
 };
 
 export default function () {
-  const idx = __VU * 1000 + __ITER;
+  const idx = __ITER;
   const user = {
     email: `loadtest-${idx}@omnilingo-perf.local`,
     password: `Perf_Pass_${idx}!`,

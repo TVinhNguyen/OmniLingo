@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createTestUser, deleteTestUser } from '../fixtures/user';
+import { buildTestUser, createTestUser, deleteTestUser } from '../fixtures/user';
 
 /**
  * G12 — auth.spec.ts
@@ -7,9 +7,9 @@ import { createTestUser, deleteTestUser } from '../fixtures/user';
  */
 test.describe('Authentication', () => {
   test('register and login flow', async ({ page, request }) => {
-    const user = await createTestUser(request);
+    const user = buildTestUser();
 
-    // ── Register
+    // ── Register via UI (not pre-registered via API)
     await page.goto('/register');
     await expect(page).toHaveTitle(/OmniLingo/i);
 
