@@ -432,6 +432,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.25"
+          cache-dependency-path: services/identity/go.sum
 
       - name: Build identity service
         run: go build -o identity-service ./cmd/server
@@ -439,14 +440,14 @@ jobs:
 
       - name: Start identity service
         run: |
-          nohup ./services/identity/identity-service &
+          nohup ./identity-service &
           echo "Waiting for identity service to be ready..."
           for i in $(seq 1 30); do
             curl -sf http://localhost:3001/healthz && break
             sleep 1
           done
           curl -sf http://localhost:3001/healthz || { echo "::error::Identity service failed to start within 30s"; exit 1; }
-        working-directory: .
+        working-directory: services/identity
         env:
           DATABASE_URL: postgres://omnilingo:omnilingo_dev@localhost:5432/identity_db?sslmode=disable
           REDIS_URL: redis://localhost:6379/0
