@@ -222,9 +222,11 @@ export class LearningDataSource {
   }): Promise<LearningPreferences> {
     // Fetch current profile first — PUT /profile requires primary_language and full body
     const current = await call<{ profile?: Record<string, unknown> }>(this.ds, "/api/v1/learning/profile")
-      .catch(() => ({ profile: {} as Record<string, unknown> }));
+      .catch(() => ({ profile: undefined }));
     const p = current.profile ?? {};
     const body: Record<string, unknown> = { ...p };
+    // Ensure primary_language is always present (required by learning-service)
+    if (!body.primary_language) body.primary_language = "en";
     if (patch.dailyGoalMinutes !== undefined) body.daily_goal_minutes = patch.dailyGoalMinutes;
     if (patch.reminderTime !== undefined) body.reminder_time = patch.reminderTime;
     if (patch.learningLanguages !== undefined) body.learning_languages = patch.learningLanguages;
