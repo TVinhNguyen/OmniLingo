@@ -161,7 +161,7 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | Shop | ✅ (`/shop`) | 🔴 | |
 | Checkout | ✅ (`/checkout/page.tsx`) | ✅ | Confirm step calls `createCheckoutSession` → redirect (2026-04-23) |
 | Checkout success | ✅ (`/checkout/success`) | ✅ | RSC polls `checkoutStatus`, renders real plan/activatedAt (2026-04-23) |
-| Checkout cancel | ✅ | 🟡 | Static cancel page (acceptable for MVP1) |
+| Checkout cancel | ✅ | ✅ | Retry CTA preserves planId via query, support link to /contact (D2) |
 | 3DS callback | ✅ (`/checkout/3ds-callback`) | ✅ | RSC polls `checkoutStatus`, redirects to success or shows failed state (D1) |
 | Billing sub-page | ✅ (`/settings/billing`) | ✅ | RSC loads real subscription + invoices (2026-04-23) |
 | Subscription sub-page | ✅ (`/settings/subscription`) | ✅ | RSC loads `mySubscription` + `billingHistory`, cancel/reactivate wired (PR-D) |

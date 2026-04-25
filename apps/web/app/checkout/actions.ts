@@ -26,7 +26,7 @@ export async function createCheckoutSessionAction(
     process.env.NEXT_PUBLIC_APP_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
   const successUrl = `${origin}/checkout/success`
-  const cancelUrl  = `${origin}/checkout/cancel`
+  const cancelUrl  = `${origin}/checkout/cancel?planId=${encodeURIComponent(planId)}`
 
   let checkoutUrl: string | undefined
   try {
