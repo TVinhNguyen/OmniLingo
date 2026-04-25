@@ -22,7 +22,7 @@ export const options = {
 };
 
 export default function () {
-  const idx = __VU * 1000 + __ITER;
+  const idx = __ITER + (__VU - 1) * Math.ceil(TOTAL_USERS / 50);
   const user = {
     email: `loadtest-${idx}@omnilingo-perf.local`,
     password: `Perf_Pass_${idx}!`,
