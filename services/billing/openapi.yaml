@@ -173,7 +173,7 @@ components:
   schemas:
     ErrorResponse:
       type: object
-      required: [error]
+      required: [error, message]
       properties:
         error: { type: string }
         message: { type: string }
