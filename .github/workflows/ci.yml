@@ -24,6 +24,7 @@ jobs:
       rust_services: ${{ steps.filter.outputs.rust_services }}
       frontend_run: ${{ steps.filter.outputs.frontend_run }}
       migration_run: ${{ steps.filter.outputs.migration_run }}
+      e2e_run: ${{ steps.filter.outputs.e2e_run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,6 +98,11 @@ jobs:
             migration_run=true
           fi
 
+          e2e_run=false
+          if changed '^apps/web-e2e/|^apps/web/|^services/identity/|^\.github/workflows/ci\.yml$'; then
+            e2e_run=true
+          fi
+
           {
             echo "go_services=$go_services"
             echo "node_services=$node_services"
@@ -104,6 +110,7 @@ jobs:
             echo "rust_services=$rust_services"
             echo "frontend_run=$frontend_run"
             echo "migration_run=$migration_run"
+            echo "e2e_run=$e2e_run"
           } >> "$GITHUB_OUTPUT"
 
   go-services:
@@ -349,6 +356,7 @@ jobs:
       - python-services
       - frontend
       - migration-test
+      - e2e
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -364,7 +372,8 @@ jobs:
             "${{ needs.rust-services.result }}" \
             "${{ needs.python-services.result }}" \
             "${{ needs.frontend.result }}" \
-            "${{ needs.migration-test.result }}"; do
+            "${{ needs.migration-test.result }}" \
+            "${{ needs.e2e.result }}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               failed=true
             fi
@@ -376,3 +385,104 @@ jobs:
           fi
 
           echo "All required CI jobs passed or were skipped by path filters."
+
+  # ──────────────────────────────────────────────────
+  # G12: E2E Playwright tests (runs after unit tests)
+  # ──────────────────────────────────────────────────
+  e2e:
+    name: E2E Playwright
+    needs:
+      - changes
+      - frontend
+      - node-services
+    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' && vars.E2E_CI_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web-e2e
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+        working-directory: .
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start infrastructure (docker-compose)
+        run: |
+          docker compose -f ../../docker-compose.yml up -d postgres redis
+          echo "Waiting for infrastructure to be healthy..."
+          sleep 15
+        working-directory: apps/web-e2e
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: services/identity/go.sum
+
+      - name: Build identity service
+        run: go build -o identity-service ./cmd/server
+        working-directory: services/identity
+
+      - name: Start identity service
+        run: |
+          nohup ./identity-service &
+          echo "Waiting for identity service to be ready..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001/healthz && break
+            sleep 1
+          done
+          curl -sf http://localhost:3001/healthz || { echo "::error::Identity service failed to start within 30s"; exit 1; }
+        working-directory: services/identity
+        env:
+          DATABASE_URL: postgres://omnilingo:omnilingo_dev@localhost:5432/identity_db?sslmode=disable
+          REDIS_URL: redis://localhost:6379/0
+          KAFKA_ENABLED: "false"
+          HIBP_ENABLED: "false"
+
+      - name: Install web app dependencies and build
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm build
+        working-directory: apps/web
+
+      - name: Start web app
+        run: |
+          nohup pnpm start &
+          echo "Waiting for web app to be ready..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 && break
+            sleep 1
+          done
+          curl -sf http://localhost:3000 || { echo "::error::Web app failed to start within 30s"; exit 1; }
+        working-directory: apps/web
+
+      - name: Run E2E tests (Chromium only in CI)
+        continue-on-error: true
+        env:
+          BASE_URL: http://localhost:3000
+          IDENTITY_SERVICE_URL: http://localhost:3001
+          CI: "true"
+        run: pnpm exec playwright test --project=chromium
+
+      - name: Upload Playwright artifacts (video/screenshots)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/web-e2e/playwright-report/
+          retention-days: 7
