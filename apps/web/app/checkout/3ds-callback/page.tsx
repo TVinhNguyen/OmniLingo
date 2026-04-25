@@ -13,14 +13,24 @@ import ThreeDSFailedClient from "./failed-client"
 
 async function resolveStatus(sessionId: string, token: string): Promise<CheckoutStatus | null> {
   for (let i = 0; i < 5; i++) {
-    const res = await gql<{ checkoutStatus: CheckoutStatus }>(
-      CHECKOUT_STATUS_QUERY,
-      { sessionId },
-      token,
-    ).catch(() => null)
-    if (!res?.checkoutStatus) break
-    const { state } = res.checkoutStatus
-    if (state === "succeeded" || state === "failed") return res.checkoutStatus
+    let res: { checkoutStatus: CheckoutStatus } | null = null
+    let threw = false
+    try {
+      res = await gql<{ checkoutStatus: CheckoutStatus }>(
+        CHECKOUT_STATUS_QUERY,
+        { sessionId },
+        token,
+      )
+    } catch {
+      threw = true
+    }
+    // Transient failure (network/5xx): retry after delay.
+    // Definitive missing checkoutStatus (session not found): stop polling.
+    if (!threw && !res?.checkoutStatus) break
+    if (res?.checkoutStatus) {
+      const { state } = res.checkoutStatus
+      if (state === "succeeded" || state === "failed") return res.checkoutStatus
+    }
     await new Promise((r) => setTimeout(r, 2000))
   }
   return null
@@ -47,7 +57,7 @@ export default async function ThreeDSCallbackPage({
   const status = await resolveStatus(session_id, token).catch(() => null)
 
   if (status?.state === "succeeded") {
-    redirect(`/checkout/success?session_id=${session_id}`)
+    redirect(`/checkout/success?session_id=${encodeURIComponent(session_id)}`)
   }
 
   if (status?.state === "failed") {
