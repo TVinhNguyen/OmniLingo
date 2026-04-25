@@ -147,6 +147,16 @@ func main() {
 		}
 	}()
 
+	// T9: Outbox relay
+	outboxCtx, outboxCancel := context.WithCancel(context.Background())
+	defer outboxCancel()
+	if cfg.KafkaEnabled {
+		outboxRepo   := messaging.NewOutboxRepository(db)
+		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		go outboxWorker.Run(outboxCtx)
+		log.Info("outbox relay started")
+	}
+
 	// ─── Graceful Shutdown ────────────────────────────────────────────────────
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -160,6 +170,7 @@ func main() {
 
 	<-quit
 	log.Info("shutdown signal received — draining connections")
+	outboxCancel()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()

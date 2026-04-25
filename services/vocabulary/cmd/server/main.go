@@ -121,6 +121,15 @@ func main() {
 	deckH.RegisterRoutes(protected)
 	ankiH.RegisterRoutes(protected)
 
+	// T9: Outbox relay
+	outboxCtx, outboxCancel := context.WithCancel(context.Background())
+	if cfg.KafkaEnabled {
+		outboxRepo   := messaging.NewOutboxRepository(db)
+		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		go outboxWorker.Run(outboxCtx)
+		log.Info("outbox relay started")
+	}
+
 	// ─── Graceful shutdown ────────────────────────────────────────────────────
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -128,6 +137,7 @@ func main() {
 	go func() {
 		<-quit
 		log.Info("shutting down vocabulary-service...")
+		outboxCancel()
 		shutCtx, cancelShut := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelShut()
 		_ = app.ShutdownWithContext(shutCtx)

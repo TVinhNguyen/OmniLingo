@@ -100,7 +100,13 @@ func main() {
 		consumer := messaging.NewGamificationConsumer(cfg.KafkaBrokers, cfg.KafkaGroupID, svc, log)
 		consumer.Start(appCtx)
 		defer consumer.Stop()
-		log.Info("kafka consumer+publisher started")
+
+		// T9: Outbox relay
+		outboxRepo   := messaging.NewOutboxRepository(db)
+		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		go outboxWorker.Run(appCtx)
+
+		log.Info("kafka consumer+publisher+outbox relay started")
 	}
 
 	app := fiber.New(fiber.Config{
