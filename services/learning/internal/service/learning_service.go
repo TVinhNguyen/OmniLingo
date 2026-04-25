@@ -210,15 +210,14 @@ func (s *learningService) GetTodayMission(ctx context.Context, userID uuid.UUID)
 		return mission, nil
 	}
 
-	// Fetch completed lessons for the user
-	attempts, _, err := s.attemptRepo.ListByUser(ctx, userID, 100, 0)
-	completedLessonIDs := make(map[string]bool)
-	if err == nil {
-		for _, a := range attempts {
-			if a.CompletedAt != nil {
-				completedLessonIDs[a.LessonID] = true
-			}
-		}
+	// Collect lesson IDs from the unit to query completed status
+	lessonIDs := make([]string, len(lessons))
+	for i, l := range lessons { lessonIDs[i] = l.ID }
+
+	completedLessonIDs, err := s.attemptRepo.CompletedLessonIDs(ctx, userID, lessonIDs)
+	if err != nil {
+		s.log.Warn("failed to fetch completed lesson IDs", zap.Error(err))
+		completedLessonIDs = make(map[string]bool)
 	}
 
 	// Find the first non-completed lesson

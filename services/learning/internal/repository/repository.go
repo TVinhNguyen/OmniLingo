@@ -148,6 +148,7 @@ type AttemptRepository interface {
 	Complete(ctx context.Context, id int64, score float64, xp, timeSec int) (*domain.LessonAttempt, error)
 	ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.LessonAttempt, int, error)
 	GetActive(ctx context.Context, userID uuid.UUID, lessonID string) (*domain.LessonAttempt, error)
+	CompletedLessonIDs(ctx context.Context, userID uuid.UUID, lessonIDs []string) (map[string]bool, error)
 }
 
 type attemptRepo struct{ db *pgxpool.Pool }
@@ -208,4 +209,20 @@ func (r *attemptRepo) GetActive(ctx context.Context, userID uuid.UUID, lessonID 
 		return nil, domain.ErrNotFound
 	}
 	return a, nil
+}
+
+func (r *attemptRepo) CompletedLessonIDs(ctx context.Context, userID uuid.UUID, lessonIDs []string) (map[string]bool, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT DISTINCT lesson_id FROM user_lesson_attempts
+		WHERE user_id=$1 AND completed_at IS NOT NULL AND lesson_id = ANY($2)`,
+		userID, lessonIDs)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	result := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil { continue }
+		result[id] = true
+	}
+	return result, nil
 }

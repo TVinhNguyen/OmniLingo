@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"go.uber.org/zap"
@@ -44,16 +45,16 @@ func NewContentClient(baseURL string, log *zap.Logger) ContentClient {
 }
 
 func (c *contentClient) GetUnitLessons(ctx context.Context, unitID string) ([]LessonDTO, error) {
-	url := fmt.Sprintf("%s/api/v1/content/lessons?unitId=%s", c.baseURL, unitID)
+	reqURL := fmt.Sprintf("%s/api/v1/content/lessons?unitId=%s", c.baseURL, url.QueryEscape(unitID))
 	
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request failed: %w", err)
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.Warn("content-service unavailable", zap.Error(err), zap.String("url", url))
+		c.log.Warn("content-service unavailable", zap.Error(err), zap.String("url", reqURL))
 		return nil, fmt.Errorf("do request failed: %w", err)
 	}
 	defer resp.Body.Close()
