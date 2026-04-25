@@ -759,7 +759,7 @@ export class GamificationDataSource {
         userId:        String(e.user_id ?? e.userId ?? ""),
         displayName:   String(e.display_name ?? e.displayName ?? ""),
         avatarUrl:     e.avatar_url != null ? String(e.avatar_url) : null,
-        xp:            Number(e.xp ?? 0),
+        xp:            Number(e.score ?? e.xp ?? 0),
         isCurrentUser: Boolean(e.is_current_user ?? e.isCurrentUser ?? false),
       })),
     };
