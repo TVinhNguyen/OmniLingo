@@ -13,12 +13,13 @@ import (
 )
 
 type AssessmentHandler struct {
-	svc service.AssessmentService
-	log *zap.Logger
+	svc          service.AssessmentService
+	placementSvc service.PlacementService
+	log          *zap.Logger
 }
 
-func NewAssessmentHandler(svc service.AssessmentService, log *zap.Logger) *AssessmentHandler {
-	return &AssessmentHandler{svc: svc, log: log}
+func NewAssessmentHandler(svc service.AssessmentService, placementSvc service.PlacementService, log *zap.Logger) *AssessmentHandler {
+	return &AssessmentHandler{svc: svc, placementSvc: placementSvc, log: log}
 }
 
 func (h *AssessmentHandler) Register(router fiber.Router) {
@@ -32,6 +33,10 @@ func (h *AssessmentHandler) Register(router fiber.Router) {
 	v1.Post("/tests/:id/start", h.StartTest)
 	v1.Post("/tests/:sessionId/submit", h.SubmitTest)
 	v1.Get("/tests/:sessionId/result", h.GetTestResult)
+
+	// T4: CEFR placement test
+	v1.Get("/placement", h.GetPlacementTest)
+	v1.Post("/placement/submit", h.SubmitPlacement)
 }
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
@@ -164,4 +169,35 @@ func parseIntQuery(c *fiber.Ctx, key string, def, min, max int) int {
 		return max
 	}
 	return v
+}
+
+// ─── T4: Placement Test Handlers ──────────────────────────────────────────────
+
+// GetPlacementTest — GET /api/v1/assessments/placement?lang=en&targetLang=vi
+func (h *AssessmentHandler) GetPlacementTest(c *fiber.Ctx) error {
+	lang       := c.Query("lang", "en")
+	targetLang := c.Query("targetLang", "en")
+	test, err  := h.placementSvc.GetTest(lang, targetLang)
+	if err != nil { return handleError(c, err) }
+	out := struct {
+		TestID     string                     `json:"testId"`
+		Lang       string                     `json:"lang"`
+		TargetLang string                     `json:"targetLang"`
+		Questions  []domain.PlacementQuestion `json:"questions"`
+	}{TestID: test.TestID, Lang: test.Lang, TargetLang: test.TargetLang, Questions: test.Questions}
+	return c.JSON(fiber.Map{"test": out})
+}
+
+// SubmitPlacement — POST /api/v1/assessments/placement/submit
+func (h *AssessmentHandler) SubmitPlacement(c *fiber.Ctx) error {
+	var body struct {
+		TestID  string                   `json:"testId"`
+		Answers []domain.PlacementAnswer `json:"answers"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.TestID == "" || len(body.Answers) == 0 {
+		return c.Status(400).JSON(fiber.Map{"error": "BAD_REQUEST", "message": "testId and answers required"})
+	}
+	result, err := h.placementSvc.SubmitTest(body.TestID, body.Answers)
+	if err != nil { return handleError(c, err) }
+	return c.JSON(fiber.Map{"result": result})
 }
