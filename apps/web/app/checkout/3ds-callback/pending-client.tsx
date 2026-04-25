@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "motion/react"
+import { toast } from "sonner"
 import { Lock, Sparkles } from "lucide-react"
 
 const POLL_INTERVAL_MS = 3000
+const MAX_WAIT_MS = 5 * 60 * 1000 // 5 phút — sau ngưỡng này coi như PSP không trả callback
 
 interface PendingClientProps {
   sessionId: string
@@ -13,10 +15,12 @@ interface PendingClientProps {
 
 export default function ThreeDSPendingClient({ sessionId }: PendingClientProps) {
   const router = useRouter()
+  const startedAtRef = useRef<number>(Date.now())
 
   // Continue polling on the client (RSC already polled 5x) by re-fetching the
   // route — the server will re-run resolveStatus and either redirect to
-  // /checkout/success or render the failed view.
+  // /checkout/success or render the failed view. Cap tổng thời gian poll ở
+  // MAX_WAIT_MS để không kẹt vô hạn nếu PSP không bao giờ trả callback.
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault()
@@ -25,6 +29,13 @@ export default function ThreeDSPendingClient({ sessionId }: PendingClientProps) 
     window.addEventListener("beforeunload", handler)
 
     const id = window.setInterval(() => {
+      if (Date.now() - startedAtRef.current >= MAX_WAIT_MS) {
+        window.clearInterval(id)
+        window.removeEventListener("beforeunload", handler)
+        toast.error("Phiên thanh toán quá hạn, vui lòng thử lại")
+        router.replace("/pricing")
+        return
+      }
       router.refresh()
     }, POLL_INTERVAL_MS)
 

@@ -76,6 +76,34 @@ export const MY_TRACKS_QUERY = /* GraphQL */ `
   }
 `;
 
+export const COURSES_QUERY = /* GraphQL */ `
+  query Courses($trackId: ID!, $language: String) {
+    courses(trackId: $trackId, language: $language) {
+      id
+      trackId
+      language
+      level
+      title
+      description
+      thumbnailUrl
+      order
+      unitIds
+    }
+  }
+`;
+
+export const UNITS_QUERY = /* GraphQL */ `
+  query Units($courseId: ID!, $language: String) {
+    units(courseId: $courseId, language: $language) {
+      id
+      courseId
+      title
+      order
+      lessonIds
+    }
+  }
+`;
+
 export const LESSONS_QUERY = /* GraphQL */ `
   query Lessons($unitId: ID!) {
     lessons(unitId: $unitId) {

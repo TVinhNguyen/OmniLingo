@@ -52,6 +52,26 @@ export interface Lesson {
   status: LessonStatus;
 }
 
+export interface Course {
+  id:           string;
+  trackId:      string;
+  language:     string;
+  level:        string;
+  title:        string;
+  description:  string | null;
+  thumbnailUrl: string | null;
+  order:        number;
+  unitIds:      string[];
+}
+
+export interface UnitDTO {
+  id:        string;
+  courseId:  string;
+  title:     string;
+  order:     number;
+  lessonIds: string[];
+}
+
 export interface Deck {
   id: string;
   name: string;
