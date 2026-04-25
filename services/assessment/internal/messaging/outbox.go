@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
@@ -68,6 +69,10 @@ func (r *OutboxRepository) MarkFailed(ctx context.Context, id int64, errMsg stri
 	return err
 }
 
+func (r *OutboxRepository) beginTx(ctx context.Context) (pgx.Tx, error) {
+	return r.db.Begin(ctx)
+}
+
 // ─── Relay Worker ──────────────────────────────────────────────────────────────
 
 // OutboxWorker polls outbox_events and publishes them to Kafka.
@@ -98,8 +103,22 @@ func (w *OutboxWorker) Run(ctx context.Context) {
 }
 
 func (w *OutboxWorker) flush(ctx context.Context) {
-	events, err := w.repo.ListPending(ctx, 50)
+	tx, err := w.repo.beginTx(ctx)
+	if err != nil { w.log.Error("outbox tx begin failed", zap.Error(err)); return }
+	defer tx.Rollback(ctx)
+
+	rows, err := tx.Query(ctx, `
+		SELECT id, topic, key, payload FROM outbox_events
+		WHERE sent_at IS NULL AND attempts < 5
+		ORDER BY created_at LIMIT $1 FOR UPDATE SKIP LOCKED`, 50)
 	if err != nil { w.log.Error("outbox list failed", zap.Error(err)); return }
+	var events []OutboxEvent
+	for rows.Next() {
+		var e OutboxEvent
+		if err := rows.Scan(&e.ID, &e.Topic, &e.Key, &e.Payload); err != nil { continue }
+		events = append(events, e)
+	}
+	rows.Close()
 	if len(events) == 0 { return }
 
 	byTopic := make(map[string][]OutboxEvent)
@@ -116,11 +135,19 @@ func (w *OutboxWorker) flush(ctx context.Context) {
 		}
 		if err := writer.WriteMessages(ctx, msgs...); err != nil {
 			w.log.Error("outbox kafka publish failed", zap.String("topic", topic), zap.Error(err))
-			for _, e := range topicEvents { _ = w.repo.MarkFailed(ctx, e.ID, err.Error()) }
+			for _, e := range topicEvents {
+				_, _ = tx.Exec(ctx, `UPDATE outbox_events SET attempts=attempts+1, last_error=$1 WHERE id=$2`, err.Error(), e.ID)
+			}
 		} else {
-			for _, e := range topicEvents { _ = w.repo.MarkSent(ctx, e.ID) }
+			for _, e := range topicEvents {
+				_, _ = tx.Exec(ctx, `UPDATE outbox_events SET sent_at=now(), attempts=attempts+1 WHERE id=$1`, e.ID)
+			}
 			w.log.Info("outbox flushed", zap.String("topic", topic), zap.Int("count", len(topicEvents)))
 		}
 		_ = writer.Close()
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		w.log.Error("outbox tx commit failed", zap.Error(err))
 	}
 }

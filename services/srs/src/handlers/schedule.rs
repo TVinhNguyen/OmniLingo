@@ -65,13 +65,17 @@ pub async fn schedule_handler(
     let new_lapses = if req.rating == Rating::Again { lapses + 1 } else { lapses };
     let new_reps = reps + 1;
 
-    let mut tx = state.db.begin().await.map_err(|e| {
-        tracing::error!("tx begin error: {e}");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error":"INTERNAL_ERROR","message":"failed to start transaction"})),
-        )
-    }).unwrap();
+    let mut tx = match state.db.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            tracing::error!("tx begin error: {e}");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error":"INTERNAL_ERROR","message":"failed to start transaction"})),
+            )
+                .into_response();
+        }
+    };
 
     // Upsert srs_states
     let upsert = sqlx::query(
@@ -137,7 +141,14 @@ pub async fn schedule_handler(
         tracing::warn!("failed to enqueue srs.review.completed outbox event: {e}");
     }
 
-    let _ = tx.commit().await;
+    if let Err(e) = tx.commit().await {
+        tracing::error!("tx commit failed: {e}");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":"INTERNAL_ERROR","message":"transaction commit failed"})),
+        )
+            .into_response();
+    }
 
     metrics::REVIEWS_TOTAL
         .with_label_values(&[&req.rating.as_i16().to_string()])

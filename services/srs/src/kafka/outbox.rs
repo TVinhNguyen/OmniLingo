@@ -35,7 +35,7 @@ pub async fn enqueue_event(
     Ok(())
 }
 
-async fn fetch_pending(db: &PgPool, limit: i64) -> Result<Vec<OutboxEvent>, sqlx::Error> {
+async fn fetch_pending(tx: &mut Transaction<'_, Postgres>, limit: i64) -> Result<Vec<OutboxEvent>, sqlx::Error> {
     use sqlx::Row;
     let rows = sqlx::query(
         r#"
@@ -48,7 +48,7 @@ async fn fetch_pending(db: &PgPool, limit: i64) -> Result<Vec<OutboxEvent>, sqlx
         "#,
     )
     .bind(limit)
-    .fetch_all(db)
+    .fetch_all(&mut **tx)
     .await?;
 
     let events = rows
@@ -65,19 +65,19 @@ async fn fetch_pending(db: &PgPool, limit: i64) -> Result<Vec<OutboxEvent>, sqlx
     Ok(events)
 }
 
-async fn mark_sent(db: &PgPool, id: i64) -> Result<(), sqlx::Error> {
+async fn mark_sent(tx: &mut Transaction<'_, Postgres>, id: i64) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE outbox_events SET sent_at=now(), attempts=attempts+1 WHERE id=$1")
         .bind(id)
-        .execute(db)
+        .execute(&mut **tx)
         .await?;
     Ok(())
 }
 
-async fn mark_failed(db: &PgPool, id: i64, err: &str) -> Result<(), sqlx::Error> {
+async fn mark_failed(tx: &mut Transaction<'_, Postgres>, id: i64, err: &str) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE outbox_events SET attempts=attempts+1, last_error=$1 WHERE id=$2")
         .bind(err)
         .bind(id)
-        .execute(db)
+        .execute(&mut **tx)
         .await?;
     Ok(())
 }
@@ -97,7 +97,15 @@ pub async fn start_relay(brokers: &str, db: PgPool) {
         loop {
             interval.tick().await;
 
-            match fetch_pending(&db, 50).await {
+            let mut tx = match db.begin().await {
+                Ok(tx) => tx,
+                Err(e) => {
+                    error!("outbox tx begin error: {}", e);
+                    continue;
+                }
+            };
+
+            match fetch_pending(&mut tx, 50).await {
                 Ok(events) if !events.is_empty() => {
                     for event in events {
                         let payload_bytes = event.payload.to_string();
@@ -107,19 +115,23 @@ pub async fn start_relay(brokers: &str, db: PgPool) {
 
                         match producer.send(record, Duration::from_secs(0)).await {
                             Ok(_) => {
-                                let _ = mark_sent(&db, event.id).await;
+                                let _ = mark_sent(&mut tx, event.id).await;
                             }
                             Err((e, _)) => {
                                 warn!("failed to publish event {}: {}", event.id, e);
-                                let _ = mark_failed(&db, event.id, &e.to_string()).await;
+                                let _ = mark_failed(&mut tx, event.id, &e.to_string()).await;
                             }
                         }
+                    }
+
+                    if let Err(e) = tx.commit().await {
+                        error!("outbox tx commit error: {}", e);
                     }
                 }
                 Err(e) => {
                     error!("fetch outbox error: {}", e);
                 }
-                _ => {} // no events
+                _ => {} // no events, tx dropped = auto-rollback
             }
         }
     });
