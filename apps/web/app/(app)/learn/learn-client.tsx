@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
 import { BookOpen, ChevronDown, Lock, Play } from "lucide-react"
@@ -37,8 +37,6 @@ export function LearnClient({ tracks, activeCourse, activeUnits }: LearnClientPr
     ? `Tiến độ: ${Math.round(activeTrack.progressPct)}%`
     : "Bạn còn 2 bài để hoàn thành unit"
 
-  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(activeTrack?.id ?? null)
-
   // First lesson of first non-empty unit → "Tiếp tục" CTA. BE chưa expose
   // lesson completion; brief: derive client-side hoặc BE — hiện chọn lesson
   // đầu tiên có sẵn.
@@ -70,23 +68,23 @@ export function LearnClient({ tracks, activeCourse, activeUnits }: LearnClientPr
         </Link>
       </div>
 
-      {/* Track switcher */}
+      {/* Track chips — display-only. BE fan-out hiện chỉ fetch tracks[0]; multi-track
+          switching sẽ là Phase 2 (per-track route hoặc client-side fetch). */}
       <div className="flex flex-wrap gap-2">
         {tracks?.map((t) => {
-          const selected = selectedTrackId === t.id
+          const isActive = t.id === activeTrack?.id
           return (
-            <button
+            <span
               key={t.id}
-              onClick={() => setSelectedTrackId(t.id)}
               className={cn(
-                "rounded-full px-4 py-2 text-sm font-semibold shadow-ambient transition",
-                selected
+                "rounded-full px-4 py-2 text-sm font-semibold shadow-ambient",
+                isActive
                   ? "bg-gradient-primary text-primary-foreground"
-                  : "bg-surface-lowest hover:bg-surface-low",
+                  : "bg-surface-lowest text-muted-foreground",
               )}
             >
               📚 {t.language.toUpperCase()} · {t.level}
-            </button>
+            </span>
           )
         })}
       </div>
