@@ -1,5 +1,7 @@
 # OmniLingo Academy — Kiến trúc Nền tảng Học Ngôn ngữ Đa năng
 
+[![CI](https://github.com/TVinhNguyen/OmniLingo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TVinhNguyen/OmniLingo/actions/workflows/ci.yml)
+
 Bộ tài liệu kiến trúc cho một nền tảng học ngôn ngữ tổng hợp (web + mobile) hỗ trợ nhiều ngôn ngữ (Anh, Nhật, Trung, Hàn, Pháp, Đức, Tây Ban Nha, Việt cho người nước ngoài…), tích hợp đầy đủ các module học (từ vựng, ngữ pháp, nghe chép chính tả, đọc, nói, viết), luyện đề chứng chỉ quốc tế (TOEIC, IELTS, TOEFL, HSK, JLPT, TOPIK, DELF/DELE, Cambridge), lộ trình học cá nhân hoá và nhiều gói đăng ký phân tầng.
 
 ## Cấu trúc tài liệu
