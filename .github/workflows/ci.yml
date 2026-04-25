@@ -413,12 +413,52 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Start services (docker-compose)
+      - name: Start infrastructure (docker-compose)
         run: |
-          docker compose -f ../../docker-compose.yml up -d postgres mongodb redis kafka
-          echo "Waiting for services to be healthy..."
-          sleep 20
+          docker compose -f ../../docker-compose.yml up -d postgres redis
+          echo "Waiting for infrastructure to be healthy..."
+          sleep 15
         working-directory: apps/web-e2e
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Build identity service
+        run: go build -o identity-service ./cmd/server
+        working-directory: services/identity
+
+      - name: Start identity service
+        run: |
+          nohup ./services/identity/identity-service &
+          echo "Waiting for identity service to be ready..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001/healthz && break
+            sleep 1
+          done
+        working-directory: .
+        env:
+          DATABASE_URL: postgres://omnilingo:omnilingo_dev@localhost:5432/identity_db?sslmode=disable
+          REDIS_URL: redis://localhost:6379/0
+          KAFKA_ENABLED: "false"
+          HIBP_ENABLED: "false"
+
+      - name: Install web app dependencies and build
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm build
+        working-directory: apps/web
+
+      - name: Start web app
+        run: |
+          nohup pnpm start &
+          echo "Waiting for web app to be ready..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 && break
+            sleep 1
+          done
+        working-directory: apps/web
 
       - name: Run E2E tests (Chromium only in CI)
         env:

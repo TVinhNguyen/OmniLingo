@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createTestUser, deleteTestUser } from '../fixtures/user';
+import { createTestUser, generateTestUser, deleteTestUser } from '../fixtures/user';
 
 /**
  * G12 — auth.spec.ts
@@ -7,7 +7,7 @@ import { createTestUser, deleteTestUser } from '../fixtures/user';
  */
 test.describe('Authentication', () => {
   test('register and login flow', async ({ page, request }) => {
-    const user = await createTestUser(request);
+    const user = generateTestUser();
 
     // ── Register
     await page.goto('/register');
