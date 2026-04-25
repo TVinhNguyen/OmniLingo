@@ -220,7 +220,13 @@ export class LearningDataSource {
     reminderTime?: string | null;
     learningLanguages?: string[];
   }): Promise<LearningPreferences> {
-    const body: Record<string, unknown> = {};
+    // Fetch current profile first — PUT /profile requires primary_language and full body
+    const current = await call<{ profile?: Record<string, unknown> }>(this.ds, "/api/v1/learning/profile")
+      .catch(() => ({ profile: undefined }));
+    const p = current.profile ?? {};
+    const body: Record<string, unknown> = { ...p };
+    // Ensure primary_language is always present (required by learning-service)
+    if (!body.primary_language) body.primary_language = "en";
     if (patch.dailyGoalMinutes !== undefined) body.daily_goal_minutes = patch.dailyGoalMinutes;
     if (patch.reminderTime !== undefined) body.reminder_time = patch.reminderTime;
     if (patch.learningLanguages !== undefined) body.learning_languages = patch.learningLanguages;
@@ -285,6 +291,38 @@ export class LearningDataSource {
 
 // ─── Content DataSource ────────────────────────────────────────────────────────
 
+/** Mirror of content-service ICourse shape (locale-picked title/description). */
+export interface CourseDTO {
+  id: string;
+  trackId: string;
+  language: string;
+  level: string;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  order: number;
+  unitIds: string[];
+}
+
+/** Mirror of content-service IUnit shape (locale-picked title). */
+export interface UnitDTO {
+  id: string;
+  courseId: string;
+  title: string;
+  order: number;
+  lessonIds: string[];
+}
+
+/** Shared locale-picker: prefers `language`, falls back to 'en', then first value. */
+function pickLocale(v: unknown, language: string): string {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object") {
+    const m = v as Record<string, string>;
+    return m[language] ?? m["en"] ?? Object.values(m)[0] ?? "";
+  }
+  return "";
+}
+
 /** Shape returned by GQL; mirrors a subset of content-service Exercise model. */
 export interface ExerciseDTO {
   id:            string;
@@ -344,15 +382,6 @@ export class ContentDataSource {
     const lesson = await this.getLesson(lessonId);
     if (!lesson) return null;
 
-    const pickLocale = (v: unknown): string => {
-      if (typeof v === "string") return v;
-      if (v && typeof v === "object") {
-        const m = v as Record<string, string>;
-        return m[language] ?? m["en"] ?? Object.values(m)[0] ?? "";
-      }
-      return "";
-    };
-
     const blocks = (lesson.blocks ?? []) as Array<Record<string, unknown>>;
     const exerciseIds = blocks
       .filter((b) => b.type === "exercise" && typeof b.exerciseId === "string")
@@ -369,11 +398,11 @@ export class ContentDataSource {
       exercises.push({
         id,
         kind:          String(e.type ?? ""),
-        prompt:        pickLocale(prompt?.text),
+        prompt:        pickLocale(prompt?.text, language),
         audioRef:      prompt?.audioRef as string | undefined,
         choices:       Array.isArray(e.choices) ? (e.choices as string[]) : undefined,
         correctAnswer: e.answer ?? e.referenceText ?? e.pairs ?? null,
-        explanation:   pickLocale(e.explanation) || undefined,
+        explanation:   pickLocale(e.explanation, language) || undefined,
         skill:         e.skill as string | undefined,
         maxScore:      1.0,
         language:      String(e.language ?? language),
@@ -382,7 +411,7 @@ export class ContentDataSource {
 
     return {
       lessonId,
-      title:            pickLocale(lesson.title),
+      title:            pickLocale(lesson.title, language),
       language:         String(lesson.language ?? language),
       estimatedMinutes: Number(lesson.estimatedMinutes ?? 10),
       exercises,
@@ -504,12 +533,12 @@ export class AssessmentDataSource {
   }
 
   /** POST /api/v1/assessments/placement/submit */
-  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>): Promise<{
+  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>, targetLang: string): Promise<{
     cefr: string; score: number; correctCount: number; totalCount: number; recommendedTrackId: string;
   }> {
     const raw = await call<{ result?: Record<string, unknown> }>(
       this.ds, "/api/v1/assessments/placement/submit",
-      { method: "POST", body: { testId, answers } },
+      { method: "POST", body: { testId, answers, targetLang } },
     );
     const r = (raw.result ?? {}) as Record<string, unknown>;
     return {
@@ -651,39 +680,6 @@ export class EntitlementDataSource {
     );
   }
 }
-// ─── Content DataSource ──────────────────────────────────────────────────────
-
-/** Mirror of content-service ICourse shape (locale-picked title/description). */
-export interface CourseDTO {
-  id: string;
-  trackId: string;
-  language: string;
-  level: string;
-  title: string;
-  description?: string;
-  thumbnailUrl?: string;
-  order: number;
-  unitIds: string[];
-}
-
-/** Mirror of content-service IUnit shape (locale-picked title). */
-export interface UnitDTO {
-  id: string;
-  courseId: string;
-  title: string;
-  order: number;
-  lessonIds: string[];
-}
-
-/** Shared locale-picker: prefers `language`, falls back to 'en', then first value. */
-function pickLocale(v: unknown, language: string): string {
-  if (typeof v === "string") return v;
-  if (v && typeof v === "object") {
-    const m = v as Record<string, string>;
-    return m[language] ?? m["en"] ?? Object.values(m)[0] ?? "";
-  }
-  return "";
-}
 
 // ─── Gamification DataSource ──────────────────────────────────────────────────
 
@@ -743,7 +739,7 @@ export class GamificationDataSource {
    * Service route: /leaderboard/:leagueId (default leagueId = "global")
    * Response: { leaderboard: [...], league: "global" }
    */
-  async getMyLeaderboard(leagueId = "global"): Promise<{
+  async getMyLeaderboard(leagueId = "bronze"): Promise<{
     league: string;
     entries: Array<{ rank: number; userId: string; displayName: string; avatarUrl: string | null; xp: number; isCurrentUser: boolean }>;
     myRank: number;
@@ -763,7 +759,7 @@ export class GamificationDataSource {
         userId:        String(e.user_id ?? e.userId ?? ""),
         displayName:   String(e.display_name ?? e.displayName ?? ""),
         avatarUrl:     e.avatar_url != null ? String(e.avatar_url) : null,
-        xp:            Number(e.xp ?? 0),
+        xp:            Number(e.score ?? e.xp ?? 0),
         isCurrentUser: Boolean(e.is_current_user ?? e.isCurrentUser ?? false),
       })),
     };

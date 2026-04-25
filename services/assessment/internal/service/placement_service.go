@@ -11,7 +11,7 @@ import (
 // Questions are statically embedded for MVP — move to DB in Phase 2.
 type PlacementService interface {
 	GetTest(lang, targetLang string) (*domain.PlacementTest, error)
-	SubmitTest(testID string, answers []domain.PlacementAnswer) (*domain.PlacementResult, error)
+	SubmitTest(testID string, answers []domain.PlacementAnswer, targetLang string) (*domain.PlacementResult, error)
 }
 
 type placementService struct {
@@ -46,7 +46,7 @@ func (s *placementService) GetTest(lang, targetLang string) (*domain.PlacementTe
 	return &clone, nil
 }
 
-func (s *placementService) SubmitTest(testID string, answers []domain.PlacementAnswer) (*domain.PlacementResult, error) {
+func (s *placementService) SubmitTest(testID string, answers []domain.PlacementAnswer, targetLang string) (*domain.PlacementResult, error) {
 	if len(answers) == 0 {
 		return nil, &domain.DomainError{StatusCode: 400, Code: "BAD_REQUEST", Message: "answers must not be empty"}
 	}
@@ -76,6 +76,9 @@ func (s *placementService) SubmitTest(testID string, answers []domain.PlacementA
 		}
 	}
 
+	if answerKey == nil {
+		return nil, &domain.DomainError{StatusCode: 400, Code: "BAD_REQUEST", Message: "submitted answers do not match any known placement test"}
+	}
 	correct := 0
 	for _, a := range answers {
 		if correctChoice, ok := answerKey[a.QuestionID]; ok {
@@ -89,15 +92,16 @@ func (s *placementService) SubmitTest(testID string, answers []domain.PlacementA
 	ratio := float64(correct) / float64(total)
 	cefr := domain.CEFRFromScore(ratio)
 
-	// Determine target language from first answer's question prefix (convention: "en-vi-q1" → "vi")
-	targetLang := "en" // default
-	if len(answers) > 0 && len(answers[0].QuestionID) >= 5 {
-		// Try to parse "en-vi-q1" pattern
-		qid := answers[0].QuestionID
-		for _, t := range s.testBank {
-			if len(t.Questions) > 0 && t.Questions[0].ID == qid {
-				targetLang = t.TargetLang
-				break
+	// Use the explicitly provided targetLang; fall back to question-ID matching only if empty
+	if targetLang == "" {
+		targetLang = "en"
+		if len(answers) > 0 && len(answers[0].QuestionID) >= 5 {
+			qid := answers[0].QuestionID
+			for _, t := range s.testBank {
+				if len(t.Questions) > 0 && t.Questions[0].ID == qid {
+					targetLang = t.TargetLang
+					break
+				}
 			}
 		}
 	}

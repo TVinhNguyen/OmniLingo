@@ -8,6 +8,9 @@ import {
 } from 'prom-client';
 import type { FastifyPluginAsync } from 'fastify';
 
+const SERVICE_NAME = 'content';
+const HTTP_DURATION_BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5];
+
 export interface ContentMetrics {
   httpRequestsTotal: Counter;
   httpRequestDuration: Histogram;
@@ -20,6 +23,7 @@ export interface ContentMetrics {
 
 const metricsPlugin: FastifyPluginAsync = async (fastify) => {
   const register = new Registry();
+  register.setDefaultLabels({ service_name: SERVICE_NAME });
   collectDefaultMetrics({ register });
 
   const metrics: ContentMetrics = {
@@ -33,8 +37,8 @@ const metricsPlugin: FastifyPluginAsync = async (fastify) => {
     httpRequestDuration: new Histogram({
       name: 'content_http_request_duration_seconds',
       help: 'HTTP request duration in seconds',
-      labelNames: ['method', 'route'],
-      buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+      labelNames: ['method', 'route', 'status_code'],
+      buckets: HTTP_DURATION_BUCKETS,
       registers: [register],
     }),
 
@@ -78,14 +82,27 @@ const metricsPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('metrics', metrics);
   fastify.decorate('metricsRegistry', register);
 
+  fastify.addHook('onRequest', async (request) => {
+    (request as unknown as { metricsStart: bigint }).metricsStart = process.hrtime.bigint();
+  });
+
   // HTTP instrumentation: add to every response
   fastify.addHook('onResponse', async (request, reply) => {
-    const route = request.routerPath ?? request.url.split('?')[0];
+    const route = request.routeOptions.url ?? request.url.split('?')[0];
+    const statusCode = String(reply.statusCode);
+    const start = (request as unknown as { metricsStart?: bigint }).metricsStart;
+    const durationSec = start ? Number(process.hrtime.bigint() - start) / 1_000_000_000 : 0;
+
     metrics.httpRequestsTotal.inc({
       method: request.method,
       route,
-      status_code: reply.statusCode,
+      status_code: statusCode,
     });
+    metrics.httpRequestDuration.observe({
+      method: request.method,
+      route,
+      status_code: statusCode,
+    }, durationSec);
   });
 
   // Metrics endpoint

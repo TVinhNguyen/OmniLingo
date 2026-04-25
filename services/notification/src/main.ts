@@ -7,7 +7,10 @@ import { Notifier } from './services/notifier';
 import { NotificationConsumer } from './services/consumer';
 import { notificationRoutes } from './routes/notifications';
 import { verifyJWT } from './services/jwt';
-import { collectDefaultMetrics, Registry, Counter } from 'prom-client';
+import { collectDefaultMetrics, Registry, Counter, Histogram } from 'prom-client';
+
+const SERVICE_NAME = 'notification';
+const HTTP_DURATION_BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5];
 
 async function main() {
   const cfg = loadConfig();
@@ -20,11 +23,19 @@ async function main() {
 
   // Prometheus
   const registry = new Registry();
+  registry.setDefaultLabels({ service_name: SERVICE_NAME });
   collectDefaultMetrics({ register: registry });
   const httpCounter = new Counter({
     name: 'notification_http_requests_total',
     help: 'HTTP requests',
-    labelNames: ['method', 'route', 'status'],
+    labelNames: ['method', 'route', 'status_code'],
+    registers: [registry],
+  });
+  const httpDuration = new Histogram({
+    name: 'notification_http_request_duration_seconds',
+    help: 'HTTP request duration in seconds',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: HTTP_DURATION_BUCKETS,
     registers: [registry],
   });
   const dispatchCounter = new Counter({
@@ -73,8 +84,19 @@ async function main() {
   });
 
   // Prometheus middleware
+  app.addHook('onRequest', (req, _reply, done) => {
+    (req as unknown as { metricsStart: bigint }).metricsStart = process.hrtime.bigint();
+    done();
+  });
+
   app.addHook('onResponse', (req, reply, done) => {
-    httpCounter.inc({ method: req.method, route: req.routerPath ?? req.url, status: String(reply.statusCode) });
+    const route = req.routeOptions.url ?? req.url.split('?')[0];
+    const statusCode = String(reply.statusCode);
+    const start = (req as unknown as { metricsStart?: bigint }).metricsStart;
+    const durationSec = start ? Number(process.hrtime.bigint() - start) / 1_000_000_000 : 0;
+
+    httpCounter.inc({ method: req.method, route, status_code: statusCode });
+    httpDuration.observe({ method: req.method, route, status_code: statusCode }, durationSec);
     done();
   });
 

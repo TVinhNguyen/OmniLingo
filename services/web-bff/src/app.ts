@@ -13,6 +13,9 @@ import { buildDataSources } from "./datasources/datasources.js";
 import { schema } from "./schema/schema.js";
 import { resolvers, type BffContext } from "./resolvers/resolvers.js";
 
+const SERVICE_NAME = "web-bff";
+const HTTP_DURATION_BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5];
+
 export async function buildApp(cfg: Config) {
   // ─── Logger ──────────────────────────────────────────────────────────────
   const app = Fastify({
@@ -28,21 +31,36 @@ export async function buildApp(cfg: Config) {
 
   // ─── Prometheus ───────────────────────────────────────────────────────────
   const registry = new Registry();
+  registry.setDefaultLabels({ service_name: SERVICE_NAME });
   collectDefaultMetrics({ register: registry });
 
   const httpRequests = new Counter({
     name: "webbff_http_requests_total",
     help: "Total HTTP/GraphQL requests",
-    labelNames: ["operation", "status"],
+    labelNames: ["method", "route", "status_code"],
     registers: [registry],
   });
 
   const httpDuration = new Histogram({
     name: "webbff_http_request_duration_seconds",
     help: "Request duration",
-    labelNames: ["operation"],
-    buckets: [0.05, 0.1, 0.5, 1, 2, 5],
+    labelNames: ["method", "route", "status_code"],
+    buckets: HTTP_DURATION_BUCKETS,
     registers: [registry],
+  });
+
+  app.addHook("onRequest", async (req) => {
+    (req as unknown as { metricsStart: bigint }).metricsStart = process.hrtime.bigint();
+  });
+
+  app.addHook("onResponse", async (req, reply) => {
+    const route = req.routeOptions.url ?? req.url.split("?")[0];
+    const statusCode = String(reply.statusCode);
+    const start = (req as unknown as { metricsStart?: bigint }).metricsStart;
+    const durationSec = start ? Number(process.hrtime.bigint() - start) / 1_000_000_000 : 0;
+
+    httpRequests.inc({ method: req.method, route, status_code: statusCode });
+    httpDuration.observe({ method: req.method, route, status_code: statusCode }, durationSec);
   });
 
   // ─── Security headers (Helmet) ────────────────────────────────────────────

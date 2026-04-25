@@ -39,7 +39,7 @@ async function buildApp(): Promise<FastifyInstance> {
 
   // ─── Request duration metrics (counter + histogram) ──────────────────────
   app.addHook('onResponse', async (req, reply) => {
-    const route = req.routerPath ?? req.url;
+    const route = req.routeOptions.url ?? req.url.split('?')[0];
     const durationSec = ((req as unknown as { _startTime?: number })._startTime
       ? (Date.now() - (req as unknown as { _startTime: number })._startTime) / 1000
       : 0);
@@ -51,7 +51,7 @@ async function buildApp(): Promise<FastifyInstance> {
     });
 
     grammarMetrics.httpRequestDuration.observe(
-      { method: req.method, route },
+      { method: req.method, route, status_code: String(reply.statusCode) },
       durationSec,
     );
   });
