@@ -294,6 +294,17 @@ export const TODAY_MISSION_QUERY = /* GraphQL */ `
   }
 `;
 
+export const ACTIVITY_HEATMAP_QUERY = /* GraphQL */ `
+  query ActivityHeatmap($days: Int) {
+    activityHeatmap(days: $days) {
+      date
+      minutes
+      xp
+      lessonsCompleted
+    }
+  }
+`;
+
 export const MY_STREAK_QUERY = /* GraphQL */ `
   query MyStreak {
     myStreak {
