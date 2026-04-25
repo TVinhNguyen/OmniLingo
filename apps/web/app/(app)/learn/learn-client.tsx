@@ -11,7 +11,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import type { Course, LearningTrack, UnitDTO } from "@/lib/api/types"
+import type { Course, Lesson, LearningTrack, UnitDTO } from "@/lib/api/types"
 
 interface LearnClientProps {
   tracks?: LearningTrack[]
@@ -19,6 +19,8 @@ interface LearnClientProps {
   activeCourse?: Course | null
   /** Units of the active course (BE: units(courseId)). */
   activeUnits?: UnitDTO[]
+  /** Lessons keyed by unit ID (BE: lessons(unitId) per unit). */
+  lessonsMap?: Record<string, Lesson[]>
 }
 
 const UNIT_GRADIENTS = [
@@ -28,7 +30,7 @@ const UNIT_GRADIENTS = [
   "from-[#a19ff9] to-[#5352a5]",
 ]
 
-export function LearnClient({ tracks, activeCourse, activeUnits }: LearnClientProps) {
+export function LearnClient({ tracks, activeCourse, activeUnits, lessonsMap }: LearnClientProps) {
   const activeTrack = tracks?.[0]
   const langLabel = activeTrack
     ? `${activeTrack.language.toUpperCase()} · ${activeTrack.level}`
@@ -91,7 +93,7 @@ export function LearnClient({ tracks, activeCourse, activeUnits }: LearnClientPr
 
       {/* Active course + units */}
       {hasBeUnits && activeCourse ? (
-        <CourseAccordion course={activeCourse} units={activeUnits!} />
+        <CourseAccordion course={activeCourse} units={activeUnits!} lessonsMap={lessonsMap} />
       ) : (
         <EmptyUnitsState />
       )}
@@ -99,7 +101,7 @@ export function LearnClient({ tracks, activeCourse, activeUnits }: LearnClientPr
   )
 }
 
-function CourseAccordion({ course, units }: { course: Course; units: UnitDTO[] }) {
+function CourseAccordion({ course, units, lessonsMap }: { course: Course; units: UnitDTO[]; lessonsMap?: Record<string, Lesson[]> }) {
   const sortedUnits = [...units].sort((a, b) => a.order - b.order)
 
   return (
@@ -120,14 +122,19 @@ function CourseAccordion({ course, units }: { course: Course; units: UnitDTO[] }
 
       <Accordion type="multiple" className="space-y-2">
         {sortedUnits.map((unit, i) => (
-          <UnitRow key={unit.id} unit={unit} colorClass={UNIT_GRADIENTS[i % UNIT_GRADIENTS.length]} index={i + 1} />
+          <UnitRow key={unit.id} unit={unit} lessons={lessonsMap?.[unit.id]} colorClass={UNIT_GRADIENTS[i % UNIT_GRADIENTS.length]} index={i + 1} />
         ))}
       </Accordion>
     </div>
   )
 }
 
-function UnitRow({ unit, colorClass, index }: { unit: UnitDTO; colorClass: string; index: number }) {
+function UnitRow({ unit, lessons, colorClass, index }: { unit: UnitDTO; lessons?: Lesson[]; colorClass: string; index: number }) {
+  const lessonById = useMemo(() => {
+    const map = new Map<string, Lesson>()
+    lessons?.forEach((l) => map.set(l.id, l))
+    return map
+  }, [lessons])
   const total = unit.lessonIds.length
   // Lesson completion data is not in BE schema yet; brief: "tạm 0%".
   const completed = 0
@@ -174,23 +181,26 @@ function UnitRow({ unit, colorClass, index }: { unit: UnitDTO; colorClass: strin
                 Chưa có bài học
               </li>
             ) : (
-              unit.lessonIds.map((lessonId, i) => (
-                <li key={lessonId}>
-                  <Link
-                    href={`/lesson/${lessonId}`}
-                    className="group flex items-center gap-3 rounded-xl bg-surface-lowest px-3 py-2 transition hover:bg-primary/5"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground">
-                      <Play className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">Bài {i + 1}</p>
-                      <p className="text-sm font-semibold">Lesson {lessonId.slice(0, 8)}</p>
-                    </div>
-                    <ChevronDown className="h-4 w-4 -rotate-90 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
-                  </Link>
-                </li>
-              ))
+              unit.lessonIds.map((lessonId, i) => {
+                const lesson = lessonById.get(lessonId)
+                return (
+                  <li key={lessonId}>
+                    <Link
+                      href={`/lesson/${lessonId}`}
+                      className="group flex items-center gap-3 rounded-xl bg-surface-lowest px-3 py-2 transition hover:bg-primary/5"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground">
+                        <Play className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
+                      </span>
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Bài {i + 1}</p>
+                        <p className="text-sm font-semibold">{lesson?.title ?? `Lesson ${lessonId.slice(0, 8)}`}</p>
+                      </div>
+                      <ChevronDown className="h-4 w-4 -rotate-90 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                    </Link>
+                  </li>
+                )
+              })
             )}
           </motion.ul>
         </AnimatePresence>
