@@ -12,7 +12,7 @@
 |------|------|--------|-----------|--------|
 | 00 — Overview (infra) | [00-overview.md](./flows/00-overview.md) | — | — | — |
 | 01 — Auth & Identity | [01-auth-identity.md](./flows/01-auth-identity.md) | 100% | **100%** (register+login+refresh+logout+verify+forgot/reset+changePassword+deleteAccount wired) | **100%** |
-| 02 — Onboarding | [02-onboarding.md](./flows/02-onboarding.md) | 100% | 40% (completeOnboardingAction → updateProfile) | **40%** |
+| 02 — Onboarding | [02-onboarding.md](./flows/02-onboarding.md) | 100% | 95% (5 sub-route + placement test wired, D5) | **95%** |
 | 03 — Dashboard & Learn | [03-learn-lesson.md](./flows/03-learn-lesson.md) | 100% | 85% (dashboard + myTracks + startLesson + completeLesson + myStreak + enrollTrack + **lessonContent** + **submitAnswer** + **srsDueCount**) | **85%** |
 | 04 — Vocabulary & SRS | [04-vocabulary-srs.md](./flows/04-vocabulary-srs.md) | 100% | 90% (+ learn mode RSC wired) | **90%** |
 | 05 — AI Tutor | [05-ai-tutor.md](./flows/05-ai-tutor.md) | 100% | 95% (+ conversation detail RSC wired) | **95%** |
@@ -93,11 +93,19 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | Delete account | ✅ | ✅ | `deleteAccountAction` → identity `DELETE /users/me` + clearSession |
 | MFA enroll | ✅ (`/settings/security/2fa`) | 🔴 P2 | |
 
-### 3.2. Flow 02 — Onboarding (0%)
+### 3.2. Flow 02 — Onboarding (95%)
 
-- UI: chỉ có 1 file `/onboarding/page.tsx` + `/placement-test/page.tsx` (không có sub-routes theo steps).
-- Backend: không có mutation/query nào từ flow 02 trong BFF.
-- **Blocker**: cần thêm ~10 resolvers + service work (learning/assessment).
+| Sub-flow | UI | Wire | Ghi chú |
+|----------|----|------|---------|
+| RSC dispatcher `/onboarding` | ✅ | ✅ | Fetch `onboardingState` → redirect canonical sub-route or `/dashboard` |
+| `/onboarding/language-select` | ✅ | ✅ | `updateOnboarding('language_select', {nativeLang, targetLangs})` |
+| `/onboarding/goal-select` | ✅ | ✅ | `updateOnboarding('goal_select', {goal, cert?, targetScore?})` |
+| `/onboarding/level-select` | ✅ | ✅ | `updateOnboarding('level_select', {level, dailyMins, reminderTime})` |
+| `/onboarding/placement` | ✅ | ✅ | RSC fetch `placementTest(lang, targetLang)` + `submitPlacement` + `updateOnboarding('placement', {cefr, recommendedTrackId})` |
+| `/onboarding/done` | ✅ | ✅ | Summary + `completeOnboarding(placementCefr, recommendedTrackId)` → `/dashboard` |
+| Resume mid-flow | — | ✅ | Each sub-route guards `state.step !== expected` → redirect dispatcher |
+| `/placement-test` legacy | — | ✅ | Redirects to `/onboarding/placement` |
+| BFF schema + resolvers | — | ✅ | `onboardingState`, `updateOnboarding`, `completeOnboarding`, `placementTest`, `submitPlacement` (commits `70d1889` T3 + `9e1252b` T4) |
 
 ### 3.3. Flow 03 — Dashboard & Learn (25%)
 
@@ -225,7 +233,7 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 
 | # | Task | Branch | Status |
 |---|------|--------|--------|
-| D5 | Onboarding multi-step 5 sub-route | `feature/d5-onboarding-flow` | ⏳ |
+| D5 | Onboarding multi-step 5 sub-route | `feature/d5-onboarding-flow` | ✅ |
 | D6 | `/settings/learning` + `/settings/languages` + dashboard today mission | `feature/d6-settings-and-mission` | ⏳ |
 | D7 | `/progress` heatmap + `/achievements` + `/leaderboard` + cleanup PR-B TODO | `feature/d7-progress-and-gamif` | ⏳ |
 | D8 | `/learn` unit listing + D1 timeout cap + D2 currency consistency | `feature/d8-learn-units-and-polish` | ⏳ |

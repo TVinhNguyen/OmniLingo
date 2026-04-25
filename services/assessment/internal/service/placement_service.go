@@ -79,7 +79,6 @@ func (s *placementService) SubmitTest(testID string, answers []domain.PlacementA
 	if answerKey == nil {
 		return nil, &domain.DomainError{StatusCode: 400, Code: "BAD_REQUEST", Message: "submitted answers do not match any known placement test"}
 	}
-
 	correct := 0
 	for _, a := range answers {
 		if correctChoice, ok := answerKey[a.QuestionID]; ok {
