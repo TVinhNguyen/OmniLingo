@@ -63,20 +63,23 @@ func main() {
 	}
 	log.Info("postgres connected and migrated")
 
-	// Messaging
-	var publisher messaging.Publisher
+	// Messaging (Outbox & Kafka)
+	outboxRepo := messaging.NewOutboxRepository(db)
+	outboxCtx, outboxCancel := context.WithCancel(context.Background())
+	defer outboxCancel()
+
 	if cfg.KafkaEnabled {
-		publisher = messaging.NewKafkaPublisher(cfg.KafkaBrokers)
+		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		go outboxWorker.Run(outboxCtx)
+		log.Info("outbox relay started")
 	} else {
-		publisher = messaging.NewNoopPublisher()
-		log.Info("Kafka disabled — using noop publisher")
+		log.Info("Kafka disabled — outbox relay will not start")
 	}
-	defer publisher.Close()
 
 	// Dependencies
-	subRepo  := repository.NewSubmissionRepository(db)
-	testRepo := repository.NewTestSessionRepository(db)
-	svc          := service.NewAssessmentService(subRepo, testRepo, publisher, log)
+	subRepo      := repository.NewSubmissionRepository(db)
+	testRepo     := repository.NewTestSessionRepository(db)
+	svc          := service.NewAssessmentService(subRepo, testRepo, outboxRepo, log)
 	placementSvc := service.NewPlacementService()
 	h            := handler.NewAssessmentHandler(svc, placementSvc, log)
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/omnilingo/learning-service/internal/client"
 	"github.com/omnilingo/learning-service/internal/domain"
 	"github.com/omnilingo/learning-service/internal/messaging"
 	"github.com/omnilingo/learning-service/internal/repository"
@@ -61,6 +62,7 @@ type learningService struct {
 	onboardingRepo repository.OnboardingRepository
 	publisher      messaging.Publisher
 	outbox         *messaging.OutboxRepository
+	contentClient  client.ContentClient
 	log            *zap.Logger
 }
 
@@ -71,11 +73,13 @@ func NewLearningService(
 	onboardingRepo repository.OnboardingRepository,
 	publisher messaging.Publisher,
 	outboxRepo *messaging.OutboxRepository,
+	contentClient client.ContentClient,
 	log *zap.Logger,
 ) LearningService {
 	return &learningService{
 		profileRepo: profileRepo, pathRepo: pathRepo, attemptRepo: attemptRepo,
-		onboardingRepo: onboardingRepo, publisher: publisher, outbox: outboxRepo, log: log,
+		onboardingRepo: onboardingRepo, publisher: publisher, outbox: outboxRepo,
+		contentClient: contentClient, log: log,
 	}
 }
 
@@ -178,7 +182,6 @@ func (s *learningService) GetHistory(ctx context.Context, userID uuid.UUID, limi
 }
 
 // GetTodayMission assembles the user's daily mission widget data.
-// MVP logic: pull active path, set default XP reward; NextLessonID requires content-service join (Phase 2).
 func (s *learningService) GetTodayMission(ctx context.Context, userID uuid.UUID) (*domain.TodayMission, error) {
 	mission := &domain.TodayMission{
 		MinutesToGoal: 15, // default daily goal
@@ -192,9 +195,47 @@ func (s *learningService) GetTodayMission(ctx context.Context, userID uuid.UUID)
 		return mission, nil // no active path — return stub
 	}
 
-	// Active path exists — language determined from first path
-	// NextLessonID join with content-service is deferred to Phase 2 (requires content-service grpc)
-	_ = paths[0] // suppress unused var
+	activePath := paths[0]
+	// TodayMission does not have a Language field, we just omit assigning it
+	
+	unitID := activePath.CurrentUnitID
+	if unitID == "" || s.contentClient == nil {
+		return mission, nil // No active unit or client uninitialized
+	}
+
+	// Fetch lessons for the active unit from content-service
+	lessons, err := s.contentClient.GetUnitLessons(ctx, unitID)
+	if err != nil {
+		s.log.Warn("failed to fetch unit lessons", zap.Error(err), zap.String("unitId", unitID))
+		return mission, nil
+	}
+
+	// Collect lesson IDs from the unit to query completed status
+	lessonIDs := make([]string, len(lessons))
+	for i, l := range lessons { lessonIDs[i] = l.ID }
+
+	completedLessonIDs, err := s.attemptRepo.CompletedLessonIDs(ctx, userID, lessonIDs)
+	if err != nil {
+		s.log.Warn("failed to fetch completed lesson IDs", zap.Error(err))
+		completedLessonIDs = make(map[string]bool)
+	}
+
+	// Find the first non-completed lesson
+	for _, l := range lessons {
+		if !completedLessonIDs[l.ID] {
+			copiedID := l.ID
+			mission.LessonID = &copiedID
+			// Resolve title using user's primary language, fallback to "en"
+			lang := "en"
+			if profile, perr := s.profileRepo.Get(ctx, userID); perr == nil && profile.PrimaryLanguage != "" {
+				lang = profile.PrimaryLanguage
+			}
+			title := l.Title[lang]
+			if title == "" { title = l.Title["en"] }
+			mission.LessonTitle = &title
+			break
+		}
+	}
 
 	return mission, nil
 }

@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/omnilingo/learning-service/internal/config"
+	"github.com/omnilingo/learning-service/internal/client"
 	"github.com/omnilingo/learning-service/internal/handler"
 	"github.com/omnilingo/learning-service/internal/messaging"
 	"github.com/omnilingo/learning-service/internal/metrics"
@@ -71,7 +72,8 @@ func main() {
 	pathRepo       := repository.NewPathRepository(db)
 	attemptRepo    := repository.NewAttemptRepository(db)
 	onboardingRepo := repository.NewOnboardingRepository(db)
-	svc            := service.NewLearningService(profileRepo, pathRepo, attemptRepo, onboardingRepo, pub, outboxRepo, log)
+	contentClient  := client.NewContentClient(cfg.ContentServiceURL, log)
+	svc            := service.NewLearningService(profileRepo, pathRepo, attemptRepo, onboardingRepo, pub, outboxRepo, contentClient, log)
 	h           := handler.New(svc, log)
 
 	// Init JWKS-backed JWT verifier
