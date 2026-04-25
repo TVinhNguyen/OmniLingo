@@ -1,0 +1,221 @@
+{
+  "lesson": {
+    "language": "en",
+    "track": "english_a1_for_vi",
+    "level": "A1",
+    "unitId": "greetings",
+    "title": {
+      "vi": "How are you?",
+      "en": "How are you?"
+    },
+    "objective": {
+      "vi": "Nhận biết và dùng how, are, you, fine."
+    },
+    "estimatedMinutes": 5,
+    "blocks": [
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Trong bài học này, bạn sẽ luyện các từ rất cơ bản về chủ đề 'How are you?'. Mục tiêu là nhận ra nghĩa, nghe được cách dùng trong câu ngắn và tự ghép câu đơn giản. Hãy tập trung vào phát âm, nghĩa tiếng Việt và cách dùng trong tình huống hằng ngày."
+        }
+      },
+      {
+        "type": "vocab_intro",
+        "words": [
+          "how",
+          "are",
+          "you",
+          "fine",
+          "thanks"
+        ]
+      },
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Bài này không có ngữ pháp mới. Bạn chỉ cần nhớ cụm từ, nghĩa và ngữ cảnh sử dụng."
+        }
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_mc_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_gap_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_match_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_audio_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_construct_1"
+      }
+    ]
+  },
+  "exercises": [
+    {
+      "id": "greetings_how_are_you_mc_1",
+      "type": "multiple_choice",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "'how' nghĩa là gì?"
+        }
+      },
+      "choices": [
+        "như thế nào",
+        "tạm biệt",
+        "gia đình",
+        "số một"
+      ],
+      "answer": 0,
+      "explanation": {
+        "vi": "'how' nghĩa là 'như thế nào'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.2
+    },
+    {
+      "id": "greetings_how_are_you_gap_1",
+      "type": "fill_in_blank",
+      "language": "en",
+      "level": "A1",
+      "skill": "grammar",
+      "prompt": {
+        "text": {
+          "vi": "Điền từ còn thiếu vào câu.",
+          "en": "___, are!"
+        }
+      },
+      "choices": [
+        "how",
+        "are",
+        "you",
+        "fine"
+      ],
+      "answer": "how",
+      "explanation": {
+        "vi": "Câu đúng là 'how, are!'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.35
+    },
+    {
+      "id": "greetings_how_are_you_match_1",
+      "type": "matching",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Ghép từ tiếng Anh với nghĩa tiếng Việt."
+        }
+      },
+      "answer": [
+        "how",
+        "are",
+        "you",
+        "fine",
+        "thanks"
+      ],
+      "pairs": [
+        {
+          "left": "how",
+          "right": "như thế nào"
+        },
+        {
+          "left": "are",
+          "right": "là/ở"
+        },
+        {
+          "left": "you",
+          "right": "bạn"
+        },
+        {
+          "left": "fine",
+          "right": "khỏe"
+        },
+        {
+          "left": "thanks",
+          "right": "cảm ơn"
+        }
+      ],
+      "explanation": {
+        "vi": "Hãy nhớ nghĩa chính của từng từ trong chủ đề."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.4
+    },
+    {
+      "id": "greetings_how_are_you_audio_1",
+      "type": "dictation",
+      "language": "en",
+      "level": "A1",
+      "skill": "listening",
+      "prompt": {
+        "text": {
+          "vi": "Nghe audio và gõ lại từ bạn nghe được."
+        }
+      },
+      "answer": "how",
+      "referenceText": "how",
+      "lengthSeconds": 3,
+      "explanation": {
+        "vi": "Từ cần nghe là 'how'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.45
+    },
+    {
+      "id": "greetings_how_are_you_construct_1",
+      "type": "sentence_arrange",
+      "language": "en",
+      "level": "A1",
+      "skill": "writing",
+      "prompt": {
+        "text": {
+          "vi": "Sắp xếp các mảnh để tạo câu đúng."
+        }
+      },
+      "choices": [
+        "are",
+        "how",
+        "you",
+        "fine"
+      ],
+      "answer": "how are",
+      "explanation": {
+        "vi": "Thứ tự đúng là 'how are'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.5
+    }
+  ]
+}

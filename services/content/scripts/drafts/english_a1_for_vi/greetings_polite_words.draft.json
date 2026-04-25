@@ -1,0 +1,221 @@
+{
+  "lesson": {
+    "language": "en",
+    "track": "english_a1_for_vi",
+    "level": "A1",
+    "unitId": "greetings",
+    "title": {
+      "vi": "Từ lịch sự",
+      "en": "Từ lịch sự"
+    },
+    "objective": {
+      "vi": "Nhận biết và dùng tự nhiên: please, sorry, excuse, thank."
+    },
+    "estimatedMinutes": 6,
+    "blocks": [
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Hôm nay bạn sẽ luyện tập các từ trong chủ đề 'Từ lịch sự'. Đây là những từ thiết yếu trong giao tiếp tiếng Anh hằng ngày — hãy chú ý đến phát âm và ngữ cảnh sử dụng."
+        }
+      },
+      {
+        "type": "vocab_intro",
+        "words": [
+          "please",
+          "sorry",
+          "excuse",
+          "thank",
+          "welcome"
+        ]
+      },
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Không có điểm ngữ pháp mới trong bài này. Tập trung vào việc ghi nhớ nghĩa và cách dùng từ trong câu thật."
+        }
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_polite_words_mc_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_polite_words_gap_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_polite_words_match_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_polite_words_audio_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_polite_words_construct_1"
+      }
+    ]
+  },
+  "exercises": [
+    {
+      "id": "greetings_polite_words_mc_1",
+      "type": "multiple_choice",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "'please' có nghĩa là gì?"
+        }
+      },
+      "choices": [
+        "làm ơn",
+        "tạm biệt",
+        "gia đình",
+        "số một"
+      ],
+      "answer": 0,
+      "explanation": {
+        "vi": "'please' nghĩa là 'làm ơn'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "polite_words"
+      ],
+      "difficulty": 0.2
+    },
+    {
+      "id": "greetings_polite_words_gap_1",
+      "type": "fill_in_blank",
+      "language": "en",
+      "level": "A1",
+      "skill": "grammar",
+      "prompt": {
+        "text": {
+          "vi": "Điền từ còn thiếu vào câu.",
+          "en": "___, sorry!"
+        }
+      },
+      "choices": [
+        "please",
+        "sorry",
+        "excuse",
+        "thank"
+      ],
+      "answer": "please",
+      "explanation": {
+        "vi": "Câu đúng là 'please, sorry!'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "polite_words"
+      ],
+      "difficulty": 0.35
+    },
+    {
+      "id": "greetings_polite_words_match_1",
+      "type": "matching",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Ghép từ tiếng Anh với nghĩa tiếng Việt."
+        }
+      },
+      "answer": [
+        "please",
+        "sorry",
+        "excuse",
+        "thank",
+        "welcome"
+      ],
+      "pairs": [
+        {
+          "left": "please",
+          "right": "làm ơn"
+        },
+        {
+          "left": "sorry",
+          "right": "xin lỗi"
+        },
+        {
+          "left": "excuse",
+          "right": "xin phép"
+        },
+        {
+          "left": "thank",
+          "right": "cảm ơn"
+        },
+        {
+          "left": "welcome",
+          "right": "không có gì"
+        }
+      ],
+      "explanation": {
+        "vi": "Hãy nhớ nghĩa chính của từng từ."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "polite_words"
+      ],
+      "difficulty": 0.4
+    },
+    {
+      "id": "greetings_polite_words_audio_1",
+      "type": "dictation",
+      "language": "en",
+      "level": "A1",
+      "skill": "listening",
+      "prompt": {
+        "text": {
+          "vi": "Nghe audio và gõ lại từ bạn nghe được."
+        }
+      },
+      "answer": "please",
+      "referenceText": "please",
+      "lengthSeconds": 3,
+      "explanation": {
+        "vi": "Từ cần nghe là 'please'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "polite_words"
+      ],
+      "difficulty": 0.45
+    },
+    {
+      "id": "greetings_polite_words_construct_1",
+      "type": "sentence_arrange",
+      "language": "en",
+      "level": "A1",
+      "skill": "writing",
+      "prompt": {
+        "text": {
+          "vi": "Sắp xếp các mảnh để tạo câu đúng."
+        }
+      },
+      "choices": [
+        "sorry",
+        "please",
+        "excuse",
+        "thank"
+      ],
+      "answer": "please sorry",
+      "explanation": {
+        "vi": "Thứ tự đúng là 'please sorry'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "polite_words"
+      ],
+      "difficulty": 0.5
+    }
+  ]
+}

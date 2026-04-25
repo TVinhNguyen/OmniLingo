@@ -1,0 +1,215 @@
+{
+  "lesson": {
+    "language": "en",
+    "track": "english_a1_for_vi",
+    "level": "A1",
+    "unitId": "greetings",
+    "title": {
+      "vi": "Hello & Hi",
+      "en": "Hello & Hi"
+    },
+    "objective": {
+      "vi": "Nhận biết và dùng tự nhiên: hello, hi, hey, greetings."
+    },
+    "estimatedMinutes": 5,
+    "blocks": [
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Khi gặp một người bạn mới hoặc bắt đầu một cuộc trò chuyện tiếng Anh, bạn sẽ nói gì đầu tiên? Bài học này sẽ giúp bạn làm quen với những từ chào hỏi cơ bản và thân thiện nhất như \"hello\" và \"hi\". Hãy cùng học cách bắt đầu mọi cuộc gặp gỡ thật tự tin nhé!"
+        }
+      },
+      {
+        "type": "vocab_intro",
+        "words": [
+          "hello",
+          "hi",
+          "hey",
+          "greetings"
+        ]
+      },
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "\"Hello\" và \"hi\" đều có nghĩa là \"xin chào\", nhưng \"hello\" thường dùng trong mọi tình huống, còn \"hi\" thì thân mật hơn, dùng với bạn bè hoặc người quen. Bạn có thể dùng \"hey\" khi muốn thu hút sự chú ý của ai đó. Ví dụ: \"Hello, how are you?\" hoặc \"Hi, John!\""
+        }
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_hello_basics_mc_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_hello_basics_gap_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_hello_basics_match_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_hello_basics_audio_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_hello_basics_construct_1"
+      }
+    ]
+  },
+  "exercises": [
+    {
+      "id": "greetings_hello_basics_mc_1",
+      "type": "multiple_choice",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Từ \"hello\" trong tiếng Anh có nghĩa là gì trong tiếng Việt?"
+        }
+      },
+      "choices": [
+        "xin chào",
+        "tạm biệt",
+        "cảm ơn",
+        "xin lỗi"
+      ],
+      "answer": 0,
+      "explanation": {
+        "vi": "Từ \"hello\" là một lời chào phổ biến trong tiếng Anh, tương đương với \"xin chào\" trong tiếng Việt. Ví dụ: \"Hello, how are you?\" có nghĩa là \"Xin chào, bạn khỏe không?\""
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "hello_basics"
+      ],
+      "difficulty": 0.2
+    },
+    {
+      "id": "greetings_hello_basics_gap_1",
+      "type": "fill_in_blank",
+      "language": "en",
+      "level": "A1",
+      "skill": "grammar",
+      "prompt": {
+        "text": {
+          "vi": "Điền từ còn thiếu vào câu.",
+          "en": "___, hi!"
+        }
+      },
+      "choices": [
+        "hello",
+        "hi",
+        "hey",
+        "greetings"
+      ],
+      "answer": "hello",
+      "explanation": {
+        "vi": "Câu đúng là 'hello, hi!'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "hello_basics"
+      ],
+      "difficulty": 0.35
+    },
+    {
+      "id": "greetings_hello_basics_match_1",
+      "type": "matching",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Ghép từ tiếng Anh với nghĩa tiếng Việt."
+        }
+      },
+      "answer": [
+        "hello",
+        "hi",
+        "hey",
+        "greetings"
+      ],
+      "pairs": [
+        {
+          "left": "hello",
+          "right": "xin chào"
+        },
+        {
+          "left": "hi",
+          "right": "chào"
+        },
+        {
+          "left": "hey",
+          "right": "này/chào"
+        },
+        {
+          "left": "greetings",
+          "right": "lời chào"
+        }
+      ],
+      "explanation": {
+        "vi": "Hãy nhớ nghĩa chính của từng từ."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "hello_basics"
+      ],
+      "difficulty": 0.4
+    },
+    {
+      "id": "greetings_hello_basics_audio_1",
+      "type": "dictation",
+      "language": "en",
+      "level": "A1",
+      "skill": "listening",
+      "prompt": {
+        "text": {
+          "vi": "Nghe audio và gõ lại từ bạn nghe được."
+        }
+      },
+      "answer": "hello",
+      "referenceText": "hello",
+      "lengthSeconds": 3,
+      "explanation": {
+        "vi": "Từ cần nghe là 'hello'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "hello_basics"
+      ],
+      "difficulty": 0.45
+    },
+    {
+      "id": "greetings_hello_basics_construct_1",
+      "type": "sentence_arrange",
+      "language": "en",
+      "level": "A1",
+      "skill": "writing",
+      "prompt": {
+        "text": {
+          "vi": "Sắp xếp các mảnh để tạo câu đúng."
+        }
+      },
+      "choices": [
+        "hi",
+        "hello",
+        "hey",
+        "greetings"
+      ],
+      "answer": "hello hi",
+      "explanation": {
+        "vi": "Thứ tự đúng là 'hello hi'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "hello_basics"
+      ],
+      "difficulty": 0.5
+    }
+  ]
+}

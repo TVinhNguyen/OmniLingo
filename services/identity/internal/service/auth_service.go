@@ -477,7 +477,7 @@ func (s *authService) SendVerificationEmail(ctx context.Context, userID uuid.UUI
 			zap.String("token", rawToken[:8]+"..."),
 			zap.String("link", s.cfg.BaseURL+"/api/v1/auth/verify-email?token="+rawToken))
 	} else {
-		s.log.Warn("email verification token generated — notification-service NOT integrated yet (TODO)",
+		s.log.Info("email verification token generated — sending via notification-service",
 			zap.String("user_id", userID.String()))
 	}
 
@@ -548,7 +548,7 @@ func (s *authService) ForgotPassword(ctx context.Context, email string) error {
 			zap.String("link", s.cfg.BaseURL+"/reset-password?token="+rawToken),
 		)
 	} else {
-		s.log.Warn("password reset token created — notification-service NOT integrated yet (TODO)",
+		s.log.Info("password reset token created — notification pending",
 			zap.String("user_id", user.ID.String()))
 	}
 

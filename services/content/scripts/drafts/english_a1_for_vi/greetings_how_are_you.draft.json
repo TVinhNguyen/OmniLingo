@@ -1,0 +1,221 @@
+{
+  "lesson": {
+    "language": "en",
+    "track": "english_a1_for_vi",
+    "level": "A1",
+    "unitId": "greetings",
+    "title": {
+      "vi": "How are you?",
+      "en": "How are you?"
+    },
+    "objective": {
+      "vi": "Nhận biết và dùng tự nhiên: how, are, you, fine."
+    },
+    "estimatedMinutes": 5,
+    "blocks": [
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Khi gặp bạn bè hoặc người quen, bạn thường hỏi 'Khỏe không?' đúng không? Trong bài học này, chúng ta sẽ học cách hỏi thăm bằng tiếng Anh với cụm từ 'How are you?' và cách trả lời thật tự nhiên nhé!"
+        }
+      },
+      {
+        "type": "vocab_intro",
+        "words": [
+          "how",
+          "are",
+          "you",
+          "fine",
+          "thanks"
+        ]
+      },
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Khi ai đó hỏi 'How are you?', cách trả lời phổ biến nhất là 'I'm fine, thanks.' Bạn có thể thêm 'And you?' để hỏi lại họ nhé. Ví dụ: 'How are you?' - 'I'm fine, thanks. And you?'"
+        }
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_mc_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_gap_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_match_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_audio_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_how_are_you_construct_1"
+      }
+    ]
+  },
+  "exercises": [
+    {
+      "id": "greetings_how_are_you_mc_1",
+      "type": "multiple_choice",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Nghĩa tiếng Việt chính xác của từ 'how' là gì?"
+        }
+      },
+      "choices": [
+        "như thế nào",
+        "bằng cách nào",
+        "khi nào",
+        "cái gì"
+      ],
+      "answer": 0,
+      "explanation": {
+        "vi": "Trong tiếng Anh, 'how' được dùng để hỏi về cách thức, tình trạng hoặc mức độ, có nghĩa là 'như thế nào' trong tiếng Việt. Ví dụ: 'How are you?' có nghĩa là 'Bạn khỏe không?'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.2
+    },
+    {
+      "id": "greetings_how_are_you_gap_1",
+      "type": "fill_in_blank",
+      "language": "en",
+      "level": "A1",
+      "skill": "grammar",
+      "prompt": {
+        "text": {
+          "vi": "Bạn ___ khỏe không?",
+          "en": "How ___ you?"
+        }
+      },
+      "choices": [
+        "are",
+        "how",
+        "you",
+        "fine"
+      ],
+      "answer": "are",
+      "explanation": {
+        "vi": "Trong câu hỏi 'How are you?', 'are' là động từ to be, đi với chủ ngữ 'you'. Câu hoàn chỉnh là 'How are you?' có nghĩa là 'Bạn có khỏe không?'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.35
+    },
+    {
+      "id": "greetings_how_are_you_match_1",
+      "type": "matching",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Ghép từ tiếng Anh với nghĩa tiếng Việt."
+        }
+      },
+      "answer": [
+        "how",
+        "are",
+        "you",
+        "fine",
+        "thanks"
+      ],
+      "pairs": [
+        {
+          "left": "how",
+          "right": "như thế nào"
+        },
+        {
+          "left": "are",
+          "right": "là/ở"
+        },
+        {
+          "left": "you",
+          "right": "bạn"
+        },
+        {
+          "left": "fine",
+          "right": "khỏe"
+        },
+        {
+          "left": "thanks",
+          "right": "cảm ơn"
+        }
+      ],
+      "explanation": {
+        "vi": "Hãy nhớ cụm từ 'How are you?' (Bạn khỏe không?) và 'I'm fine, thanks.' (Tôi khỏe, cảm ơn.) để dễ dàng ghi nhớ các từ này trong ngữ cảnh chào hỏi."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.4
+    },
+    {
+      "id": "greetings_how_are_you_audio_1",
+      "type": "dictation",
+      "language": "en",
+      "level": "A1",
+      "skill": "listening",
+      "prompt": {
+        "text": {
+          "vi": "Nghe audio và gõ lại từ bạn nghe được."
+        }
+      },
+      "answer": "how",
+      "referenceText": "how",
+      "lengthSeconds": 3,
+      "explanation": {
+        "vi": "Từ cần nghe là 'how'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.45
+    },
+    {
+      "id": "greetings_how_are_you_construct_1",
+      "type": "sentence_arrange",
+      "language": "en",
+      "level": "A1",
+      "skill": "writing",
+      "prompt": {
+        "text": {
+          "vi": "Sắp xếp các mảnh để tạo câu đúng."
+        }
+      },
+      "choices": [
+        "are",
+        "how",
+        "you",
+        "fine"
+      ],
+      "answer": "how are",
+      "explanation": {
+        "vi": "Thứ tự đúng là 'how are'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "how_are_you"
+      ],
+      "difficulty": 0.5
+    }
+  ]
+}

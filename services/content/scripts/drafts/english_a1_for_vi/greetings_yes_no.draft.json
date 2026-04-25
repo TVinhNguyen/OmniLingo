@@ -1,0 +1,215 @@
+{
+  "lesson": {
+    "language": "en",
+    "track": "english_a1_for_vi",
+    "level": "A1",
+    "unitId": "greetings",
+    "title": {
+      "vi": "Yes & No",
+      "en": "Yes & No"
+    },
+    "objective": {
+      "vi": "Nhận biết và dùng tự nhiên: True, False, not, okay."
+    },
+    "estimatedMinutes": 5,
+    "blocks": [
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Hôm nay bạn sẽ luyện tập các từ trong chủ đề 'Yes & No'. Đây là những từ thiết yếu trong giao tiếp tiếng Anh hằng ngày — hãy chú ý đến phát âm và ngữ cảnh sử dụng."
+        }
+      },
+      {
+        "type": "vocab_intro",
+        "words": [
+          "True",
+          "False",
+          "not",
+          "okay"
+        ]
+      },
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Điểm ngữ pháp cần nhớ: simple yes/no responses. Hãy thử tạo câu đơn giản với cấu trúc này trước khi làm bài tập."
+        }
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_yes_no_mc_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_yes_no_gap_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_yes_no_match_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_yes_no_audio_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_yes_no_construct_1"
+      }
+    ]
+  },
+  "exercises": [
+    {
+      "id": "greetings_yes_no_mc_1",
+      "type": "multiple_choice",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "'True' có nghĩa là gì?"
+        }
+      },
+      "choices": [
+        "True",
+        "tạm biệt",
+        "gia đình",
+        "số một"
+      ],
+      "answer": 0,
+      "explanation": {
+        "vi": "'True' nghĩa là 'True'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "yes_no"
+      ],
+      "difficulty": 0.2
+    },
+    {
+      "id": "greetings_yes_no_gap_1",
+      "type": "fill_in_blank",
+      "language": "en",
+      "level": "A1",
+      "skill": "grammar",
+      "prompt": {
+        "text": {
+          "vi": "Điền từ còn thiếu vào câu.",
+          "en": "___, False!"
+        }
+      },
+      "choices": [
+        "True",
+        "False",
+        "not",
+        "okay"
+      ],
+      "answer": "True",
+      "explanation": {
+        "vi": "Câu đúng là 'True, False!'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "yes_no"
+      ],
+      "difficulty": 0.35
+    },
+    {
+      "id": "greetings_yes_no_match_1",
+      "type": "matching",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Ghép từ tiếng Anh với nghĩa tiếng Việt."
+        }
+      },
+      "answer": [
+        "True",
+        "False",
+        "not",
+        "okay"
+      ],
+      "pairs": [
+        {
+          "left": "True",
+          "right": "True"
+        },
+        {
+          "left": "False",
+          "right": "False"
+        },
+        {
+          "left": "not",
+          "right": "không"
+        },
+        {
+          "left": "okay",
+          "right": "được rồi"
+        }
+      ],
+      "explanation": {
+        "vi": "Hãy nhớ nghĩa chính của từng từ."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "yes_no"
+      ],
+      "difficulty": 0.4
+    },
+    {
+      "id": "greetings_yes_no_audio_1",
+      "type": "dictation",
+      "language": "en",
+      "level": "A1",
+      "skill": "listening",
+      "prompt": {
+        "text": {
+          "vi": "Nghe audio và gõ lại từ bạn nghe được."
+        }
+      },
+      "answer": "True",
+      "referenceText": "True",
+      "lengthSeconds": 3,
+      "explanation": {
+        "vi": "Từ cần nghe là 'True'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "yes_no"
+      ],
+      "difficulty": 0.45
+    },
+    {
+      "id": "greetings_yes_no_construct_1",
+      "type": "sentence_arrange",
+      "language": "en",
+      "level": "A1",
+      "skill": "writing",
+      "prompt": {
+        "text": {
+          "vi": "Sắp xếp các mảnh để tạo câu đúng."
+        }
+      },
+      "choices": [
+        "False",
+        "True",
+        "not",
+        "okay"
+      ],
+      "answer": "True False",
+      "explanation": {
+        "vi": "Thứ tự đúng là 'True False'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "yes_no"
+      ],
+      "difficulty": 0.5
+    }
+  ]
+}

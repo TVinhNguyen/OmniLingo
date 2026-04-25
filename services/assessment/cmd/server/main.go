@@ -77,11 +77,11 @@ func main() {
 	}
 
 	// Dependencies
-	subRepo := repository.NewSubmissionRepository(db)
-	testRepo := repository.NewTestSessionRepository(db)
-	svc := service.NewAssessmentService(subRepo, testRepo, outboxRepo, log)
+	subRepo      := repository.NewSubmissionRepository(db)
+	testRepo     := repository.NewTestSessionRepository(db)
+	svc          := service.NewAssessmentService(subRepo, testRepo, outboxRepo, log)
 	placementSvc := service.NewPlacementService()
-	h := handler.NewAssessmentHandler(svc, placementSvc, log)
+	h            := handler.NewAssessmentHandler(svc, placementSvc, log)
 
 	// Fiber
 
@@ -98,15 +98,9 @@ func main() {
 		BodyLimit:    64 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-			}
+			if e, ok := err.(*fiber.Error); ok { code = e.Code }
 			var msg string
-			if cfg.Env != "production" || code < fiber.StatusInternalServerError {
-				msg = err.Error()
-			} else {
-				msg = "an internal error occurred"
-			}
+			if os.Getenv("APP_ENV") != "production" { msg = err.Error() } else { msg = "an internal error occurred" }
 			return c.Status(code).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": msg})
 		},
 	})
@@ -117,9 +111,7 @@ func main() {
 	// CORS
 	origins := ""
 	for i, o := range cfg.AllowedOrigins {
-		if i > 0 {
-			origins += ","
-		}
+		if i > 0 { origins += "," }
 		origins += o
 	}
 	app.Use(middleware.CORS(cfg.AllowedOrigins))
@@ -142,17 +134,10 @@ func main() {
 	app.Get("/readyz", func(c *fiber.Ctx) error {
 		pgOk := db.Ping(context.Background()) == nil
 		status := 200
-		if !pgOk {
-			status = 503
-		}
+		if !pgOk { status = 503 }
 		return c.Status(status).JSON(fiber.Map{
-			"ready": pgOk,
-			"checks": fiber.Map{"postgres": func() string {
-				if pgOk {
-					return "ok"
-				}
-				return "error"
-			}()},
+			"ready":  pgOk,
+			"checks": fiber.Map{"postgres": func() string { if pgOk { return "ok" }; return "error" }()},
 		})
 	})
 

@@ -1,0 +1,217 @@
+{
+  "lesson": {
+    "language": "en",
+    "track": "english_a1_for_vi",
+    "level": "A1",
+    "unitId": "greetings",
+    "title": {
+      "vi": "Chào hỏi trong lớp",
+      "en": "Chào hỏi trong lớp"
+    },
+    "objective": {
+      "vi": "Nhận biết và dùng tự nhiên: teacher, student, class, ready."
+    },
+    "estimatedMinutes": 6,
+    "blocks": [
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Hôm nay bạn sẽ luyện tập các từ trong chủ đề 'Chào hỏi trong lớp'. Đây là những từ thiết yếu trong giao tiếp tiếng Anh hằng ngày — hãy chú ý đến phát âm và ngữ cảnh sử dụng."
+        }
+      },
+      {
+        "type": "vocab_intro",
+        "words": [
+          "teacher",
+          "student",
+          "class",
+          "ready"
+        ]
+      },
+      {
+        "type": "explanation",
+        "content": {
+          "vi": "Không có điểm ngữ pháp mới trong bài này. Tập trung vào việc ghi nhớ nghĩa và cách dùng từ trong câu thật."
+        }
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_classroom_greetings_mc_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_classroom_greetings_gap_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_classroom_greetings_match_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_classroom_greetings_audio_1"
+      },
+      {
+        "type": "exercise",
+        "exerciseId": "greetings_classroom_greetings_construct_1"
+      }
+    ]
+  },
+  "exercises": [
+    {
+      "id": "greetings_classroom_greetings_mc_1",
+      "type": "multiple_choice",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "'teacher' có nghĩa là gì?"
+        }
+      },
+      "choices": [
+        "giáo viên",
+        "tạm biệt",
+        "gia đình",
+        "số một"
+      ],
+      "answer": 0,
+      "explanation": {
+        "vi": "'teacher' nghĩa là 'giáo viên'."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "classroom_greetings"
+      ],
+      "difficulty": 0.2
+    },
+    {
+      "id": "greetings_classroom_greetings_gap_1",
+      "type": "fill_in_blank",
+      "language": "en",
+      "level": "A1",
+      "skill": "grammar",
+      "prompt": {
+        "text": {
+          "vi": "Xin chào! Bạn có phải là ___ mới không?",
+          "en": "Hello! Are you a new ___?"
+        }
+      },
+      "choices": [
+        "student",
+        "teacher",
+        "class",
+        "ready"
+      ],
+      "answer": "student",
+      "explanation": {
+        "vi": "Trong câu 'Hello! Are you a new ___?', chúng ta cần một danh từ để chỉ một người mới. 'Student' (học sinh/sinh viên) là lựa chọn phù hợp nhất trong ngữ cảnh này. Các lựa chọn khác như 'teacher' (giáo viên) cũng là danh từ chỉ người nhưng 'student' phù hợp với chủ đề và độ khó A1 hơn khi hỏi một người mới quen. 'Class' (lớp học) là danh từ chỉ vật, và 'ready' (sẵn sàng) là tính từ nên không phù hợp. Câu hoàn chỉnh là 'Hello! Are you a new student?' (Xin chào! Bạn có phải là học sinh/sinh viên mới không?)."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "classroom_greetings"
+      ],
+      "difficulty": 0.35
+    },
+    {
+      "id": "greetings_classroom_greetings_match_1",
+      "type": "matching",
+      "language": "en",
+      "level": "A1",
+      "skill": "vocabulary",
+      "prompt": {
+        "text": {
+          "vi": "Ghép từ tiếng Anh với nghĩa tiếng Việt."
+        }
+      },
+      "answer": [
+        "teacher",
+        "student",
+        "class",
+        "ready"
+      ],
+      "pairs": [
+        {
+          "left": "teacher",
+          "right": "giáo viên"
+        },
+        {
+          "left": "student",
+          "right": "học sinh"
+        },
+        {
+          "left": "class",
+          "right": "lớp học"
+        },
+        {
+          "left": "ready",
+          "right": "sẵn sàng"
+        }
+      ],
+      "explanation": {
+        "vi": "Hãy nhớ 'teacher' (giáo viên) và 'student' (học sinh) là những người trong 'class' (lớp học). 'Ready' (sẵn sàng) mô tả trạng thái của họ."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "classroom_greetings"
+      ],
+      "difficulty": 0.4
+    },
+    {
+      "id": "greetings_classroom_greetings_audio_1",
+      "type": "dictation",
+      "language": "en",
+      "level": "A1",
+      "skill": "listening",
+      "prompt": {
+        "text": {
+          "vi": "Hãy lắng nghe câu sau và gõ lại chính xác những gì bạn nghe được."
+        }
+      },
+      "answer": "Good morning, teacher.",
+      "referenceText": "Good morning, teacher.",
+      "lengthSeconds": 3,
+      "explanation": {
+        "vi": "Câu này có nghĩa là \"Chào buổi sáng, thầy/cô giáo.\" Đây là một lời chào lịch sự và phổ biến mà học sinh thường dùng để chào giáo viên của mình vào buổi sáng khi gặp mặt, ví dụ như ở trường hoặc khi bắt đầu tiết học."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "classroom_greetings"
+      ],
+      "difficulty": 0.45
+    },
+    {
+      "id": "greetings_classroom_greetings_construct_1",
+      "type": "sentence_arrange",
+      "language": "en",
+      "level": "A1",
+      "skill": "writing",
+      "prompt": {
+        "text": {
+          "vi": "Sắp xếp lại các từ sau để tạo thành một câu hỏi hoàn chỉnh và đúng ngữ pháp."
+        }
+      },
+      "choices": [
+        ",",
+        "ready",
+        "you",
+        "?",
+        "Are",
+        "class"
+      ],
+      "answer": "Are you ready , class ?",
+      "explanation": {
+        "vi": "Câu đúng là \"Are you ready, class?\". Câu này có nghĩa là \"Cả lớp đã sẵn sàng chưa?\". Trong tiếng Anh, khi đặt câu hỏi về trạng thái sẵn sàng, chúng ta thường bắt đầu với \"Are you ready?\", sau đó thêm tên người hoặc nhóm người được hỏi."
+      },
+      "tags": [
+        "english_a1_for_vi",
+        "greetings",
+        "classroom_greetings"
+      ],
+      "difficulty": 0.5
+    }
+  ]
+}
