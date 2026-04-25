@@ -170,7 +170,7 @@ export interface components {
     schemas: {
         ErrorResponse: {
             error: string;
-            message?: string;
+            message: string;
         };
         HealthResponse: {
             ok: boolean;

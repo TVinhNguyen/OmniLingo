@@ -199,8 +199,14 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        /** @description user_id is ignored and replaced by the authenticated user id. */
-        LearningProfileInput: components["schemas"]["LearningProfile"];
+        /** @description user_id, created_at, and updated_at are managed by the server. */
+        LearningProfileInput: {
+            primary_language: string;
+            secondary_languages: string[];
+            starting_level?: string;
+            goals: components["schemas"]["Goal"][];
+            preferences: components["schemas"]["Prefs"];
+        };
         SetGoalsRequest: {
             goals: components["schemas"]["Goal"][];
         };
