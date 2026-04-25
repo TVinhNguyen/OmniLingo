@@ -11,18 +11,18 @@ import (
 
 // Service records security-relevant audit events.
 // Events are both logged via zap (for local visibility)
-// and published to Kafka "audit.identity.events" topic (for SIEM/S3 archival).
+// and durably inserted into the outbox_events table for relay to Kafka.
 type Service struct {
-	log       *zap.Logger
-	publisher *messaging.Publisher
+	log    *zap.Logger
+	outbox *messaging.OutboxRepository
 }
 
 // NewService creates a new audit Service.
-func NewService(log *zap.Logger, publisher *messaging.Publisher) *Service {
-	return &Service{log: log, publisher: publisher}
+func NewService(log *zap.Logger, outbox *messaging.OutboxRepository) *Service {
+	return &Service{log: log, outbox: outbox}
 }
 
-// Record logs an audit event and publishes it to Kafka.
+// Record logs an audit event and inserts it into the outbox for Kafka relay.
 func (s *Service) Record(ctx context.Context, event domain.AuditEvent) {
 	// Always log locally (structured)
 	s.log.Info("AUDIT",
@@ -35,6 +35,8 @@ func (s *Service) Record(ctx context.Context, event domain.AuditEvent) {
 		zap.String("details", event.Details),
 	)
 
-	// Publish to Kafka for SIEM / S3 Object Lock archival
-	s.publisher.Publish(ctx, domain.TopicAuditEvent, event)
+	// Durable outbox insert for Kafka relay (replaces fire-and-forget publish)
+	if err := s.outbox.InsertTx(ctx, domain.TopicAuditEvent, event); err != nil {
+		s.log.Error("outbox insert audit event failed", zap.Error(err))
+	}
 }

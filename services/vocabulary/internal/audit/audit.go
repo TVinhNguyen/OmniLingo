@@ -34,19 +34,19 @@ type Event struct {
 	Timestamp string  `json:"timestamp"`
 }
 
-// Service records audit events via structured logging and Kafka.
+// Service records audit events via structured logging and outbox.
 type Service struct {
-	log       *zap.Logger
-	publisher messaging.Publisher
-	service   string
+	log     *zap.Logger
+	outbox  *messaging.OutboxRepository
+	service string
 }
 
 // New creates a new audit Service.
-func New(log *zap.Logger, publisher messaging.Publisher, serviceName string) *Service {
-	return &Service{log: log.Named("audit"), publisher: publisher, service: serviceName}
+func New(log *zap.Logger, outbox *messaging.OutboxRepository, serviceName string) *Service {
+	return &Service{log: log.Named("audit"), outbox: outbox, service: serviceName}
 }
 
-// Record logs and publishes a security-relevant audit event.
+// Record logs and durably inserts a security-relevant audit event into the outbox.
 func (s *Service) Record(ctx context.Context, userID string, action Action, requestID, result, details string) {
 	evt := Event{
 		EventID:   uuid.New().String(),
@@ -68,8 +68,8 @@ func (s *Service) Record(ctx context.Context, userID string, action Action, requ
 	// Always log locally (structured)
 	s.log.Info("AUDIT", zap.ByteString("event", raw))
 
-	// Publish to Kafka for SIEM / S3 Object Lock archival (best-effort)
-	if err := s.publisher.Publish(ctx, auditTopic, raw); err != nil {
-		s.log.Warn("audit: failed to publish event to kafka", zap.Error(err))
+	// Durable outbox insert for Kafka relay
+	if err := s.outbox.InsertTx(ctx, auditTopic, evt); err != nil {
+		s.log.Warn("audit: outbox insert failed", zap.Error(err))
 	}
 }

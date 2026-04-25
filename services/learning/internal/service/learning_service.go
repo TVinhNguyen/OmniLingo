@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"math"
 	"time"
 
@@ -61,6 +60,7 @@ type learningService struct {
 	attemptRepo    repository.AttemptRepository
 	onboardingRepo repository.OnboardingRepository
 	publisher      messaging.Publisher
+	outbox         *messaging.OutboxRepository
 	log            *zap.Logger
 }
 
@@ -70,11 +70,12 @@ func NewLearningService(
 	attemptRepo repository.AttemptRepository,
 	onboardingRepo repository.OnboardingRepository,
 	publisher messaging.Publisher,
+	outboxRepo *messaging.OutboxRepository,
 	log *zap.Logger,
 ) LearningService {
 	return &learningService{
 		profileRepo: profileRepo, pathRepo: pathRepo, attemptRepo: attemptRepo,
-		onboardingRepo: onboardingRepo, publisher: publisher, log: log,
+		onboardingRepo: onboardingRepo, publisher: publisher, outbox: outboxRepo, log: log,
 	}
 }
 
@@ -107,12 +108,9 @@ func (s *learningService) SetGoals(ctx context.Context, userID uuid.UUID, goals 
 		EventID: uuid.New().String(), UserID: userID.String(),
 		Goals: goals, CreatedAt: time.Now().UTC(),
 	}
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "learning.goal.set", payload); err != nil {
-			s.log.Warn("failed to publish goal.set", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.InsertTx(ctx, "learning.goal.set", event); err != nil {
+		s.log.Warn("outbox insert goal.set failed", zap.Error(err))
+	}
 	return nil
 }
 
@@ -145,17 +143,14 @@ func (s *learningService) StartLesson(ctx context.Context, userID uuid.UUID, les
 	}
 	if err := s.attemptRepo.Create(ctx, attempt); err != nil { return nil, domain.ErrInternalError }
 
-	// Publish started event
+	// Outbox: durable Kafka event
 	event := domain.LessonStartedEvent{
 		EventID: uuid.New().String(), UserID: userID.String(),
 		LessonID: lessonID, Language: opts.Language, CreatedAt: time.Now().UTC(),
 	}
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "learning.lesson.started", payload); err != nil {
-			s.log.Warn("publish lesson.started failed", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.InsertTx(ctx, "learning.lesson.started", event); err != nil {
+		s.log.Warn("outbox insert lesson.started failed", zap.Error(err))
+	}
 	return attempt, nil
 }
 
@@ -164,19 +159,16 @@ func (s *learningService) CompleteLesson(ctx context.Context, req CompleteReques
 	attempt, err := s.attemptRepo.Complete(ctx, req.AttemptID, req.Score, xp, req.TimeSpentSec)
 	if err != nil { return nil, domain.ErrNotFound }
 
-	// Publish completed event
+	// Outbox: durable Kafka event
 	event := domain.LessonCompletedEvent{
 		EventID: uuid.New().String(), UserID: req.UserID.String(),
 		LessonID: attempt.LessonID, Language: req.Language,
 		Score: req.Score, XPEarned: xp, TimeSpentSec: req.TimeSpentSec,
 		SkillEmphasis: req.SkillTag, CreatedAt: time.Now().UTC(),
 	}
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "learning.lesson.completed", payload); err != nil {
-			s.log.Warn("publish lesson.completed failed", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.InsertTx(ctx, "learning.lesson.completed", event); err != nil {
+		s.log.Warn("outbox insert lesson.completed failed", zap.Error(err))
+	}
 	return attempt, nil
 }
 

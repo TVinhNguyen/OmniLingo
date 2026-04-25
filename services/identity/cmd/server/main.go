@@ -82,8 +82,11 @@ func main() {
 	}
 	defer publisher.Close()
 
+	// ─── Outbox Repository (shared by audit + auth) ────────────────────────────
+	outboxRepo := messaging.NewOutboxRepository(db)
+
 	// ─── Audit Service ────────────────────────────────────────────────────────
-	auditSvc := audit.NewService(log, publisher)
+	auditSvc := audit.NewService(log, outboxRepo)
 
 	// ─── Repositories ─────────────────────────────────────────────────────────
 	userRepo := repository.NewUserRepository(db)
@@ -93,7 +96,7 @@ func main() {
 	limiter := ratelimit.NewLimiter(rdb)
 
 	// ─── Auth Service ─────────────────────────────────────────────────────────
-	authSvc, err := service.NewAuthService(cfg, log, userRepo, sessionRepo, limiter, publisher, auditSvc)
+	authSvc, err := service.NewAuthService(cfg, log, userRepo, sessionRepo, limiter, publisher, auditSvc, outboxRepo)
 	if err != nil {
 		log.Fatal("failed to init auth service", zap.Error(err))
 	}

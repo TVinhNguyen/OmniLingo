@@ -143,15 +143,13 @@ type TokenPair struct {
 }
 
 // UpdateMeRequest contains allowable fields for self-service profile update.
+// NOTE: Learning preferences (daily_goal_minutes, reminder_time, learning_languages)
+// live in learning-service since commit 3955e75. Do NOT add them here.
 type UpdateMeRequest struct {
-	DisplayName       *string  `json:"display_name,omitempty"`
-	UILanguage        *string  `json:"ui_language,omitempty"`
-	Timezone          *string  `json:"timezone,omitempty"`
-	AvatarURL         *string  `json:"avatar_url,omitempty"`
-	// Learning preferences
-	DailyGoalMinutes  *int     `json:"daily_goal_minutes,omitempty"`
-	ReminderTime      *string  `json:"reminder_time,omitempty"` // "HH:MM" 24h or null to disable
-	LearningLanguages []string `json:"learning_languages,omitempty"`
+	DisplayName *string `json:"display_name,omitempty"`
+	UILanguage  *string `json:"ui_language,omitempty"`
+	Timezone    *string `json:"timezone,omitempty"`
+	AvatarURL   *string `json:"avatar_url,omitempty"`
 }
 
 // ─── Domain Errors ───────────────────────────────────────────────────────────

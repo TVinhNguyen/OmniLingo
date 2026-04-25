@@ -91,6 +91,7 @@ type authService struct {
 	hibp        *security.HIBPChecker
 	publisher   *messaging.Publisher
 	auditLog    *audit.Service
+	outbox      *messaging.OutboxRepository
 
 	// RS256 key pair
 	privateKey *rsa.PrivateKey
@@ -107,6 +108,7 @@ func NewAuthService(
 	limiter *ratelimit.Limiter,
 	publisher *messaging.Publisher,
 	auditSvc *audit.Service,
+	outboxRepo *messaging.OutboxRepository,
 ) (AuthService, error) {
 	privateKey, err := loadOrGenerateRSAKey(cfg.JWTPrivateKeyPath, log)
 	if err != nil {
@@ -124,6 +126,7 @@ func NewAuthService(
 		hibp:        hibp,
 		publisher:   publisher,
 		auditLog:    auditSvc,
+		outbox:      outboxRepo,
 		privateKey:  privateKey,
 		publicKey:   &privateKey.PublicKey,
 		keyID:       cfg.JWTKeyID,
@@ -202,12 +205,12 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) (*domai
 		"SUCCESS", "email="+user.Email,
 	))
 
-	// Kafka event
+	// Outbox: durable Kafka event (relay picks up within 5s)
 	roleStrings := make([]string, len(user.Roles))
 	for i, r := range user.Roles {
 		roleStrings[i] = string(r)
 	}
-	s.publisher.Publish(ctx, domain.TopicUserRegistered, domain.UserRegisteredEvent{
+	if err := s.outbox.InsertTx(ctx, domain.TopicUserRegistered, domain.UserRegisteredEvent{
 		EventID:     uuid.New().String(),
 		UserID:      user.ID.String(),
 		Email:       user.Email,
@@ -215,7 +218,9 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) (*domai
 		UILanguage:  user.UILanguage,
 		Roles:       roleStrings,
 		CreatedAt:   user.CreatedAt,
-	})
+	}); err != nil {
+		s.log.Error("outbox insert user.registered failed", zap.Error(err))
+	}
 
 	return user, nil
 }
@@ -321,7 +326,7 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*domain.Toke
 		"SUCCESS", "session_id="+session.ID.String(),
 	))
 
-	s.publisher.Publish(ctx, domain.TopicUserLoggedIn, domain.UserLoggedInEvent{
+	if err := s.outbox.InsertTx(ctx, domain.TopicUserLoggedIn, domain.UserLoggedInEvent{
 		EventID:    uuid.New().String(),
 		UserID:     user.ID.String(),
 		SessionID:  session.ID.String(),
@@ -329,7 +334,9 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*domain.Toke
 		DeviceInfo: req.DeviceInfo,
 		IP:         req.IP,
 		LoggedInAt: time.Now().UTC(),
-	})
+	}); err != nil {
+		s.log.Error("outbox insert user.logged_in failed", zap.Error(err))
+	}
 
 	return tokens, nil
 }
@@ -431,12 +438,14 @@ func (s *authService) DeleteMe(ctx context.Context, userID uuid.UUID, reason str
 		"SUCCESS", "reason="+reason,
 	))
 
-	s.publisher.Publish(ctx, domain.TopicUserDeleted, domain.UserDeletedEvent{
+	if err := s.outbox.InsertTx(ctx, domain.TopicUserDeleted, domain.UserDeletedEvent{
 		EventID:   uuid.New().String(),
 		UserID:    userID.String(),
 		DeletedAt: time.Now().UTC(),
 		Reason:    reason,
-	})
+	}); err != nil {
+		s.log.Error("outbox insert user.deleted failed", zap.Error(err))
+	}
 	return nil
 }
 

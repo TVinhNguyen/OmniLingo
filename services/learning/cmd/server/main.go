@@ -65,11 +65,13 @@ func main() {
 	}
 	defer pub.Close()
 
+	// Outbox repo: used by service for durable event inserts + by relay worker
+	outboxRepo     := messaging.NewOutboxRepository(db)
 	profileRepo    := repository.NewProfileRepository(db)
 	pathRepo       := repository.NewPathRepository(db)
 	attemptRepo    := repository.NewAttemptRepository(db)
 	onboardingRepo := repository.NewOnboardingRepository(db)
-	svc            := service.NewLearningService(profileRepo, pathRepo, attemptRepo, onboardingRepo, pub, log)
+	svc            := service.NewLearningService(profileRepo, pathRepo, attemptRepo, onboardingRepo, pub, outboxRepo, log)
 	h           := handler.New(svc, log)
 
 	// Init JWKS-backed JWT verifier
@@ -119,11 +121,10 @@ func main() {
 		return nil
 	})
 
-	// T9: Outbox relay
+	// T9: Outbox relay worker
 	outboxCtx, outboxCancel := context.WithCancel(context.Background())
 	defer outboxCancel()
 	if cfg.KafkaEnabled {
-		outboxRepo   := messaging.NewOutboxRepository(db)
 		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
 		go outboxWorker.Run(outboxCtx)
 		log.Info("outbox relay started")
