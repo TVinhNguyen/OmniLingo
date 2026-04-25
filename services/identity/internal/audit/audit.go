@@ -36,7 +36,7 @@ func (s *Service) Record(ctx context.Context, event domain.AuditEvent) {
 	)
 
 	// Durable outbox insert for Kafka relay (replaces fire-and-forget publish)
-	if err := s.outbox.InsertTx(ctx, domain.TopicAuditEvent, event); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicAuditEvent, event); err != nil {
 		s.log.Error("outbox insert audit event failed", zap.Error(err))
 	}
 }

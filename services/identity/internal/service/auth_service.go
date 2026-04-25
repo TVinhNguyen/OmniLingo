@@ -210,7 +210,7 @@ func (s *authService) Register(ctx context.Context, req RegisterRequest) (*domai
 	for i, r := range user.Roles {
 		roleStrings[i] = string(r)
 	}
-	if err := s.outbox.InsertTx(ctx, domain.TopicUserRegistered, domain.UserRegisteredEvent{
+	if err := s.outbox.Enqueue(ctx, domain.TopicUserRegistered, domain.UserRegisteredEvent{
 		EventID:     uuid.New().String(),
 		UserID:      user.ID.String(),
 		Email:       user.Email,
@@ -326,7 +326,7 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*domain.Toke
 		"SUCCESS", "session_id="+session.ID.String(),
 	))
 
-	if err := s.outbox.InsertTx(ctx, domain.TopicUserLoggedIn, domain.UserLoggedInEvent{
+	if err := s.outbox.Enqueue(ctx, domain.TopicUserLoggedIn, domain.UserLoggedInEvent{
 		EventID:    uuid.New().String(),
 		UserID:     user.ID.String(),
 		SessionID:  session.ID.String(),
@@ -438,7 +438,7 @@ func (s *authService) DeleteMe(ctx context.Context, userID uuid.UUID, reason str
 		"SUCCESS", "reason="+reason,
 	))
 
-	if err := s.outbox.InsertTx(ctx, domain.TopicUserDeleted, domain.UserDeletedEvent{
+	if err := s.outbox.Enqueue(ctx, domain.TopicUserDeleted, domain.UserDeletedEvent{
 		EventID:   uuid.New().String(),
 		UserID:    userID.String(),
 		DeletedAt: time.Now().UTC(),

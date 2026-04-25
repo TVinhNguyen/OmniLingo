@@ -196,7 +196,7 @@ func (im *Importer) Import(ctx context.Context, userID uuid.UUID, language, deck
 		WordsSkipped: skipped,
 		CreatedAt:    time.Now().UTC(),
 	}
-	if err := im.outbox.InsertTx(ctx, domain.TopicImportCompleted, evt); err != nil {
+	if err := im.outbox.Enqueue(ctx, domain.TopicImportCompleted, evt); err != nil {
 		im.log.Warn("outbox insert import.completed failed", zap.Error(err))
 	}
 

@@ -96,7 +96,7 @@ func (s *deckService) CreateDeck(ctx context.Context, userID uuid.UUID, req doma
 		Name:      d.Name,
 		CreatedAt: time.Now().UTC(),
 	}
-	if err := s.outbox.InsertTx(ctx, domain.TopicDeckCreated, evt); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicDeckCreated, evt); err != nil {
 		s.log.Warn("outbox insert deck.created failed", zap.Error(err))
 	}
 
@@ -157,7 +157,7 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 		Level:     word.Level,
 		CreatedAt: now,
 	}
-	if err := s.outbox.InsertTx(ctx, domain.TopicCardAdded, evt); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicCardAdded, evt); err != nil {
 		s.log.Warn("outbox insert card.added failed", zap.Error(err))
 	}
 
@@ -198,7 +198,7 @@ func (s *deckService) RemoveCard(ctx context.Context, userID, deckID uuid.UUID, 
 		CardID:    cardID,
 		CreatedAt: time.Now().UTC(),
 	}
-	if err := s.outbox.InsertTx(ctx, domain.TopicCardRemoved, evt); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicCardRemoved, evt); err != nil {
 		s.log.Warn("outbox insert card.removed failed", zap.Error(err))
 	}
 	return nil
@@ -224,7 +224,7 @@ func (s *deckService) MarkKnown(ctx context.Context, userID, cardID uuid.UUID) e
 		WordID:    card.WordID,
 		CreatedAt: time.Now().UTC(),
 	}
-	if err := s.outbox.InsertTx(ctx, domain.TopicCardMarkedKnown, evt); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicCardMarkedKnown, evt); err != nil {
 		s.log.Warn("outbox insert card.marked_known failed", zap.Error(err))
 	}
 	return nil

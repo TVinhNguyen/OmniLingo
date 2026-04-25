@@ -26,7 +26,11 @@ func NewOutboxRepository(db *pgxpool.Pool) *OutboxRepository {
 	return &OutboxRepository{db: db}
 }
 
-func (r *OutboxRepository) InsertTx(ctx context.Context, topic string, payload interface{}) error {
+// Enqueue inserts an event into outbox_events via the connection pool.
+// NOTE: This is NOT transactional with the caller's domain write — it uses
+// the shared pool, not a pgx.Tx. Acceptable for MVP1 (see ADR-010).
+// Phase 2: accept pgx.Tx parameter for true atomic write (like payment-service).
+func (r *OutboxRepository) Enqueue(ctx context.Context, topic string, payload interface{}) error {
 	data, err := json.Marshal(payload)
 	if err != nil { return err }
 	_, err = r.db.Exec(ctx,

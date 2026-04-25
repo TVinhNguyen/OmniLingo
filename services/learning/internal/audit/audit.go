@@ -69,7 +69,7 @@ func (s *Service) Record(ctx context.Context, userID string, action Action, requ
 	s.log.Info("AUDIT", zap.ByteString("event", raw))
 
 	// Durable outbox insert for Kafka relay
-	if err := s.outbox.InsertTx(ctx, auditTopic, evt); err != nil {
+	if err := s.outbox.Enqueue(ctx, auditTopic, evt); err != nil {
 		s.log.Warn("audit: outbox insert failed", zap.Error(err))
 	}
 }
