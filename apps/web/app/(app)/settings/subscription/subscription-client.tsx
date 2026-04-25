@@ -39,11 +39,11 @@ const FEATURES = [
 
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  })
+  const d = new Date(iso)
+  const dd = String(d.getDate()).padStart(2, "0")
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const yyyy = d.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
 }
 
 export default function SubscriptionClient({
@@ -174,15 +174,17 @@ export default function SubscriptionClient({
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-xl bg-surface-low p-4">
-                <div className="mb-2 flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Kỳ hạn hiện tại</span>
+              {subscription && (
+                <div className="rounded-xl bg-surface-low p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Kỳ hạn hiện tại</span>
+                  </div>
+                  <div className="text-sm font-medium">
+                    {fmtDate(periodStart)} - {fmtDate(periodEnd)}
+                  </div>
                 </div>
-                <div className="text-sm font-medium">
-                  {fmtDate(periodStart)} - {fmtDate(periodEnd)}
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </Card>
