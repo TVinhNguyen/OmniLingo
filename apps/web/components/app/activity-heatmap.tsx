@@ -30,9 +30,10 @@ function levelOf(minutes: number): number {
 }
 
 function formatDate(iso: string): string {
-  // BE returns YYYY-MM-DD. Render with vi-VN locale for tooltip.
+  // BE returns YYYY-MM-DD. Append "T00:00:00" so it parses as local midnight,
+  // not UTC midnight (which off-by-ones in west-of-UTC timezones).
   try {
-    const d = new Date(iso)
+    const d = new Date(iso + "T00:00:00")
     if (Number.isNaN(d.getTime())) return iso
     return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
   } catch {
