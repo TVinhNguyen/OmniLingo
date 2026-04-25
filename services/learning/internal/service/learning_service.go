@@ -33,6 +33,11 @@ type LearningService interface {
 	CompleteLesson(ctx context.Context, req CompleteRequest) (*domain.LessonAttempt, error)
 	GetHistory(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.LessonAttempt, int, error)
 	GetTodayMission(ctx context.Context, userID uuid.UUID) (*domain.TodayMission, error)
+
+	// T3 — Onboarding state machine
+	GetOnboardingState(ctx context.Context, userID uuid.UUID) (*domain.OnboardingState, error)
+	UpdateOnboardingStep(ctx context.Context, userID uuid.UUID, step domain.OnboardingStep, answers map[string]any) error
+	CompleteOnboarding(ctx context.Context, userID uuid.UUID, cefr, trackID *string) error
 }
 
 type StartOpts struct {
@@ -51,23 +56,25 @@ type CompleteRequest struct {
 }
 
 type learningService struct {
-	profileRepo  repository.ProfileRepository
-	pathRepo     repository.PathRepository
-	attemptRepo  repository.AttemptRepository
-	publisher    messaging.Publisher
-	log          *zap.Logger
+	profileRepo    repository.ProfileRepository
+	pathRepo       repository.PathRepository
+	attemptRepo    repository.AttemptRepository
+	onboardingRepo repository.OnboardingRepository
+	publisher      messaging.Publisher
+	log            *zap.Logger
 }
 
 func NewLearningService(
 	profileRepo repository.ProfileRepository,
 	pathRepo repository.PathRepository,
 	attemptRepo repository.AttemptRepository,
+	onboardingRepo repository.OnboardingRepository,
 	publisher messaging.Publisher,
 	log *zap.Logger,
 ) LearningService {
 	return &learningService{
 		profileRepo: profileRepo, pathRepo: pathRepo, attemptRepo: attemptRepo,
-		publisher: publisher, log: log,
+		onboardingRepo: onboardingRepo, publisher: publisher, log: log,
 	}
 }
 
@@ -79,7 +86,8 @@ func (s *learningService) SetProfile(ctx context.Context, p *domain.LearningProf
 	if p.PrimaryLanguage == "" {
 		return domain.Errorf("BAD_REQUEST", "primary_language is required")
 	}
-	if p.Preferences.DailyGoalMinutes == 0 { p.Preferences.DailyGoalMinutes = 15 }
+	if p.DailyGoalMinutes == 0 { p.DailyGoalMinutes = 10 }
+	if p.LearningLanguages == nil { p.LearningLanguages = []string{} }
 	return s.profileRepo.Upsert(ctx, p)
 }
 
@@ -89,7 +97,7 @@ func (s *learningService) SetGoals(ctx context.Context, userID uuid.UUID, goals 
 		// Auto-create minimal profile if not exists
 		profile = &domain.LearningProfile{
 			UserID: userID, PrimaryLanguage: "en",
-			Preferences: domain.Prefs{DailyGoalMinutes: 15},
+			DailyGoalMinutes: 10, LearningLanguages: []string{},
 		}
 	}
 	profile.Goals = goals
@@ -197,4 +205,38 @@ func (s *learningService) GetTodayMission(ctx context.Context, userID uuid.UUID)
 	_ = paths[0] // suppress unused var
 
 	return mission, nil
+}
+
+// ─── T3: Onboarding ───────────────────────────────────────────────────────────
+
+func (s *learningService) GetOnboardingState(ctx context.Context, userID uuid.UUID) (*domain.OnboardingState, error) {
+	return s.onboardingRepo.GetState(ctx, userID)
+}
+
+func (s *learningService) UpdateOnboardingStep(ctx context.Context, userID uuid.UUID, step domain.OnboardingStep, answers map[string]any) error {
+	// Validate step
+	switch step {
+	case domain.StepLanguageSelect, domain.StepGoalSelect, domain.StepLevelSelect, domain.StepPlacement, domain.StepDone:
+	default:
+		return domain.Errorf("BAD_REQUEST", "invalid onboarding step: %s", step)
+	}
+	return s.onboardingRepo.UpsertStep(ctx, userID, step, answers)
+}
+
+func (s *learningService) CompleteOnboarding(ctx context.Context, userID uuid.UUID, cefr, trackID *string) error {
+	if err := s.onboardingRepo.Complete(ctx, userID, cefr, trackID); err != nil {
+		return err
+	}
+	// Auto-enroll track if a recommendation is provided
+	if trackID != nil && *trackID != "" {
+		state, _ := s.onboardingRepo.GetState(ctx, userID) // re-read to get primary_language
+		lang := "en"
+		if state != nil {
+			if v, ok := state.Answers["target_language"].(string); ok && v != "" {
+				lang = v
+			}
+		}
+		_, _ = s.CreatePath(ctx, userID, lang, *trackID)
+	}
+	return nil
 }
