@@ -11,22 +11,31 @@ export interface TestUser {
 const IDENTITY_URL = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
 
 /**
- * Create a unique test user via identity-service REST API.
- * Returns the user details including a one-time password.
+ * Build a unique test user object without registering via API.
+ * Use this for tests that register through the UI.
  */
-export async function createTestUser(request: APIRequestContext): Promise<TestUser> {
+export function buildTestUser(): TestUser {
   const suffix = uuidv4().split('-')[0];
-  const user: TestUser = {
+  return {
     email: `e2e-${suffix}@omnilingo-test.local`,
     password: `TestPass_${suffix}!2`,
     name: `E2E User ${suffix}`,
   };
+}
+
+/**
+ * Create a unique test user via identity-service REST API.
+ * Returns the user details including a one-time password.
+ */
+export async function createTestUser(request: APIRequestContext): Promise<TestUser> {
+  const user = buildTestUser();
 
   const resp = await request.post(`${IDENTITY_URL}/api/v1/auth/register`, {
     data: {
       email: user.email,
       password: user.password,
-      name: user.name,
+      display_name: user.name,
+      ui_language: 'en',
     },
   });
 
