@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { buildTestUser, deleteTestUser } from '../fixtures/user';
+import { createTestUser, deleteTestUser } from '../fixtures/user';
 
 /**
  * G12 — onboarding.spec.ts
@@ -7,20 +7,14 @@ import { buildTestUser, deleteTestUser } from '../fixtures/user';
  */
 test.describe('Onboarding', () => {
   test('complete 5-step onboarding flow', async ({ page, request }) => {
-    test.skip(
-      !process.env.E2E_FULL_STACK,
-      'Full onboarding requires web-bff and learning services'
-    );
+    const user = await createTestUser(request);
 
-    const user = buildTestUser();
-
-    // ── Register via UI (not pre-registered via API)
-    await page.goto('/sign-up');
-    await page.locator('input[name="displayName"]').fill(user.name);
-    await page.locator('input[name="email"]').fill(user.email);
-    await page.locator('input[name="password"]').fill(user.password);
-    await page.locator('#terms').check();
-    await page.getByRole('button', { name: /tạo tài khoản|create account|sign up|register/i }).click();
+    // ── Register
+    await page.goto('/register');
+    await page.getByLabel(/name/i).fill(user.name);
+    await page.getByLabel(/email/i).fill(user.email);
+    await page.getByLabel(/^password/i).fill(user.password);
+    await page.getByRole('button', { name: /create account|sign up|register/i }).click();
 
     // Should land on onboarding
     await expect(page).toHaveURL(/onboarding/);

@@ -5,7 +5,7 @@
   "scripts": {
     "gen:openapi": "sh scripts/gen-openapi.sh",
     "check:openapi": "sh scripts/validate-openapi.sh && pnpm gen:openapi && git diff --exit-code -- services/web-bff/src/generated",
-    "e2e": "cd apps/web-e2e && pnpm test",
-    "e2e:ci": "cd apps/web-e2e && pnpm test:ci"
+    "e2e": "pnpm -F web-e2e test",
+    "e2e:ci": "pnpm -F web-e2e test:ci"
   }
 }

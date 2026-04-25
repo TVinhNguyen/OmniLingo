@@ -7,11 +7,6 @@ import { createTestUser, loginTestUser, deleteTestUser } from '../fixtures/user'
  */
 test.describe('Learning Flow', () => {
   test('complete a lesson and earn XP', async ({ page, request }) => {
-    test.skip(
-      !process.env.E2E_FULL_STACK,
-      'Learning journey requires web-bff and learning content services'
-    );
-
     const user = await createTestUser(request);
     // Get token and set cookie/localStorage for pre-authenticated state
     const token = await loginTestUser(request, user);
