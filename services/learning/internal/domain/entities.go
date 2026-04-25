@@ -65,6 +65,15 @@ type LessonAttempt struct {
 	TimeSpentSec  *int       `json:"time_spent_sec,omitempty"`
 }
 
+// ─── Kafka topic constants ────────────────────────────────────────────────────
+
+const (
+	TopicLessonStarted   = "learning.lesson.started"
+	TopicLessonCompleted = "learning.lesson.completed"
+	TopicGoalSet         = "learning.goal.set"
+	TopicAuditEvent      = "audit.learning.events"
+)
+
 // ─── Events emitted ───────────────────────────────────────────────────────────
 
 type LessonStartedEvent struct {

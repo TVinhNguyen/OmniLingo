@@ -107,21 +107,21 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | `/placement-test` legacy | — | ✅ | Redirects to `/onboarding/placement` |
 | BFF schema + resolvers | — | ✅ | `onboardingState`, `updateOnboarding`, `completeOnboarding`, `placementTest`, `submitPlacement` (commits `70d1889` T3 + `9e1252b` T4) |
 
-### 3.3. Flow 03 — Dashboard & Learn (25%)
+### 3.3. Flow 03 — Dashboard & Learn (85%)
 
 | Sub-flow | UI | Wire | Ghi chú |
 |----------|----|------|---------|
-| Dashboard aggregate | ✅ | ✅ | 5/9 widget có data |
+| Dashboard aggregate | ✅ | ✅ | Widget có data |
 | myTracks | ✅ | ✅ | |
-| Today mission | ✅ | 🔴 | UI hardcode mock |
-| SRS due count | ✅ | 🔴 | Cần `srsDueCount` resolver |
-| Streak widget chi tiết | ✅ | 🔴 | Cần `myStreak` resolver |
-| Track detail `/learn/[trackId]` | — | 🔴 | UI chưa có route |
-| Unit/Lesson listing | ✅ (trong `/learn`) | 🔴 | Mock |
-| Enroll track | ✅ (button) | 🔴 | Không action |
-| Lesson player `/lesson/[id]` | ✅ | ✅ | RSC gọi `startLesson` mutation, mock fallback |
-| Submit answer | ✅ (client) | 🔴 | Grade client-side mock |
-| Complete lesson | ✅ | 🔴 | Không emit event |
+| Today mission | ✅ | ✅ | `todayMission` query, hero hiện minutesToGoal/dueCardCount/xpReward, CTA → `/lesson/{lessonId}` hoặc `/learn` fallback (D6) |
+| SRS due count | ✅ | ✅ | `srsDueCount` resolver wired (PR-A) |
+| Streak widget chi tiết | ✅ | ✅ | `myStreak` resolver |
+| Track detail `/learn/[trackId]` | — | 🟡 | Chưa có route — D8 expand track card thay vì page riêng |
+| Unit/Lesson listing | ✅ (trong `/learn`) | 🔴 | Pending **D8** — wire `courses(trackId)` + `units(courseId)` |
+| Enroll track | ✅ (button) | ✅ | `enrollTrack` mutation wired |
+| Lesson player `/lesson/[id]` | ✅ | ✅ | RSC + `lessonContent(lessonId)` (PR-A) |
+| Submit answer | ✅ (client) | ✅ | `submitAnswer(exerciseId, answer)` (PR-A) |
+| Complete lesson | ✅ | ✅ | `completeLesson` mutation, emits Kafka event qua outbox |
 
 ### 3.4. Flow 04 — Vocabulary & SRS (90%)
 
@@ -149,18 +149,18 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | Card-from-chat | ✅ (button) | ✅ | `addCardFromChat` mutation |
 | Voice tutor | — | — | MVP1.5, không tính |
 
-### 3.6. Flow 06 — Progress & Gamification (20%)
+### 3.6. Flow 06 — Progress & Gamification (95%)
 
 | Sub-flow | UI | Wire | Ghi chú |
 |----------|----|------|---------|
 | myProgress summary | ✅ | ✅ | |
 | Weekly chart | ✅ | ✅ | |
-| Skill radar | ✅ | 🔴 | Cần `skillScores` |
-| Heatmap 365d | ✅ | 🔴 | Cần `activityHeatmap` |
-| Streak detail (freeze, at risk) | ✅ | 🔴 | Cần `myStreak` |
-| Achievements | ✅ (`/achievements`) | 🔴 | |
-| Leaderboard | ✅ (`/leaderboard`) | 🔴 | |
-| Cert predict | ✅ | 🔴 | |
+| Skill radar | ✅ | ✅ | `skillScores(language)` — language từ `me.learningLanguages[0]` (D7 fix PR-B TODO) |
+| Heatmap 365d | ✅ | ✅ | `activityHeatmap(365)` 53×7 grid 5 level (D7) |
+| Streak detail (freeze, at risk) | ✅ | ✅ | `myStreak` |
+| Achievements | ✅ (`/achievements`) | ✅ | `myAchievements` query, split unlocked/locked, lucide icon mapping (D7) |
+| Leaderboard | ✅ (`/leaderboard`) | ✅ | `leaderboard("global","weekly")` + podium top 3 + isCurrentUser highlight (D7) |
+| Cert predict | ✅ | 🟡 | `certPredict("ielts")` wired nhưng `cert` còn hardcode — cần **G15** expose `myLearningProfile.certGoal` qua BFF |
 
 ### 3.7. Flow 07 — Billing & Payment (85%)
 
@@ -229,14 +229,34 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 4. ✅ **Outbox Bug #7** — 4 service identity/learning/vocabulary/gamification có outbox + 14 publish site wired (commits `9e94540` + `1fe1655`).
 5. ✅ **Architecture cleanup** — learning preferences move từ identity sang learning service (commit `3955e75`).
 
-### P2.5 — Wave 9 FE wire (Devin, đang làm)
+### P2.5 — Wave 9 FE wire (Devin)
 
 | # | Task | Branch | Status |
 |---|------|--------|--------|
-| D5 | Onboarding multi-step 5 sub-route | `feature/d5-onboarding-flow` | ✅ |
-| D6 | `/settings/learning` + `/settings/languages` + dashboard today mission | `feature/d6-settings-and-mission` | ⏳ |
-| D7 | `/progress` heatmap + `/achievements` + `/leaderboard` + cleanup PR-B TODO | `feature/d7-progress-and-gamif` | ⏳ |
-| D8 | `/learn` unit listing + D1 timeout cap + D2 currency consistency | `feature/d8-learn-units-and-polish` | ⏳ |
+| D5 | Onboarding multi-step 5 sub-route | `feature/d5-onboarding-flow` | ✅ Merged |
+| D6 | `/settings/learning` + `/settings/languages` + dashboard today mission | `feature/d6-settings-and-mission` | ✅ Merged |
+| D7 | `/progress` heatmap + `/achievements` + `/leaderboard` + cleanup PR-B TODO (cert hardcode còn — chờ G15) | `feature/d7-progress-and-gamif` | ✅ Merged |
+| D8 | `/learn` unit listing + D1 timeout cap + D2 currency consistency | `feature/d8-learn-units-and-polish` | ⏳ Đang làm |
+
+### P2.6 — Wave 2 BE Hardening (Gemini, [brief đầy đủ](./gemini-tasks-wave2-hardening.md))
+
+| # | Task | Branch | Status |
+|---|------|--------|--------|
+| G2 | GitHub Actions CI workflow | `chore/g2-github-actions-ci` | ✅ Merged |
+| G3 | Prometheus `/metrics` 17/17 service | `feat/g3-prometheus-metrics` | ✅ Merged (kèm scope creep — 8 fix bugs khác) |
+| G4 | OpenAPI spec 5 service core | `feat/g4-openapi-spec-5-services` | ✅ Merged (cleanup `apps/web_old` lock-file sau) |
+| G1 | Rename `InsertTx` → `Enqueue` + ADR-010 outbox tradeoff | — | ⏳ Pending |
+| G5 | Kafka topic naming audit + `kafka-topic-registry.md` | — | ⏳ Pending |
+| G6 | Outbox cho assessment + srs (2 service producer còn thiếu) | — | ⏳ Pending |
+| G7 | `learning.GetTodayMission` lessonId/Title qua content service | — | ⏳ Pending |
+| G8 | `writing-ai-service` minimal stub (proxy LLM gateway) | — | ⏳ Pending |
+| G9 | `dictionary-service` stub (auto-fill IPA + meaning) | — | ⏳ Pending |
+| G10 | `media-service` stub (audio upload S3 signed URL) | — | ⏳ Pending |
+| G11 | Local Prometheus + Grafana docker-compose extension | — | ⏳ Pending |
+| G12 | E2E test scaffold Playwright (4 critical journey) — **block ship** | — | ⏳ Pending |
+| G13 | Load test k6 scenario (3 scenario, p95 SLO) | — | ⏳ Pending |
+| G14 | Security audit OWASP top 10 — **block ship** | — | ⏳ Pending |
+| G15 | BFF expose `myLearningProfile.certGoal` (1h, fix D7 TODO) | — | ⏳ Pending |
 
 ### P3 — Sau MVP1
 

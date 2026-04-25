@@ -25,6 +25,13 @@ export interface LearningPreferences {
   learningLanguages: string[];
 }
 
+export interface LearningProfile {
+  certGoal: string | null;
+  dailyGoalMinutes: number;
+  reminderTime: string | null;
+  learningLanguages: string[];
+}
+
 export interface LearningTrack {
   id: string;
   title: string;
@@ -199,6 +206,22 @@ export class LearningDataSource {
       minutesToGoal: Number(m.minutes_to_goal ?? 0),
       xpReward:      Number(m.xp_reward ?? 50),
       dueCardCount:  Number(m.due_card_count ?? 0),
+    };
+  }
+
+  /** GET /api/v1/learning/profile — includes cert_goal extracted from goals[] */
+  async getMyLearningProfile(): Promise<LearningProfile> {
+    const raw = await call<{ profile?: Record<string, unknown> }>(this.ds, "/api/v1/learning/profile")
+      .catch(() => ({ profile: undefined }));
+    const p = raw.profile ?? {};
+    // Extract certGoal from goals array: first goal with type == "cert"
+    const goals = Array.isArray(p.goals) ? p.goals as Array<Record<string, unknown>> : [];
+    const certGoal = goals.find((g) => g.type === "cert")?.cert as string | undefined ?? null;
+    return {
+      certGoal,
+      dailyGoalMinutes: Number(p.daily_goal_minutes ?? 10),
+      reminderTime: p.reminder_time != null ? String(p.reminder_time) : null,
+      learningLanguages: Array.isArray(p.learning_languages) ? p.learning_languages as string[] : [],
     };
   }
 

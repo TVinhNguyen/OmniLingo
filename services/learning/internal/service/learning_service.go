@@ -108,7 +108,7 @@ func (s *learningService) SetGoals(ctx context.Context, userID uuid.UUID, goals 
 		EventID: uuid.New().String(), UserID: userID.String(),
 		Goals: goals, CreatedAt: time.Now().UTC(),
 	}
-	if err := s.outbox.Enqueue(ctx, "learning.goal.set", event); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicGoalSet, event); err != nil {
 		s.log.Warn("outbox insert goal.set failed", zap.Error(err))
 	}
 	return nil
@@ -148,7 +148,7 @@ func (s *learningService) StartLesson(ctx context.Context, userID uuid.UUID, les
 		EventID: uuid.New().String(), UserID: userID.String(),
 		LessonID: lessonID, Language: opts.Language, CreatedAt: time.Now().UTC(),
 	}
-	if err := s.outbox.Enqueue(ctx, "learning.lesson.started", event); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicLessonStarted, event); err != nil {
 		s.log.Warn("outbox insert lesson.started failed", zap.Error(err))
 	}
 	return attempt, nil
@@ -166,7 +166,7 @@ func (s *learningService) CompleteLesson(ctx context.Context, req CompleteReques
 		Score: req.Score, XPEarned: xp, TimeSpentSec: req.TimeSpentSec,
 		SkillEmphasis: req.SkillTag, CreatedAt: time.Now().UTC(),
 	}
-	if err := s.outbox.Enqueue(ctx, "learning.lesson.completed", event); err != nil {
+	if err := s.outbox.Enqueue(ctx, domain.TopicLessonCompleted, event); err != nil {
 		s.log.Warn("outbox insert lesson.completed failed", zap.Error(err))
 	}
 	return attempt, nil

@@ -111,6 +111,14 @@ export const schema = /* GraphQL */ `
 
   # ─── Learning ─────────────────────────────────────────────────────────────
 
+  """User's learning profile including cert goal and preferences."""
+  type LearningProfile {
+    certGoal:          String    # e.g. "ielts" | "toeic" | "jlpt_n3" | null
+    dailyGoalMinutes:  Int!
+    reminderTime:      String
+    learningLanguages: [String!]!
+  }
+
   enum LessonStatus {
     locked
     available
@@ -448,6 +456,9 @@ export const schema = /* GraphQL */ `
     # T4: Placement Test
     """CEFR placement test questions for a language pair."""
     placementTest(lang: String!, targetLang: String!): PlacementTest!
+
+    """Current user's learning profile (cert goal, preferences)."""
+    myLearningProfile: LearningProfile!
   }
 
   # ─── T3: Onboarding types ────────────────────────────────
