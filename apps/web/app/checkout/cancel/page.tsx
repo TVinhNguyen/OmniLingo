@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { motion } from "motion/react"
-import { CheckCircle2, Home, RefreshCw, Tags, XCircle } from "lucide-react"
+import { CheckCircle2, HelpCircle, RefreshCw, Tags, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -23,7 +24,11 @@ const reasons = [
   { v: "other", label: "Khác" },
 ]
 
-export default function CancelPage() {
+function CancelInner() {
+  const params = useSearchParams()
+  const planId = params.get("planId")
+  const retryHref = planId ? `/checkout?planId=${encodeURIComponent(planId)}` : "/checkout"
+
   const [reason, setReason] = useState<string | null>(null)
   const [detail, setDetail] = useState("")
   const [submitted, setSubmitted] = useState(false)
@@ -57,7 +62,7 @@ export default function CancelPage() {
                   <AccordionContent className="text-sm text-muted-foreground">
                     Hãy kiểm tra lại thông tin thẻ, số dư, hoặc liên hệ ngân hàng để đảm bảo giao dịch quốc tế được cho phép.
                     Bạn cũng có thể{" "}
-                    <Link href="/checkout" className="text-primary underline">thử lại</Link> với thẻ khác.
+                    <Link href={retryHref} className="text-primary underline">thử lại</Link> với thẻ khác.
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="plan">
@@ -83,7 +88,7 @@ export default function CancelPage() {
         {/* Actions */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="space-y-2">
           <Button asChild size="lg" className="w-full h-12 bg-gradient-primary">
-            <Link href="/checkout">
+            <Link href={retryHref}>
               <RefreshCw className="mr-2 size-4" /> Thử lại
             </Link>
           </Button>
@@ -94,8 +99,8 @@ export default function CancelPage() {
               </Link>
             </Button>
             <Button variant="ghost" size="lg" className="flex-1 h-11" asChild>
-              <Link href="/dashboard">
-                <Home className="mr-2 size-4" /> Trang chủ
+              <Link href="/contact">
+                <HelpCircle className="mr-2 size-4" /> Hỗ trợ
               </Link>
             </Button>
           </div>
@@ -151,5 +156,13 @@ export default function CancelPage() {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+export default function CancelPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-soft" />}>
+      <CancelInner />
+    </Suspense>
   )
 }
