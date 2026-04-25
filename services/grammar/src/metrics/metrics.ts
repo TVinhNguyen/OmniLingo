@@ -1,7 +1,11 @@
 import client from 'prom-client';
 
+export const SERVICE_NAME = 'grammar';
+export const HTTP_DURATION_BUCKETS = [0.005, 0.05, 0.095, 0.099];
+
 // Enable default Node.js metrics (GC, heap, event loop)
-client.collectDefaultMetrics({ prefix: 'grammar_' });
+client.register.setDefaultLabels({ service_name: SERVICE_NAME });
+client.collectDefaultMetrics();
 
 export const grammarMetrics = {
   httpRequestsTotal: new client.Counter({
@@ -13,8 +17,8 @@ export const grammarMetrics = {
   httpRequestDuration: new client.Histogram({
     name: 'grammar_http_request_duration_seconds',
     help: 'HTTP request duration for grammar-service',
-    labelNames: ['method', 'route'],
-    buckets: client.exponentialBuckets(0.01, 2, 8),
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: HTTP_DURATION_BUCKETS,
   }),
 
   listTotal: new client.Counter({
