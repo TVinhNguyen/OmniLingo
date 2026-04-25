@@ -27,7 +27,11 @@ import (
 func main() {
 	cfg := config.Load()
 	var log *zap.Logger
-	if cfg.Env == "production" { log, _ = zap.NewProduction() } else { log, _ = zap.NewDevelopment() }
+	if cfg.Env == "production" {
+		log, _ = zap.NewProduction()
+	} else {
+		log, _ = zap.NewDevelopment()
+	}
 	defer log.Sync()
 
 	// OpenTelemetry tracing
@@ -43,7 +47,9 @@ func main() {
 	defer cancel()
 
 	db, err := repository.NewPostgres(ctx, cfg.DatabaseURL)
-	if err != nil { log.Fatal("postgres failed", zap.Error(err)) }
+	if err != nil {
+		log.Fatal("postgres failed", zap.Error(err))
+	}
 	defer db.Close()
 
 	if err := repository.RunMigrations(cfg.DatabaseURL, "migrations"); err != nil {
@@ -52,16 +58,19 @@ func main() {
 	log.Info("postgres connected and migrated")
 
 	var pub messaging.Publisher
-	if cfg.KafkaEnabled { pub = messaging.NewKafkaPublisher(cfg.KafkaBrokers) } else { pub = messaging.NewNoopPublisher() }
+	if cfg.KafkaEnabled {
+		pub = messaging.NewKafkaPublisher(cfg.KafkaBrokers)
+	} else {
+		pub = messaging.NewNoopPublisher()
+	}
 	defer pub.Close()
 
-	planRepo   := repository.NewPlanRepository(db)
-	subRepo    := repository.NewSubscriptionRepository(db)
-	invRepo    := repository.NewInvoiceRepository(db)
+	planRepo := repository.NewPlanRepository(db)
+	subRepo := repository.NewSubscriptionRepository(db)
+	invRepo := repository.NewInvoiceRepository(db)
 	outboxRepo := messaging.NewOutboxRepository(db)
-	svc        := service.NewBillingService(db, planRepo, subRepo, invRepo, outboxRepo, pub, log)
-	h          := handler.New(svc, log, cfg.WebhookSecret)
-
+	svc := service.NewBillingService(db, planRepo, subRepo, invRepo, outboxRepo, pub, log)
+	h := handler.New(svc, log, cfg.WebhookSecret)
 
 	// Init JWKS-backed JWT verifier (RS256, cache 1h)
 	jwksURL := cfg.IdentityServiceURL + "/.well-known/jwks.json"
@@ -83,9 +92,15 @@ func main() {
 		ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, BodyLimit: 64 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok { code = e.Code }
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
 			var msg string
-			if cfg.Env != "production" { msg = err.Error() } else { msg = "an internal error occurred" }
+			if cfg.Env != "production" || code < fiber.StatusInternalServerError {
+				msg = err.Error()
+			} else {
+				msg = "an internal error occurred"
+			}
 			return c.Status(code).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": msg})
 		},
 	})
@@ -107,7 +122,9 @@ func main() {
 	app.Get("/readyz", func(c *fiber.Ctx) error {
 		pgOk := db.Ping(context.Background()) == nil
 		status := 200
-		if !pgOk { status = 503 }
+		if !pgOk {
+			status = 503
+		}
 		return c.Status(status).JSON(fiber.Map{"ready": pgOk, "checks": fiber.Map{"postgres": boolStr(pgOk)}})
 	})
 	app.Get("/metrics", func(c *fiber.Ctx) error {
@@ -118,12 +135,16 @@ func main() {
 	// Public endpoints (plans don't need auth)
 	app.Get("/api/v1/billing/plans", func(c *fiber.Ctx) error {
 		plans, err := svc.ListPlans(c.Context())
-		if err != nil { return c.Status(500).JSON(fiber.Map{"error": "INTERNAL_ERROR"}) }
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "INTERNAL_ERROR"})
+		}
 		return c.JSON(fiber.Map{"plans": plans})
 	})
 	app.Get("/api/v1/billing/plans/:code", func(c *fiber.Ctx) error {
 		plan, err := svc.GetPlan(c.Context(), c.Params("code"))
-		if err != nil { return c.Status(404).JSON(fiber.Map{"error": "NOT_FOUND"}) }
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "NOT_FOUND"})
+		}
 		return c.JSON(fiber.Map{"plan": plan})
 	})
 	// Webhook (provider-authenticated, not user JWT)
@@ -135,7 +156,8 @@ func main() {
 
 	go func() {
 		if err := app.Listen(":" + cfg.Port); err != nil {
-			log.Error("server error", zap.Error(err)); os.Exit(1)
+			log.Error("server error", zap.Error(err))
+			os.Exit(1)
 		}
 	}()
 	quit := make(chan os.Signal, 1)
@@ -145,4 +167,9 @@ func main() {
 	_ = app.Shutdown()
 }
 
-func boolStr(b bool) string { if b { return "ok" }; return "error" }
+func boolStr(b bool) string {
+	if b {
+		return "ok"
+	}
+	return "error"
+}
