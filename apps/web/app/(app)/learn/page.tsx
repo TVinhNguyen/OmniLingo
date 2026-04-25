@@ -1,7 +1,7 @@
 import { gql } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/auth/session"
-import { COURSES_QUERY, MY_TRACKS_QUERY, UNITS_QUERY } from "@/lib/api/queries"
-import type { Course, LearningTrack, UnitDTO } from "@/lib/api/types"
+import { COURSES_QUERY, LESSONS_QUERY, MY_TRACKS_QUERY, UNITS_QUERY } from "@/lib/api/queries"
+import type { Course, Lesson, LearningTrack, UnitDTO } from "@/lib/api/types"
 import { LearnClient } from "./learn-client"
 
 const MOCK_TRACKS: LearningTrack[] = [
@@ -43,11 +43,27 @@ export default async function LearnPage() {
     } catch {}
   }
 
+  // Fetch lessons for each unit in parallel — graceful degradation per unit
+  const lessonsMap: Record<string, Lesson[]> = {}
+  if (activeUnits.length > 0) {
+    const results = await Promise.allSettled(
+      activeUnits.map((u) =>
+        gql<{ lessons: Lesson[] }>(LESSONS_QUERY, { unitId: u.id }, token ?? undefined),
+      ),
+    )
+    results.forEach((r, i) => {
+      if (r.status === "fulfilled" && r.value?.lessons?.length) {
+        lessonsMap[activeUnits[i].id] = r.value.lessons
+      }
+    })
+  }
+
   return (
     <LearnClient
       tracks={tracks}
       activeCourse={activeCourse}
       activeUnits={activeUnits}
+      lessonsMap={lessonsMap}
     />
   )
 }
