@@ -1,7 +1,8 @@
-# Wiring Status — Frontend ↔ Backend (2026-04-23)
+# Wiring Status — Frontend ↔ Backend (2026-04-25)
 
 > Đánh giá thực trạng wire UI với backend sau migration v2, đối chiếu với 9 file flow trong [docs/flows/](./flows/).
 > **Nguồn dữ liệu**: filesystem `apps/web/` (verified), `services/web-bff/src/schema/schema.ts` (verified), [MIGRATION-V2-STATUS.md](../apps/web/MIGRATION-V2-STATUS.md).
+> **Cập nhật 2026-04-25**: Wave BE hoàn thành (T1-T9 + outbox), Bug #7 close. Wave 9 FE wire (Devin D5-D8) đang làm. Sau Wave 9 wire-up dự kiến ~99%.
 
 ---
 
@@ -189,7 +190,7 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 | 4 | Password min-length mismatch: form `10`, action `8` | sign-up page vs actions.ts | Client bypass validation | ✅ Fixed 2026-04-21 |
 | 5 | entitlement consumer lắng nghe sai topic billing | [entitlement/consumer.go](../services/entitlement/internal/messaging/consumer.go) | Upgrade subscription → không cấp entitlement | ✅ Fixed 2026-04-22 |
 | 6 | gamification consumer lắng nghe orphan `progress.xp.awarded` | [gamification/consumer.go](../services/gamification/internal/messaging/consumer.go) | Topic không ai publish → consumer vô tác dụng | ✅ Fixed 2026-04-22 |
-| 7 | identity/learning/vocabulary/gamification không có outbox | [flows/00-overview.md §5](./flows/00-overview.md#5-outbox-pattern) | Mất event khi Kafka tạm down | 🔴 P1 — cần migration |
+| 7 | identity/learning/vocabulary/gamification không có outbox | [flows/00-overview.md §5](./flows/00-overview.md#5-outbox-pattern) | Mất event khi Kafka tạm down | ✅ Fixed 2026-04-25 (commits `9e94540` infra + `1fe1655` wire 14 publish sites). **Caveat**: `InsertTx` chưa thật transactional (không nhận `pgx.Tx`) — cover Kafka-outage, còn narrow window race condition khi process crash giữa domain commit và outbox insert. Phase 2 refactor thread `pgx.Tx` cho atomic. ADR-010 sẽ doc tradeoff. |
 
 ---
 
@@ -212,21 +213,22 @@ Tổng **>80 trang** UI xong nhưng chưa call backend. Liệt kê theo flow bê
 5. ✅ **Billing BFF** — schema types + resolvers + `BillingDataSource` (`pricingPlans`, `mySubscription`, `billingHistory`, `checkoutStatus`, `createCheckoutSession`, `cancelSubscription`, `reactivateSubscription`).
 6. ✅ **Billing frontend** — checkout confirm → real `createCheckoutSession`, `/checkout/success` polls real status, `/settings/billing` RSC loads subscription + invoices.
 
-### P2 — Còn lại (tuần tiếp)
+### P2 — ✅ Hoàn thành Wave BE (2026-04-25)
 
-**Flow 02 — Onboarding** (40% → cần ~60% thêm)
-- Quyết định: 1 trang state machine hay tách 8 sub-route.
-- Thêm BFF: `onboardingState`, `placementTest`, `updateOnboarding`, `submitPlacement`, `completeOnboarding`.
-- Service: learning-service cần `user_onboarding` table + assessment-service grading.
+1. ✅ **Flow 02 Onboarding BE** — `onboardingState`, `updateOnboarding`, `completeOnboarding`, `placementTest`, `submitPlacement` (commits `70d1889` T3 + `9e1252b` T4). FE wire trong Wave 9 (Devin D5).
+2. ✅ **Flow 03 Lesson player BE** — `lessonContent`, `submitAnswer`, `srsDueCount` (PR-A) + `todayMission` (commit `bb8d495` T6) + courses/units list (commit `866cc54` T1). FE wire `/learn` unit listing trong Devin D8.
+3. ✅ **Flow 06 Progress BE** — `skillScores` + `certPredict` (PR-B) + `activityHeatmap` (T5) + `myAchievements` (T7) + `leaderboard` fix (T8). FE wire trong Devin D7.
+4. ✅ **Outbox Bug #7** — 4 service identity/learning/vocabulary/gamification có outbox + 14 publish site wired (commits `9e94540` + `1fe1655`).
+5. ✅ **Architecture cleanup** — learning preferences move từ identity sang learning service (commit `3955e75`).
 
-**Flow 03 — Lesson player** (65% → cần `todayMission`, `srsDueCount`, `lessonContent`, `submitAnswer`)
-- Thêm BFF: `lessonContent(lessonId)`, `submitAnswer`, `todayMission`.
-- Wire `/lesson/[id]` load real content + submit answer.
-- Wire `/learn` unit listing (nested `units` trong track card).
+### P2.5 — Wave 9 FE wire (Devin, đang làm)
 
-**Flow 06 — Progress detail** (85% → cần `skillScores`, `activityHeatmap`, `certPredict`)
-- Thêm BFF: `skillScores`, `activityHeatmap`, `certPredict` (schema đã chuẩn, cần resolver + datasource).
-- Wire `/progress` tabs: skill radar + heatmap calendar.
+| # | Task | Branch | Status |
+|---|------|--------|--------|
+| D5 | Onboarding multi-step 5 sub-route | `feature/d5-onboarding-flow` | ⏳ |
+| D6 | `/settings/learning` + `/settings/languages` + dashboard today mission | `feature/d6-settings-and-mission` | ⏳ |
+| D7 | `/progress` heatmap + `/achievements` + `/leaderboard` + cleanup PR-B TODO | `feature/d7-progress-and-gamif` | ⏳ |
+| D8 | `/learn` unit listing + D1 timeout cap + D2 currency consistency | `feature/d8-learn-units-and-polish` | ⏳ |
 
 ### P3 — Sau MVP1
 
