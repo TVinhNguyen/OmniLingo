@@ -739,7 +739,7 @@ export class GamificationDataSource {
    * Service route: /leaderboard/:leagueId (default leagueId = "global")
    * Response: { leaderboard: [...], league: "global" }
    */
-  async getMyLeaderboard(leagueId = "global"): Promise<{
+  async getMyLeaderboard(leagueId = "bronze"): Promise<{
     league: string;
     entries: Array<{ rank: number; userId: string; displayName: string; avatarUrl: string | null; xp: number; isCurrentUser: boolean }>;
     myRank: number;
