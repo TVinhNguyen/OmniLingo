@@ -96,7 +96,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/UpdateWordRequest" }
+            schema: { $ref: "#/components/schemas/CreateWordRequest" }
       responses:
         "200": { description: Word updated, content: { application/json: { schema: { type: object, required: [word], properties: { word: { $ref: "#/components/schemas/Word" } } } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -359,18 +359,6 @@ components:
     CreateWordRequest:
       type: object
       required: [language, lemma, pos, ipa, frequency_rank, level, extra, meanings, examples]
-      properties:
-        language: { type: string }
-        lemma: { type: string }
-        pos: { type: string }
-        ipa: { type: string }
-        frequency_rank: { type: integer }
-        level: { type: string }
-        extra: { type: object, additionalProperties: true }
-        meanings: { type: array, items: { $ref: "#/components/schemas/CreateMeaningRequest" } }
-        examples: { type: array, items: { $ref: "#/components/schemas/CreateExampleRequest" } }
-    UpdateWordRequest:
-      type: object
       properties:
         language: { type: string }
         lemma: { type: string }
