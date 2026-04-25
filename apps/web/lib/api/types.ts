@@ -300,3 +300,46 @@ export interface CertPrediction {
   modelVersion:   string
   computedAt:     string
 }
+
+/** Onboarding state machine step (BE enum) */
+export type OnboardingStep =
+  | "language_select"
+  | "goal_select"
+  | "level_select"
+  | "placement"
+  | "done"
+
+export interface OnboardingState {
+  step:               OnboardingStep
+  answers:            Record<string, unknown>
+  placementCefr:      string | null
+  recommendedTrackId: string | null
+  completedAt:        string | null
+}
+
+export interface PlacementQuestion {
+  id:      string
+  prompt:  string
+  choices: string[]
+  skill:   string
+}
+
+export interface PlacementTest {
+  testId:     string
+  lang:       string
+  targetLang: string
+  questions:  PlacementQuestion[]
+}
+
+export interface PlacementResult {
+  cefr:               string
+  score:              number
+  correctCount:       number
+  totalCount:         number
+  recommendedTrackId: string
+}
+
+export interface PlacementAnswerInput {
+  questionId: string
+  choice:     number
+}
