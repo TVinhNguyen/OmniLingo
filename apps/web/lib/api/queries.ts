@@ -403,3 +403,31 @@ export const CHECKOUT_STATUS_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+export const ONBOARDING_STATE_QUERY = /* GraphQL */ `
+  query OnboardingState {
+    onboardingState {
+      step
+      answers
+      placementCefr
+      recommendedTrackId
+      completedAt
+    }
+  }
+`;
+
+export const PLACEMENT_TEST_QUERY = /* GraphQL */ `
+  query PlacementTest($lang: String!, $targetLang: String!) {
+    placementTest(lang: $lang, targetLang: $targetLang) {
+      testId
+      lang
+      targetLang
+      questions {
+        id
+        prompt
+        choices
+        skill
+      }
+    }
+  }
+`;

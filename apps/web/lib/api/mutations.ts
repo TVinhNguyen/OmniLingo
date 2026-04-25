@@ -236,3 +236,36 @@ export const REACTIVATE_SUBSCRIPTION_MUTATION = /* GraphQL */ `
     }
   }
 `;
+
+export const UPDATE_ONBOARDING_MUTATION = /* GraphQL */ `
+  mutation UpdateOnboarding($step: String!, $data: JSON!) {
+    updateOnboarding(step: $step, data: $data) {
+      step
+      answers
+      placementCefr
+      recommendedTrackId
+      completedAt
+    }
+  }
+`;
+
+export const COMPLETE_ONBOARDING_MUTATION = /* GraphQL */ `
+  mutation CompleteOnboarding($placementCefr: String, $recommendedTrackId: String) {
+    completeOnboarding(placementCefr: $placementCefr, recommendedTrackId: $recommendedTrackId) {
+      step
+      completedAt
+    }
+  }
+`;
+
+export const SUBMIT_PLACEMENT_MUTATION = /* GraphQL */ `
+  mutation SubmitPlacement($testId: String!, $answers: [PlacementAnswerInput!]!) {
+    submitPlacement(testId: $testId, answers: $answers) {
+      cefr
+      score
+      correctCount
+      totalCount
+      recommendedTrackId
+    }
+  }
+`;
