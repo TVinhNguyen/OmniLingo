@@ -99,7 +99,9 @@ func main() {
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			if e, ok := err.(*fiber.Error); ok { code = e.Code }
-			return c.Status(code).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": err.Error()})
+			var msg string
+			if os.Getenv("APP_ENV") != "production" { msg = err.Error() } else { msg = "an internal error occurred" }
+			return c.Status(code).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": msg})
 		},
 	})
 
