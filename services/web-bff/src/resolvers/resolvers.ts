@@ -90,6 +90,24 @@ export const resolvers = {
       return content;
     },
 
+    courses: async (
+      _: unknown,
+      { trackId, language }: { trackId: string; language?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.content.listCoursesByTrack(trackId, language ?? "en");
+    },
+
+    units: async (
+      _: unknown,
+      { courseId, language }: { courseId: string; language?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.content.listUnitsByCourse(courseId, language ?? "en");
+    },
+
     myDecks: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.vocabulary.getMyDecks();
@@ -137,6 +155,35 @@ export const resolvers = {
     ) => {
       requireAuth(ctx);
       return ctx.dataSources.progress.getPredictedScore(cert);
+    },
+
+    activityHeatmap: async (_: unknown, { days }: { days?: number }, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.progress.getActivityHeatmap(days ?? 365);
+    },
+
+    todayMission: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+
+      // Fan-out in parallel: learning/today-mission + learning prefs + SRS stats + today's activity
+      const [mission, prefs, srsStats, todayActivity] = await Promise.all([
+        ctx.dataSources.learning.getTodayMission(),
+        ctx.dataSources.learning.getMyProfile(),  // T2: prefs now live in learning-service
+        ctx.dataSources.srs.getStats(),
+        ctx.dataSources.progress.getActivityHeatmap(1),
+      ]);
+
+      const dailyGoalMinutes = prefs.dailyGoalMinutes ?? 10;
+      const minutesToday     = todayActivity[0]?.minutes ?? 0;
+      const minutesToGoal    = Math.max(0, dailyGoalMinutes - minutesToday);
+
+      return {
+        lessonId:      mission.lessonId,
+        lessonTitle:   mission.lessonTitle,
+        minutesToGoal,
+        xpReward:      mission.xpReward,
+        dueCardCount:  srsStats.dueToday,
+      };
     },
 
     conversations: async (_: unknown, __: unknown, ctx: BffContext) => {
@@ -234,6 +281,22 @@ export const resolvers = {
         errorMessage: raw.error_message != null ? String(raw.error_message) : null,
       };
     },
+
+    // T3: Onboarding query
+    onboardingState: async (_: unknown, __: unknown, ctx: BffContext) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.getOnboardingState();
+    },
+
+    // T4: Placement test query
+    placementTest: async (
+      _: unknown,
+      { lang, targetLang }: { lang: string; targetLang: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.assessment.getPlacementTest(lang, targetLang);
+    },
   },
 
   // ─── Dashboard field resolvers (parallel execution) ─────────────────────
@@ -315,11 +378,21 @@ export const resolvers = {
 
     updateProfile: async (
       _: unknown,
-      args: { displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string },
+      args: { displayName?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string; },
       ctx: BffContext,
     ) => {
       requireAuth(ctx);
       return ctx.dataSources.identity.updateMe(args);
+    },
+
+    // T2: update learning prefs via learning-service
+    updateLearningPreferences: async (
+      _: unknown,
+      args: { dailyGoalMinutes?: number; reminderTime?: string; learningLanguages?: string[] },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.updateLearningPreferences(args);
     },
 
     reviewCard: async (
@@ -468,6 +541,35 @@ export const resolvers = {
     reactivateSubscription: async (_: unknown, __: unknown, ctx: BffContext) => {
       requireAuth(ctx);
       return ctx.dataSources.billing.reactivateSubscription();
+    },
+
+    // T3: Onboarding mutations
+    updateOnboarding: async (
+      _: unknown,
+      { step, data }: { step: string; data: Record<string, unknown> },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.updateOnboardingStep(step, data);
+    },
+
+    completeOnboarding: async (
+      _: unknown,
+      { placementCefr, recommendedTrackId }: { placementCefr?: string; recommendedTrackId?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.learning.completeOnboarding(placementCefr, recommendedTrackId);
+    },
+
+    // T4: Placement test mutation
+    submitPlacement: async (
+      _: unknown,
+      { testId, answers }: { testId: string; answers: Array<{ questionId: string; choice: number }> },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.assessment.submitPlacement(testId, answers);
     },
   },
 };

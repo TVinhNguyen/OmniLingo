@@ -76,8 +76,9 @@ func main() {
 	// Dependencies
 	subRepo  := repository.NewSubmissionRepository(db)
 	testRepo := repository.NewTestSessionRepository(db)
-	svc      := service.NewAssessmentService(subRepo, testRepo, publisher, log)
-	h        := handler.NewAssessmentHandler(svc, log)
+	svc          := service.NewAssessmentService(subRepo, testRepo, publisher, log)
+	placementSvc := service.NewPlacementService()
+	h            := handler.NewAssessmentHandler(svc, placementSvc, log)
 
 	// Fiber
 

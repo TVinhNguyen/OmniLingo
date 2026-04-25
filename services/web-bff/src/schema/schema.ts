@@ -20,11 +20,14 @@ export const schema = /* GraphQL */ `
   # ─── User ─────────────────────────────────────────────────────────────────
 
   type User {
-    id:        ID!
-    username:  String!
-    avatarUrl: String
-    bio:       String
-    createdAt: DateTime!
+    id:                  ID!
+    username:            String!
+    avatarUrl:           String
+    bio:                 String
+    createdAt:           DateTime!
+    dailyGoalMinutes:    Int!
+    reminderTime:        String
+    learningLanguages:   [String!]!
   }
 
   # ─── Entitlement ──────────────────────────────────────────────────────────
@@ -54,6 +57,23 @@ export const schema = /* GraphQL */ `
     date:    String!
     xp:      Int!
     minutes: Int!
+  }
+
+  """One day of activity \u2014 used for the 365-day heatmap."""
+  type ActivityDay {
+    date:             String!
+    minutes:          Int!
+    xp:               Int!
+    lessonsCompleted: Int!
+  }
+
+  """Today's recommended mission \u2014 next lesson + daily goal progress."""
+  type TodayMission {
+    lessonId:      String
+    lessonTitle:   String
+    minutesToGoal: Int!
+    xpReward:      Int!
+    dueCardCount:  Int!
   }
 
   """Streak data from the gamification service."""
@@ -112,6 +132,28 @@ export const schema = /* GraphQL */ `
     language:    String!
     level:       String!
     progressPct: Float!
+  }
+
+  """A course within a learning track."""
+  type Course {
+    id:          ID!
+    trackId:     String!
+    language:    String!
+    level:       String!
+    title:       String!
+    description: String
+    thumbnailUrl: String
+    order:       Int!
+    unitIds:     [String!]!
+  }
+
+  """A unit within a course."""
+  type Unit {
+    id:        ID!
+    courseId:  String!
+    title:     String!
+    order:     Int!
+    lessonIds: [String!]!
   }
 
   type StartLessonResult {
@@ -321,6 +363,12 @@ export const schema = /* GraphQL */ `
     """Lesson content (ordered exercises) — source: content-service."""
     lessonContent(lessonId: ID!, language: String): LessonContent!
 
+    """Courses in a track (published only, sorted by order)."""
+    courses(trackId: ID!, language: String): [Course!]!
+
+    """Units in a course (sorted by course.unitIds order)."""
+    units(courseId: ID!, language: String): [Unit!]!
+
     """Vocabulary decks owned by user."""
     myDecks: [Deck!]!
 
@@ -339,11 +387,19 @@ export const schema = /* GraphQL */ `
     """Weekly progress data for chart (default last 7 days)."""
     weeklyProgress(days: Int): [WeeklyProgress!]!
 
+<<<<<<< HEAD
     """Per-skill proficiency scores for a language (skill radar source)."""
     skillScores(language: String!): SkillOverview!
 
     """Predicted certification score (cert = ielts|toeic|jlpt|hsk)."""
     certPredict(cert: String!): CertPrediction!
+=======
+    """Activity heatmap for last N days (default 365)."""
+    activityHeatmap(days: Int): [ActivityDay!]!
+
+    """Today's mission — next lesson + progress-to-daily-goal."""
+    todayMission: TodayMission!
+>>>>>>> bb8d495 (feat(mvp1-backend): T2 identity prefs + T5 heatmap + T6 today-mission + T7/T8 leaderboard fix)
 
     """List all AI tutor conversation sessions for current user."""
     conversations: [ConversationSummary!]!
@@ -386,6 +442,54 @@ export const schema = /* GraphQL */ `
 
     """Poll checkout session state (pending→succeeded|failed)."""
     checkoutStatus(sessionId: ID!): CheckoutStatus!
+
+    # T3: Onboarding
+    """Current user's onboarding progress."""
+    onboardingState: OnboardingState!
+
+    # T4: Placement Test
+    """CEFR placement test questions for a language pair."""
+    placementTest(lang: String!, targetLang: String!): PlacementTest!
+  }
+
+  # ─── T3: Onboarding types ────────────────────────────────
+
+  """User's onboarding state machine state."""
+  type OnboardingState {
+    step:               String!   # language_select|goal_select|level_select|placement|done
+    answers:            JSON!     # accumulated step answers
+    placementCefr:      String    # A1–C2, set after placement test
+    recommendedTrackId: String
+    completedAt:        DateTime
+  }
+
+  # ─── T4: Placement test types ──────────────────────────────
+
+  type PlacementQuestion {
+    id:      ID!
+    prompt:  String!
+    choices: [String!]!
+    skill:   String!   # vocabulary|grammar|reading|listening
+  }
+
+  type PlacementTest {
+    testId:     String!
+    lang:       String!
+    targetLang: String!
+    questions:  [PlacementQuestion!]!
+  }
+
+  type PlacementResult {
+    cefr:               String!  # A1|A2|B1|B2|C1|C2
+    score:              Float!
+    correctCount:       Int!
+    totalCount:         Int!
+    recommendedTrackId: String!
+  }
+
+  input PlacementAnswerInput {
+    questionId: String!
+    choice:     Int!   # 0-indexed
   }
 
   """An SRS due item (card)."""
@@ -464,14 +568,20 @@ export const schema = /* GraphQL */ `
       language: String
     ): ExplainResult!
 
-    """Update the current user's profile."""
+    """Update the current user's identity profile (display name, avatar, locale)."""
     updateProfile(
-      displayName: String
-      bio:         String
-      uiLanguage:  String
-      timezone:    String
-      avatarUrl:   String
+      displayName:       String
+      uiLanguage:        String
+      timezone:          String
+      avatarUrl:         String
     ): User!
+
+    """Update learning preferences (owned by learning-service)."""
+    updateLearningPreferences(
+      dailyGoalMinutes:  Int
+      reminderTime:      String
+      learningLanguages: [String!]
+    ): LearningPreferencesResult!
 
     """Submit SRS review rating for a card."""
     reviewCard(
@@ -548,6 +658,26 @@ export const schema = /* GraphQL */ `
 
     """Reactivate a subscription that was set to cancel."""
     reactivateSubscription: BillingSubscription
+
+    # T3: Onboarding mutations
+    """Advance onboarding to the next step."""
+    updateOnboarding(
+      step: String!
+      data: JSON!
+    ): OnboardingState!
+
+    """Mark onboarding complete and trigger track enrollment."""
+    completeOnboarding(
+      placementCefr:      String
+      recommendedTrackId: String
+    ): OnboardingState!
+
+    # T4: Placement test mutation
+    """Submit placement test answers and receive CEFR result."""
+    submitPlacement(
+      testId:  String!
+      answers: [PlacementAnswerInput!]!
+    ): PlacementResult!
   }
 
   """Result of an SRS review submission."""
@@ -569,5 +699,12 @@ export const schema = /* GraphQL */ `
   """Generic mutation success indicator."""
   type MutationOk {
     ok: Boolean!
+  }
+
+  """Learning preferences result (source: learning-service)."""
+  type LearningPreferencesResult {
+    dailyGoalMinutes:  Int!
+    reminderTime:      String
+    learningLanguages: [String!]!
   }
 `;

@@ -184,3 +184,58 @@ func (r *certPredictionRepo) GetByUserAndCert(ctx context.Context, userID uuid.U
 
 // timePtr helper
 func timePtr(t time.Time) *time.Time { return &t }
+
+// ─── Activity Daily Repository ────────────────────────────────────────────────
+
+// ActivityDailyRepository aggregates daily study activity for the heatmap UI.
+type ActivityDailyRepository interface {
+	GetHeatmap(ctx context.Context, userID uuid.UUID, days int) ([]*domain.ActivityDay, error)
+	// Upsert is called whenever a lesson is completed; increments the daily counters atomically.
+	Upsert(ctx context.Context, userID uuid.UUID, minutes, xp, lessonsCompleted int) error
+}
+
+type activityDailyRepo struct{ db *pgxpool.Pool }
+
+func NewActivityDailyRepository(db *pgxpool.Pool) ActivityDailyRepository {
+	return &activityDailyRepo{db: db}
+}
+
+func (r *activityDailyRepo) GetHeatmap(ctx context.Context, userID uuid.UUID, days int) ([]*domain.ActivityDay, error) {
+	const q = `
+		SELECT date::text, minutes_studied, xp_earned, lessons_done
+		FROM user_activity_daily
+		WHERE user_id = $1 AND date >= CURRENT_DATE - ($2 - 1)
+		ORDER BY date DESC
+	`
+	rows, err := r.db.Query(ctx, q, userID, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*domain.ActivityDay
+	for rows.Next() {
+		a := &domain.ActivityDay{}
+		if err := rows.Scan(&a.Date, &a.Minutes, &a.Xp, &a.LessonsCompleted); err != nil {
+			continue
+		}
+		items = append(items, a)
+	}
+	if items == nil {
+		items = []*domain.ActivityDay{}
+	}
+	return items, nil
+}
+
+func (r *activityDailyRepo) Upsert(ctx context.Context, userID uuid.UUID, minutes, xp, lessonsCompleted int) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO user_activity_daily (user_id, date, minutes_studied, xp_earned, lessons_done, updated_at)
+		VALUES ($1, CURRENT_DATE, $2, $3, $4, NOW())
+		ON CONFLICT (user_id, date)
+		DO UPDATE SET
+			minutes_studied = user_activity_daily.minutes_studied + EXCLUDED.minutes_studied,
+			xp_earned       = user_activity_daily.xp_earned + EXCLUDED.xp_earned,
+			lessons_done    = user_activity_daily.lessons_done + EXCLUDED.lessons_done,
+			updated_at      = NOW()
+	`, userID, minutes, xp, lessonsCompleted)
+	return err
+}

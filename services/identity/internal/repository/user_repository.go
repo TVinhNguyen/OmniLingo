@@ -93,7 +93,8 @@ func (r *userRepository) Create(ctx context.Context, u *domain.User) error {
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
 		SELECT id, email, password_hash, display_name, ui_language, timezone, status,
-		       email_verified, mfa_enabled, failed_login_count, locked_until, created_at, updated_at
+		       email_verified, mfa_enabled, failed_login_count, locked_until,
+		       created_at, updated_at
 		FROM users WHERE email = $1 AND status != 'deleted'
 	`
 	u := &domain.User{}
@@ -120,7 +121,8 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	const q = `
 		SELECT id, email, password_hash, display_name, ui_language, timezone, status,
-		       email_verified, mfa_enabled, failed_login_count, locked_until, created_at, updated_at
+		       email_verified, mfa_enabled, failed_login_count, locked_until,
+		       created_at, updated_at
 		FROM users WHERE id = $1 AND status != 'deleted'
 	`
 	u := &domain.User{}

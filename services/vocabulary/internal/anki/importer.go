@@ -25,6 +25,7 @@ type Importer struct {
 	cardRepo repository.CardRepository
 	deckRepo repository.DeckRepository
 	pub      messaging.Publisher
+	outbox   *messaging.OutboxRepository
 	log      *zap.Logger
 }
 
@@ -34,6 +35,7 @@ func NewImporter(
 	cardRepo repository.CardRepository,
 	deckRepo repository.DeckRepository,
 	pub messaging.Publisher,
+	outboxRepo *messaging.OutboxRepository,
 	log *zap.Logger,
 ) *Importer {
 	return &Importer{
@@ -41,6 +43,7 @@ func NewImporter(
 		cardRepo: cardRepo,
 		deckRepo: deckRepo,
 		pub:      pub,
+		outbox:   outboxRepo,
 		log:      log,
 	}
 }
@@ -193,8 +196,8 @@ func (im *Importer) Import(ctx context.Context, userID uuid.UUID, language, deck
 		WordsSkipped: skipped,
 		CreatedAt:    time.Now().UTC(),
 	}
-	if err := im.pub.Publish(ctx, domain.TopicImportCompleted, evt); err != nil {
-		im.log.Warn("failed to publish import.completed event", zap.Error(err))
+	if err := im.outbox.Enqueue(ctx, domain.TopicImportCompleted, evt); err != nil {
+		im.log.Warn("outbox insert import.completed failed", zap.Error(err))
 	}
 
 	return &ImportResult{

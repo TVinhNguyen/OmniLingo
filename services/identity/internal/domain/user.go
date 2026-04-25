@@ -67,8 +67,8 @@ type User struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 
 	// Internal — never serialized to clients
-	PasswordHash        string `json:"-"`
-	FailedLoginCount    int    `json:"-"`
+	PasswordHash        string     `json:"-"`
+	FailedLoginCount    int        `json:"-"`
 	LockedUntil         *time.Time `json:"-"`
 }
 
@@ -143,6 +143,8 @@ type TokenPair struct {
 }
 
 // UpdateMeRequest contains allowable fields for self-service profile update.
+// NOTE: Learning preferences (daily_goal_minutes, reminder_time, learning_languages)
+// live in learning-service since commit 3955e75. Do NOT add them here.
 type UpdateMeRequest struct {
 	DisplayName *string `json:"display_name,omitempty"`
 	UILanguage  *string `json:"ui_language,omitempty"`

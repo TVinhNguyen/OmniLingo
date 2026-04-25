@@ -15,8 +15,14 @@ type LearningProfile struct {
 	StartingLevel      string    `json:"starting_level,omitempty"`
 	Goals              []Goal    `json:"goals"`
 	Preferences        Prefs     `json:"preferences"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+
+	// Learning preferences — previously in identity-service, now correctly owned here.
+	DailyGoalMinutes  int      `json:"daily_goal_minutes"`
+	ReminderTime      *string  `json:"reminder_time,omitempty"` // "HH:MM" 24h or nil
+	LearningLanguages []string `json:"learning_languages"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Goal struct {
@@ -27,9 +33,8 @@ type Goal struct {
 }
 
 type Prefs struct {
-	DailyGoalMinutes int    `json:"daily_goal_minutes"`
-	NotifEnabled     bool   `json:"notif_enabled"`
-	UITheme          string `json:"ui_theme"` // light|dark
+	NotifEnabled bool   `json:"notif_enabled"`
+	UITheme      string `json:"ui_theme"` // light|dark
 }
 
 // ─── Learning Path ────────────────────────────────────────────────────────────
@@ -87,4 +92,14 @@ type GoalSetEvent struct {
 	UserID    string    `json:"user_id"`
 	Goals     []Goal    `json:"goals"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// TodayMission is returned by GET /api/v1/learning/today-mission
+// and powers the dashboard "Today's Mission" widget.
+type TodayMission struct {
+	LessonID      *string `json:"lesson_id"`        // nil if no active path
+	LessonTitle   *string `json:"lesson_title"`
+	MinutesToGoal int     `json:"minutes_to_goal"`  // daily_goal_minutes - minutes studied today
+	XPReward      int     `json:"xp_reward"`
+	DueCardCount  int     `json:"due_card_count"`
 }

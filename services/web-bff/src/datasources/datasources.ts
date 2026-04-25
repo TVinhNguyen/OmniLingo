@@ -19,6 +19,12 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export interface LearningPreferences {
+  dailyGoalMinutes: number;
+  reminderTime: string | null;
+  learningLanguages: string[];
+}
+
 export interface LearningTrack {
   id: string;
   title: string;
@@ -75,7 +81,6 @@ export class IdentityDataSource {
   }
 
   async getMe(): Promise<UserProfile> {
-    // identity-service returns `display_name`, GQL schema expects `username`
     const raw = await call<Record<string, unknown>>(this.ds, "/api/v1/users/me");
     return {
       id: raw.id as string,
@@ -99,11 +104,11 @@ export class IdentityDataSource {
     };
   }
 
-  async updateMe(patch: { displayName?: string; bio?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string }): Promise<UserProfile> {
-    // identity-service expects snake_case fields
-    const body: Record<string, string> = {};
+  async updateMe(patch: {
+    displayName?: string; uiLanguage?: string; timezone?: string; avatarUrl?: string;
+  }): Promise<UserProfile> {
+    const body: Record<string, unknown> = {};
     if (patch.displayName !== undefined) body.display_name = patch.displayName;
-    if (patch.bio !== undefined) body.bio = patch.bio;
     if (patch.uiLanguage !== undefined) body.ui_language = patch.uiLanguage;
     if (patch.timezone !== undefined) body.timezone = patch.timezone;
     if (patch.avatarUrl !== undefined) body.avatar_url = patch.avatarUrl;
@@ -173,6 +178,108 @@ export class LearningDataSource {
     ).catch(() => ({})) as Record<string, unknown>;
     const id = (res?.path as Record<string, unknown>)?.id as string ?? res?.id as string ?? "";
     return { trackId: id, ok: !!id };
+  }
+
+  /** GET /api/v1/learning/today-mission */
+  async getTodayMission(): Promise<{
+    lessonId: string | null;
+    lessonTitle: string | null;
+    minutesToGoal: number;
+    xpReward: number;
+    dueCardCount: number;
+  }> {
+    type Body = { mission?: Record<string, unknown> };
+    const raw = await call<Body>(
+      this.ds, "/api/v1/learning/today-mission",
+    ).catch(() => ({ mission: undefined }));
+    const m = raw.mission ?? {};
+    return {
+      lessonId:      m.lesson_id != null ? String(m.lesson_id) : null,
+      lessonTitle:   m.lesson_title != null ? String(m.lesson_title) : null,
+      minutesToGoal: Number(m.minutes_to_goal ?? 0),
+      xpReward:      Number(m.xp_reward ?? 50),
+      dueCardCount:  Number(m.due_card_count ?? 0),
+    };
+  }
+
+  /** GET /api/v1/learning/profile — includes learning preferences */
+  async getMyProfile(): Promise<LearningPreferences> {
+    const raw = await call<{ profile?: Record<string, unknown> }>(this.ds, "/api/v1/learning/profile")
+      .catch(() => ({ profile: undefined }));
+    const p = raw.profile ?? {};
+    return {
+      dailyGoalMinutes: Number(p.daily_goal_minutes ?? 10),
+      reminderTime: p.reminder_time != null ? String(p.reminder_time) : null,
+      learningLanguages: Array.isArray(p.learning_languages) ? p.learning_languages as string[] : [],
+    };
+  }
+
+  /** PUT /api/v1/learning/profile — update learning preferences */
+  async updateLearningPreferences(patch: {
+    dailyGoalMinutes?: number;
+    reminderTime?: string | null;
+    learningLanguages?: string[];
+  }): Promise<LearningPreferences> {
+    const body: Record<string, unknown> = {};
+    if (patch.dailyGoalMinutes !== undefined) body.daily_goal_minutes = patch.dailyGoalMinutes;
+    if (patch.reminderTime !== undefined) body.reminder_time = patch.reminderTime;
+    if (patch.learningLanguages !== undefined) body.learning_languages = patch.learningLanguages;
+    await call<unknown>(this.ds, "/api/v1/learning/profile", { method: "PUT", body });
+    return this.getMyProfile();
+  }
+
+  // ─── T3: Onboarding ─────────────────────────────────────────────────────────
+
+  async getOnboardingState(): Promise<{
+    step: string; answers: Record<string, unknown>;
+    placementCefr: string | null; recommendedTrackId: string | null; completedAt: string | null;
+  }> {
+    const raw = await call<{ state?: Record<string, unknown> }>(this.ds, "/api/v1/onboarding/state")
+      .catch(() => ({ state: undefined }));
+    const s = raw.state ?? {};
+    return {
+      step:               (s.step ?? "language_select") as string,
+      answers:            (s.answers ?? {}) as Record<string, unknown>,
+      placementCefr:      s.placementCefr != null ? String(s.placementCefr) : null,
+      recommendedTrackId: s.recommendedTrackId != null ? String(s.recommendedTrackId) : null,
+      completedAt:        s.completedAt != null ? String(s.completedAt) : null,
+    };
+  }
+
+  async updateOnboardingStep(step: string, data: Record<string, unknown>): Promise<{
+    step: string; answers: Record<string, unknown>;
+    placementCefr: string | null; recommendedTrackId: string | null; completedAt: string | null;
+  }> {
+    const raw = await call<{ state?: Record<string, unknown> }>(this.ds, "/api/v1/onboarding/step", {
+      method: "POST",
+      body: { step, data },
+    });
+    const s = raw.state ?? {};
+    return {
+      step:               (s.step ?? step) as string,
+      answers:            (s.answers ?? {}) as Record<string, unknown>,
+      placementCefr:      s.placementCefr != null ? String(s.placementCefr) : null,
+      recommendedTrackId: s.recommendedTrackId != null ? String(s.recommendedTrackId) : null,
+      completedAt:        s.completedAt != null ? String(s.completedAt) : null,
+    };
+  }
+
+  async completeOnboarding(placementCefr?: string | null, recommendedTrackId?: string | null): Promise<{
+    step: string; answers: Record<string, unknown>;
+    placementCefr: string | null; recommendedTrackId: string | null; completedAt: string | null;
+  }> {
+    const raw = await call<{ state?: Record<string, unknown> }>(this.ds, "/api/v1/onboarding/complete", {
+      method: "POST",
+      body: { placementCefr: placementCefr ?? null, recommendedTrackId: recommendedTrackId ?? null },
+    });
+    const s = raw.state ?? {};
+    return {
+      step:               (s.step ?? "done") as string,
+      answers:            (s.answers ?? {}) as Record<string, unknown>,
+      placementCefr:      s.placementCefr != null ? String(s.placementCefr) : null,
+      recommendedTrackId: s.recommendedTrackId != null ? String(s.recommendedTrackId) : null,
+      completedAt:        s.completedAt != null ? String(s.completedAt) : null,
+    };
   }
 }
 
@@ -477,6 +584,79 @@ export class EntitlementDataSource {
     );
   }
 }
+// ─── Content DataSource ──────────────────────────────────────────────────────
+
+/** Mirror of content-service ICourse shape (locale-picked title/description). */
+export interface CourseDTO {
+  id: string;
+  trackId: string;
+  language: string;
+  level: string;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  order: number;
+  unitIds: string[];
+}
+
+/** Mirror of content-service IUnit shape (locale-picked title). */
+export interface UnitDTO {
+  id: string;
+  courseId: string;
+  title: string;
+  order: number;
+  lessonIds: string[];
+}
+
+/** Shared locale-picker: prefers `language`, falls back to 'en', then first value. */
+function pickLocale(v: unknown, language: string): string {
+  if (typeof v === "string") return v;
+  if (v && typeof v === "object") {
+    const m = v as Record<string, string>;
+    return m[language] ?? m["en"] ?? Object.values(m)[0] ?? "";
+  }
+  return "";
+}
+
+export class ContentDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.content, token };
+  }
+
+  /** GET /api/v1/content/courses?trackId= → { courses: [...] } */
+  async listCoursesByTrack(trackId: string, language = "en"): Promise<CourseDTO[]> {
+    const raw = await call<{ courses?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/content/courses?trackId=${encodeURIComponent(trackId)}`,
+    ).catch(() => ({ courses: [] }));
+    return (raw.courses ?? []).map((c) => ({
+      id:           String(c.id ?? ""),
+      trackId:      String(c.trackId ?? trackId),
+      language:     String(c.language ?? language),
+      level:        String(c.level ?? ""),
+      title:        pickLocale(c.title, language),
+      description:  pickLocale(c.description, language) || undefined,
+      thumbnailUrl: c.thumbnailUrl != null ? String(c.thumbnailUrl) : undefined,
+      order:        Number(c.order ?? 0),
+      unitIds:      Array.isArray(c.unitIds) ? (c.unitIds as string[]) : [],
+    }));
+  }
+
+  /** GET /api/v1/content/units?courseId= → { units: [...] } */
+  async listUnitsByCourse(courseId: string, language = "en"): Promise<UnitDTO[]> {
+    const raw = await call<{ units?: Array<Record<string, unknown>> }>(
+      this.ds, `/api/v1/content/units?courseId=${encodeURIComponent(courseId)}`,
+    ).catch(() => ({ units: [] }));
+    return (raw.units ?? []).map((u) => ({
+      id:        String(u.id ?? ""),
+      courseId:  String(u.courseId ?? courseId),
+      title:     pickLocale(u.title, language),
+      order:     Number(u.order ?? 0),
+      lessonIds: Array.isArray(u.lessonIds) ? (u.lessonIds as string[]) : [],
+    }));
+  }
+}
+
 // ─── Gamification DataSource ──────────────────────────────────────────────────
 
 export class GamificationDataSource {
@@ -531,22 +711,26 @@ export class GamificationDataSource {
     }));
   }
 
-  /** GET /api/v1/gamification/leaderboard — league leaderboard */
-  async getMyLeaderboard(): Promise<{
+  /** GET /api/v1/gamification/leaderboard/:leagueId — league leaderboard
+   * Service route: /leaderboard/:leagueId (default leagueId = "global")
+   * Response: { leaderboard: [...], league: "global" }
+   */
+  async getMyLeaderboard(leagueId = "global"): Promise<{
     league: string;
     entries: Array<{ rank: number; userId: string; displayName: string; avatarUrl: string | null; xp: number; isCurrentUser: boolean }>;
     myRank: number;
     myXp:   number;
   }> {
-    type Body = { league?: string; entries?: Array<Record<string, unknown>>; my_rank?: number; my_xp?: number };
+    type Body = { league?: string; leaderboard?: Array<Record<string, unknown>>; my_rank?: number; my_xp?: number };
     const raw = await call<Body>(
-      this.ds, "/api/v1/gamification/leaderboard",
-    ).catch(() => ({ league: "Bronze", entries: [], my_rank: 0, my_xp: 0 }));
+      this.ds, `/api/v1/gamification/leaderboard/${leagueId}`,
+    ).catch(() => ({ league: "Bronze", leaderboard: [], my_rank: 0, my_xp: 0 }));
     return {
       league:  String(raw.league ?? "Bronze"),
       myRank:  Number(raw.my_rank ?? 0),
       myXp:    Number(raw.my_xp ?? 0),
-      entries: (raw.entries ?? []).map((e) => ({
+      // Response key is `leaderboard` (not `entries`) per handler.go
+      entries: (raw.leaderboard ?? []).map((e) => ({
         rank:          Number(e.rank ?? 0),
         userId:        String(e.user_id ?? e.userId ?? ""),
         displayName:   String(e.display_name ?? e.displayName ?? ""),
@@ -649,6 +833,20 @@ export class ProgressDataSource {
       modelVersion:   p?.model_version    ?? "unknown",
       computedAt:     p?.computed_at      ?? new Date().toISOString(),
     };
+  }
+
+  /** GET /api/v1/progress/activity-heatmap?days=N */
+  async getActivityHeatmap(days = 365): Promise<Array<{ date: string; minutes: number; xp: number; lessonsCompleted: number }>> {
+    type Body = { heatmap?: Array<Record<string, unknown>> };
+    const raw = await call<Body>(
+      this.ds, `/api/v1/progress/activity-heatmap?days=${days}`,
+    ).catch(() => ({ heatmap: [] }));
+    return (raw.heatmap ?? []).map((d) => ({
+      date:             String(d.date ?? ""),
+      minutes:          Number(d.minutes ?? d.minutes_studied ?? 0),
+      xp:               Number(d.xp ?? d.xp_earned ?? 0),
+      lessonsCompleted: Number(d.lessonsCompleted ?? d.lessons_done ?? 0),
+    }));
   }
 }
 
@@ -920,6 +1118,50 @@ export class BillingDataSource {
   }
 }
 
+// ─── T4: Assessment DataSource ─────────────────────────────────────────────────
+
+export class AssessmentDataSource {
+  private ds: DS;
+  constructor(cfg: Config, token?: string) {
+    this.ds = { baseUrl: cfg.services.assessment, token };
+  }
+
+  /** GET /api/v1/assessments/placement?lang=en&targetLang=vi */
+  async getPlacementTest(lang: string, targetLang: string): Promise<{
+    testId: string; lang: string; targetLang: string;
+    questions: Array<{ id: string; prompt: string; choices: string[]; skill: string }>;
+  }> {
+    const raw = await call<{ test?: Record<string, unknown> }>(
+      this.ds, `/api/v1/assessments/placement?lang=${encodeURIComponent(lang)}&targetLang=${encodeURIComponent(targetLang)}`,
+    ).catch(() => ({ test: undefined }));
+    const t = (raw.test ?? {}) as Record<string, unknown>;
+    return {
+      testId:     (t.testId ?? "") as string,
+      lang:       (t.lang   ?? lang) as string,
+      targetLang: (t.targetLang ?? targetLang) as string,
+      questions:  Array.isArray(t.questions) ? t.questions as Array<{ id: string; prompt: string; choices: string[]; skill: string }> : [],
+    };
+  }
+
+  /** POST /api/v1/assessments/placement/submit */
+  async submitPlacement(testId: string, answers: Array<{ questionId: string; choice: number }>): Promise<{
+    cefr: string; score: number; correctCount: number; totalCount: number; recommendedTrackId: string;
+  }> {
+    const raw = await call<{ result?: Record<string, unknown> }>(
+      this.ds, "/api/v1/assessments/placement/submit",
+      { method: "POST", body: { testId, answers } },
+    );
+    const r = (raw.result ?? {}) as Record<string, unknown>;
+    return {
+      cefr:               (r.cefr ?? "A1") as string,
+      score:              Number(r.score ?? 0),
+      correctCount:       Number(r.correctCount ?? 0),
+      totalCount:         Number(r.totalCount ?? 0),
+      recommendedTrackId: (r.recommendedTrackId ?? "") as string,
+    };
+  }
+}
+
 // ─── Context DataSources bundle ────────────────────────────────────────────────
 
 export interface DataSources {
@@ -935,6 +1177,7 @@ export interface DataSources {
   assessment:    AssessmentDataSource;
   notification:  NotificationDataSource;
   billing:       BillingDataSource;
+  assessment:    AssessmentDataSource;
 }
 
 /** Build all DataSources for a single request context. */
@@ -952,5 +1195,6 @@ export function buildDataSources(cfg: Config, token?: string): DataSources {
     assessment:   new AssessmentDataSource(cfg, token),
     notification: new NotificationDataSource(cfg, token),
     billing:      new BillingDataSource(cfg, token),
+    assessment:   new AssessmentDataSource(cfg, token),
   };
 }
