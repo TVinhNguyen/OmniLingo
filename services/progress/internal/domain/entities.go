@@ -41,7 +41,14 @@ type ScoreHistoryEntry struct {
 	RecordedAt time.Time `json:"recorded_at"`
 }
 
-// SkillOverview aggregates all skill scores for a user in a language.
+// ActivityDay is one day's aggregated study activity (for the heatmap UI).
+type ActivityDay struct {
+	Date            string `json:"date"`             // "YYYY-MM-DD"
+	Minutes         int    `json:"minutes"`
+	Xp              int    `json:"xp"`
+	LessonsCompleted int   `json:"lessonsCompleted"`
+}
+
 type SkillOverview struct {
 	UserID   uuid.UUID             `json:"user_id"`
 	Language string                `json:"language"`

@@ -33,9 +33,9 @@ func RegisterRoutes(v1 fiber.Router, svc service.AuthService, log *zap.Logger) {
 	auth.Post("/mfa/enroll",  mfaStub("MFA enrollment is planned for Phase 2"))
 	auth.Post("/mfa/verify",  mfaStub("MFA verification is planned for Phase 2"))
 
-	// Password reset stubs (Phase 2)
-	auth.Post("/forgot-password",  mfaStub("Password reset is planned for Phase 2"))
-	auth.Post("/reset-password",   mfaStub("Password reset is planned for Phase 2"))
+	// Password reset
+	auth.Post("/forgot-password",  forgotPasswordHandler(svc))
+	auth.Post("/reset-password",   resetPasswordHandler(svc))
 
 	// ── Users (protected) ──────────────────────────────────────────────────────
 	users := v1.Group("/users", jwtMW)
@@ -46,6 +46,7 @@ func RegisterRoutes(v1 fiber.Router, svc service.AuthService, log *zap.Logger) {
 	// Session management
 	users.Get("/sessions",           listSessionsHandler(svc))
 	users.Delete("/sessions/:id",    revokeSessionHandler(svc))
+	users.Post("/me/change-password", changePasswordHandler(svc))
 
 	// Internal (called by other services — in prod: restrict via service mesh)
 	v1.Get("/users/:id", jwtMW, getUserByIDHandler(svc))
@@ -230,7 +231,8 @@ func patchMeHandler(svc service.AuthService) fiber.Handler {
 }
 
 type deleteReq struct {
-	Reason string `json:"reason"`
+	Password string `json:"password"`
+	Reason   string `json:"reason"`
 }
 
 func deleteMeHandler(svc service.AuthService) fiber.Handler {
@@ -244,8 +246,14 @@ func deleteMeHandler(svc service.AuthService) fiber.Handler {
 		if req.Reason == "" {
 			req.Reason = "user_requested"
 		}
-		if err := svc.DeleteMe(c.Context(), userID, req.Reason); err != nil {
-			return mapDomainError(err)
+		var deleteErr error
+		if req.Password != "" {
+			deleteErr = svc.DeleteMeWithPassword(c.Context(), userID, req.Password, req.Reason)
+		} else {
+			deleteErr = svc.DeleteMe(c.Context(), userID, req.Reason)
+		}
+		if deleteErr != nil {
+			return mapDomainError(deleteErr)
 		}
 		return c.SendStatus(fiber.StatusNoContent)
 	}
@@ -372,7 +380,8 @@ func domainErrorStatus(de *domain.DomainError) int {
 		return fiber.StatusUnprocessableEntity
 	case domain.ErrMFARequired:
 		return fiber.StatusPreconditionRequired
-	case domain.ErrVerificationInvalid, domain.ErrVerificationUsed:
+	case domain.ErrVerificationInvalid, domain.ErrVerificationUsed,
+		domain.ErrResetTokenInvalid, domain.ErrResetTokenUsed:
 		return fiber.StatusBadRequest
 	default:
 		return fiber.StatusInternalServerError
@@ -403,4 +412,76 @@ func userIDFromCtx(c *fiber.Ctx) (uuid.UUID, error) {
 		return uuid.UUID{}, fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
 	return id, nil
+}
+
+// ─── Password Reset Handlers ──────────────────────────────────────────────────
+
+type forgotPwReq struct {
+	Email string `json:"email"`
+}
+
+func forgotPasswordHandler(svc service.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var req forgotPwReq
+		if err := c.BodyParser(&req); err != nil || req.Email == "" {
+			return fiber.NewError(fiber.StatusBadRequest, "email is required")
+		}
+		// Always returns success (anti-enumeration)
+		_ = svc.ForgotPassword(c.Context(), req.Email)
+		return c.JSON(fiber.Map{"message": "If that email exists, a reset link has been sent."})
+	}
+}
+
+type resetPwReq struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+func resetPasswordHandler(svc service.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var req resetPwReq
+		if err := c.BodyParser(&req); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+		}
+		if req.Token == "" {
+			return fiber.NewError(fiber.StatusBadRequest, "token is required")
+		}
+		if len(req.NewPassword) < 10 {
+			return fiber.NewError(fiber.StatusBadRequest, "password must be at least 10 characters")
+		}
+		if err := svc.ResetPassword(c.Context(), req.Token, req.NewPassword); err != nil {
+			return mapDomainError(err)
+		}
+		return c.JSON(fiber.Map{"message": "Password updated successfully."})
+	}
+}
+
+// ─── Change Password Handler ──────────────────────────────────────────────────
+
+type changePwReq struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+func changePasswordHandler(svc service.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		userID, err := userIDFromCtx(c)
+		if err != nil {
+			return err
+		}
+		var req changePwReq
+		if err := c.BodyParser(&req); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+		}
+		if req.OldPassword == "" || req.NewPassword == "" {
+			return fiber.NewError(fiber.StatusBadRequest, "old_password and new_password are required")
+		}
+		if len(req.NewPassword) < 10 {
+			return fiber.NewError(fiber.StatusBadRequest, "new password must be at least 10 characters")
+		}
+		if err := svc.ChangePassword(c.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
+			return mapDomainError(err)
+		}
+		return c.JSON(fiber.Map{"message": "Password changed successfully."})
+	}
 }

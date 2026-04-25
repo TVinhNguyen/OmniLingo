@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { Unit } from '../../domain/models/content.model';
+import { Course, Unit } from '../../domain/models/content.model';
 import { Errors } from '../../domain/errors';
 import type { CacheService } from '../../services/cache.service';
 import type { Config } from '../../config/index';
@@ -35,6 +35,40 @@ export async function unitRoutes(
 
     await cache.set(cacheKey, unit, cfg.cacheTtl.units);
     return reply.send({ unit });
+  });
+
+  /** GET /api/v1/content/units?courseId=:courseId */
+  fastify.get<{ Querystring: { courseId?: string } }>('/', async (req, reply) => {
+    const { courseId } = req.query;
+    if (!courseId) throw Errors.badRequest('courseId query param is required');
+
+    const cacheKey = `content:units:course:${courseId}`;
+    const cached = await cache.get<unknown[]>(cacheKey);
+    if (cached) {
+      fastify.metrics.cacheHitsTotal.inc({ resource_type: 'units' });
+      return reply.send({ units: cached });
+    }
+
+    fastify.metrics.cacheMissesTotal.inc({ resource_type: 'units' });
+
+    // Fetch the course to get ordered unitIds
+    const course = await Course.findOne({ id: courseId }).lean();
+    if (!course) {
+      return reply.send({ units: [] });
+    }
+
+    const unitIds: string[] = course.unitIds ?? [];
+    if (unitIds.length === 0) {
+      return reply.send({ units: [] });
+    }
+
+    // Batch fetch, then restore order from unitIds
+    const rows = await Unit.find({ id: { $in: unitIds } }).lean();
+    const rowMap = new Map(rows.map((u) => [u.id, u]));
+    const units = unitIds.map((id) => rowMap.get(id)).filter(Boolean);
+
+    await cache.set(cacheKey, units, cfg.cacheTtl.units);
+    return reply.send({ units });
   });
 
   /** POST /api/v1/content/units — content_admin only */

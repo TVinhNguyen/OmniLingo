@@ -1,0 +1,378 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      go_services: ${{ steps.filter.outputs.go_services }}
+      node_services: ${{ steps.filter.outputs.node_services }}
+      python_services: ${{ steps.filter.outputs.python_services }}
+      rust_services: ${{ steps.filter.outputs.rust_services }}
+      frontend_run: ${{ steps.filter.outputs.frontend_run }}
+      migration_run: ${{ steps.filter.outputs.migration_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build service matrices
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          GITHUB_REF_NAME: ${{ github.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+
+          full=false
+          if [[ "$EVENT_NAME" == "push" && "$GITHUB_REF_NAME" == "refs/heads/main" ]]; then
+            full=true
+          fi
+          if [[ "$EVENT_NAME" == "pull_request" && "$EVENT_ACTION" == "opened" ]]; then
+            full=true
+          fi
+
+          if [[ "$full" == "true" ]]; then
+            : > changed-files.txt
+          else
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+          fi
+
+          json_array() {
+            jq -cn '$ARGS.positional' --args "$@"
+          }
+
+          changed() {
+            local pattern="$1"
+            [[ "$full" == "true" ]] || grep -Eq "$pattern" changed-files.txt
+          }
+
+          select_services() {
+            local shared_pattern="$1"
+            shift
+            local selected=()
+            local service
+
+            for service in "$@"; do
+              if changed "^services/${service}/|${shared_pattern}"; then
+                selected+=("$service")
+              fi
+            done
+
+            json_array "${selected[@]}"
+          }
+
+          go_services="$(select_services '^pkg/|^go\.work(\.sum)?$|^\.github/workflows/ci\.yml$' \
+            identity learning vocabulary gamification billing payment entitlement progress assessment llm-gateway)"
+          node_services="$(select_services '^\.github/workflows/ci\.yml$' \
+            web-bff content grammar notification)"
+          python_services="$(select_services '^\.github/workflows/ci\.yml$' \
+            speech-ai ai-tutor)"
+          rust_services="$(select_services '^\.github/workflows/ci\.yml$' srs)"
+
+          frontend_run=false
+          if changed '^apps/web/|^\.github/workflows/ci\.yml$'; then
+            frontend_run=true
+          fi
+
+          migration_run=false
+          if changed '^services/.*/migrations/|^\.github/workflows/ci\.yml$'; then
+            migration_run=true
+          fi
+
+          {
+            echo "go_services=$go_services"
+            echo "node_services=$node_services"
+            echo "python_services=$python_services"
+            echo "rust_services=$rust_services"
+            echo "frontend_run=$frontend_run"
+            echo "migration_run=$migration_run"
+          } >> "$GITHUB_OUTPUT"
+
+  go-services:
+    name: Go services (${{ matrix.service }})
+    needs: changes
+    if: ${{ needs.changes.outputs.go_services != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.go_services) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+          cache-dependency-path: services/${{ matrix.service }}/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test with race detector
+        run: go test ./... -race -timeout 60s
+
+  node-services:
+    name: Node services (${{ matrix.service }})
+    needs: changes
+    if: ${{ needs.changes.outputs.node_services != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.node_services) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+
+      - name: Test
+        run: pnpm test
+
+  rust-services:
+    name: Rust services (${{ matrix.service }})
+    needs: changes
+    if: ${{ needs.changes.outputs.rust_services != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.rust_services) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librdkafka-dev libssl-dev pkg-config
+
+      - name: Build
+        run: cargo build
+
+      - name: Test
+        run: cargo test
+
+  python-services:
+    name: Python services (${{ matrix.service }})
+    needs: changes
+    if: ${{ needs.changes.outputs.python_services != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.python_services) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Syntax check
+        run: find app -name '*.py' -print0 | xargs -0 python -m py_compile
+
+      - name: Run pytest when tests exist
+        run: |
+          set -euo pipefail
+          if find . -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then
+            python -m pip install --upgrade pip
+            if [[ -f requirements.txt ]]; then
+              python -m pip install -r requirements.txt
+            fi
+            python -m pip install pytest
+            python -m pytest
+          else
+            echo "No pytest tests found for ${{ matrix.service }}."
+          fi
+
+  frontend:
+    name: Frontend
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend_run == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: |
+          set -euo pipefail
+          if [[ -f .eslintrc.json || -f .eslintrc.js || -f .eslintrc.cjs || -f eslint.config.mjs || -f eslint.config.js || -f eslint.config.cjs ]]; then
+            pnpm lint
+          else
+            echo "No ESLint config found in apps/web — skipping lint."
+          fi
+
+      - name: Build
+        run: pnpm build
+
+  migration-test:
+    name: Migration reversibility
+    needs: changes
+    if: ${{ needs.changes.outputs.migration_run == 'true' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: omnilingo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d omnilingo_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_ADMIN_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      POSTGRES_BASE_URL: postgres://postgres:postgres@localhost:5432
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go for goose
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: false
+
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@v3.21.1
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run goose up and down for every migration directory
+        run: |
+          set -euo pipefail
+
+          for dir in services/*/migrations; do
+            [[ -d "$dir" ]] || continue
+
+            service="$(basename "$(dirname "$dir")")"
+            db="${service//-/_}_ci"
+            db_url="${POSTGRES_BASE_URL}/${db}?sslmode=disable"
+
+            if ! grep -RqsE '^[[:space:]]*--[[:space:]]+\+goose[[:space:]]+Up' "$dir"; then
+              echo "::error file=${dir}::Migration directory has no goose Up annotation."
+              exit 1
+            fi
+
+            echo "Testing migrations for ${service}"
+            psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE);"
+            psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$db\";"
+            goose -dir "$dir" postgres "$db_url" up
+            goose -dir "$dir" postgres "$db_url" down-to 0
+            psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "DROP DATABASE \"$db\" WITH (FORCE);"
+          done
+
+  ci-required:
+    name: CI Required
+    needs:
+      - changes
+      - go-services
+      - node-services
+      - rust-services
+      - python-services
+      - frontend
+      - migration-test
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required CI jobs
+        run: |
+          set -euo pipefail
+
+          failed=false
+          for result in \
+            "${{ needs.changes.result }}" \
+            "${{ needs.go-services.result }}" \
+            "${{ needs.node-services.result }}" \
+            "${{ needs.rust-services.result }}" \
+            "${{ needs.python-services.result }}" \
+            "${{ needs.frontend.result }}" \
+            "${{ needs.migration-test.result }}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              failed=true
+            fi
+          done
+
+          if [[ "$failed" == "true" ]]; then
+            echo "One or more CI jobs failed or were cancelled."
+            exit 1
+          fi
+
+          echo "All required CI jobs passed or were skipped by path filters."

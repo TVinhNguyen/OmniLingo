@@ -1,0 +1,569 @@
+openapi: 3.1.0
+info:
+  title: OmniLingo Identity Service API
+  version: 1.0.0
+  description: Auth, JWKS, profile, user lookup, and session management endpoints implemented by identity-service.
+servers:
+  - url: http://localhost:3001
+    description: Local development
+  - url: https://staging-api.omnilingo.com/identity
+    description: Staging
+tags:
+  - name: infrastructure
+  - name: auth
+  - name: users
+  - name: sessions
+paths:
+  /healthz:
+    get:
+      tags: [infrastructure]
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /readyz:
+    get:
+      tags: [infrastructure]
+      operationId: getReady
+      responses:
+        "200":
+          description: Dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "503":
+          description: One or more dependencies are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyFailureResponse"
+  /metrics:
+    get:
+      tags: [infrastructure]
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /.well-known/jwks.json:
+    get:
+      tags: [auth]
+      operationId: getJwks
+      responses:
+        "200":
+          description: RS256 public keys used by services to verify identity JWTs.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JwksResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/UnprocessableEntity" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: JWT token pair.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Refreshed JWT token pair.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "204":
+          description: Session logged out.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/verify-email:
+    post:
+      tags: [auth]
+      operationId: verifyEmail
+      parameters:
+        - in: query
+          name: token
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyEmailRequest"
+      responses:
+        "200":
+          description: Email verified.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/oauth/{provider}/callback:
+    post:
+      tags: [auth]
+      operationId: oauthCallback
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+      responses:
+        "501": { $ref: "#/components/responses/NotImplemented" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/mfa/enroll:
+    post:
+      tags: [auth]
+      operationId: enrollMfa
+      responses:
+        "501": { $ref: "#/components/responses/NotImplemented" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/mfa/verify:
+    post:
+      tags: [auth]
+      operationId: verifyMfa
+      responses:
+        "501": { $ref: "#/components/responses/NotImplemented" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [auth]
+      operationId: forgotPassword
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "501": { $ref: "#/components/responses/NotImplemented" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/auth/reset-password:
+    post:
+      tags: [auth]
+      operationId: resetPassword
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "501": { $ref: "#/components/responses/NotImplemented" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/users/me:
+    get:
+      tags: [users]
+      operationId: getMe
+      security:
+        - bearerJwt: []
+      responses:
+        "200":
+          description: Current user profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    patch:
+      tags: [users]
+      operationId: updateMe
+      security:
+        - bearerJwt: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeRequest"
+      responses:
+        "200":
+          description: Updated user profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    delete:
+      tags: [users]
+      operationId: deleteMe
+      security:
+        - bearerJwt: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteMeRequest"
+      responses:
+        "204":
+          description: Account marked for deletion.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/users/sessions:
+    get:
+      tags: [sessions]
+      operationId: listSessions
+      security:
+        - bearerJwt: []
+      responses:
+        "200":
+          description: Active sessions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Session"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/users/sessions/{id}:
+    delete:
+      tags: [sessions]
+      operationId: revokeSession
+      security:
+        - bearerJwt: []
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "204":
+          description: Session revoked.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/users/{id}:
+    get:
+      tags: [users]
+      operationId: getUserById
+      security:
+        - bearerJwt: []
+      parameters:
+        - $ref: "#/components/parameters/UuidId"
+      responses:
+        "200":
+          description: User profile by id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UuidId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [google, apple, facebook, zalo, kakao, line]
+  responses:
+    BadRequest:
+      description: Bad request.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: Authenticated user is not allowed to perform this action.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Conflict:
+      description: Resource conflict.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    UnprocessableEntity:
+      description: Semantic validation failed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    RateLimited:
+      description: Rate limit exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotImplemented:
+      description: Endpoint is planned but not implemented.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string }
+        message: { type: string }
+    HealthResponse:
+      type: object
+      required: [status, service, version]
+      properties:
+        status: { type: string, example: ok }
+        service: { type: string, example: identity-service }
+        version: { type: string }
+    ReadyResponse:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, example: ready }
+    ReadyFailureResponse:
+      type: object
+      required: [status, reason]
+      properties:
+        status: { type: string, example: not_ready }
+        reason: { type: string, enum: [postgres, redis] }
+    RegisterRequest:
+      type: object
+      required: [email, password, display_name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 10 }
+        display_name: { type: string }
+        ui_language: { type: string, default: en }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+        device_id: { type: string }
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+    VerifyEmailRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token: { type: string }
+        password: { type: string, minLength: 10 }
+    DeleteMeRequest:
+      type: object
+      properties:
+        reason: { type: string, default: user_requested }
+    UpdateMeRequest:
+      type: object
+      properties:
+        display_name: { type: string }
+        ui_language: { type: string }
+        timezone: { type: string }
+        avatar_url: { type: string, format: uri }
+    User:
+      type: object
+      required: [id, display_name, ui_language, timezone, status, email_verified, mfa_enabled, roles, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        phone: { type: string }
+        display_name: { type: string }
+        avatar_url: { type: string, format: uri }
+        ui_language: { type: string }
+        timezone: { type: string }
+        status:
+          type: string
+          enum: [active, suspended, locked, pending_deletion, deleted]
+        email_verified: { type: boolean }
+        mfa_enabled: { type: boolean }
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [user, premium_user, teacher, admin, content_editor, content_admin, moderator, billing_admin, platform_admin, tenant_admin, tenant_learner]
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Session:
+      type: object
+      required: [id, user_id, created_at, expires_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        device_id: { type: string }
+        device_info: { type: string }
+        ip: { type: string }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        revoked_at: { type: string, format: date-time }
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, expires_in, token_type]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer }
+        token_type: { type: string, example: Bearer }
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    Jwk:
+      type: object
+      required: [kty, use, alg, kid, n, e]
+      properties:
+        kty: { type: string, const: RSA }
+        use: { type: string, const: sig }
+        alg: { type: string, const: RS256 }
+        kid: { type: string }
+        n: { type: string }
+        e: { type: string }
+    JwksResponse:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: "#/components/schemas/Jwk"

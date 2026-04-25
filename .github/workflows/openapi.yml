@@ -1,0 +1,28 @@
+name: OpenAPI
+
+on:
+  pull_request:
+    paths:
+      - "services/**/openapi.yaml"
+      - "services/web-bff/src/generated/**"
+      - "scripts/gen-openapi.sh"
+      - "scripts/validate-openapi.sh"
+      - "package.json"
+      - ".github/workflows/openapi.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate specs and generated clients
+        run: pnpm check:openapi

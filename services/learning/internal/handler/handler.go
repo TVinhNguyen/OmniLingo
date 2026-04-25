@@ -35,6 +35,15 @@ func (h *LearningHandler) Register(r fiber.Router) {
 	v1.Post("/lessons/:id/start", h.StartLesson)
 	v1.Post("/lessons/:id/complete", h.CompleteLesson)
 	v1.Get("/history", h.GetHistory)
+
+	// GET /api/v1/learning/today-mission
+	v1.Get("/today-mission", h.GetTodayMission)
+
+	// T3: Onboarding state machine
+	onb := r.Group("/api/v1/onboarding")
+	onb.Get("/state", h.GetOnboardingState)
+	onb.Post("/step", h.UpdateOnboardingStep)
+	onb.Post("/complete", h.CompleteOnboarding)
 }
 
 func (h *LearningHandler) GetProfile(c *fiber.Ctx) error {
@@ -136,6 +145,15 @@ func (h *LearningHandler) GetHistory(c *fiber.Ctx) error {
 	})
 }
 
+// GetTodayMission — GET /api/v1/learning/today-mission
+// Returns: next lesson in active path + minutes remaining to daily goal + due SRS card count.
+func (h *LearningHandler) GetTodayMission(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uuid.UUID)
+	mission, err := h.svc.GetTodayMission(c.Context(), userID)
+	if err != nil { return handleError(c, err) }
+	return c.JSON(fiber.Map{"mission": mission})
+}
+
 func handleError(c *fiber.Ctx, err error) error {
 	if de, ok := err.(*domain.DomainError); ok {
 		return c.Status(de.StatusCode).JSON(fiber.Map{"error": de.Code, "message": de.Message})
@@ -154,3 +172,47 @@ func max0(v int) int {
 }
 
 var _ = strconv.Itoa // suppress unused import warning
+
+// ─── T3: Onboarding handlers ──────────────────────────────────────────────────
+
+// GetOnboardingState — GET /api/v1/onboarding/state
+func (h *LearningHandler) GetOnboardingState(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uuid.UUID)
+	state, err := h.svc.GetOnboardingState(c.Context(), userID)
+	if err != nil { return handleError(c, err) }
+	return c.JSON(fiber.Map{"state": state})
+}
+
+// UpdateOnboardingStep — POST /api/v1/onboarding/step
+// Body: { "step": "goal_select", "data": { "goal": "cert_ielts" } }
+func (h *LearningHandler) UpdateOnboardingStep(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uuid.UUID)
+	var body struct {
+		Step domain.OnboardingStep `json:"step"`
+		Data map[string]any        `json:"data"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.Step == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "BAD_REQUEST", "message": "step and data required"})
+	}
+	if err := h.svc.UpdateOnboardingStep(c.Context(), userID, body.Step, body.Data); err != nil {
+		return handleError(c, err)
+	}
+	state, _ := h.svc.GetOnboardingState(c.Context(), userID)
+	return c.JSON(fiber.Map{"state": state})
+}
+
+// CompleteOnboarding — POST /api/v1/onboarding/complete
+// Body: { "placementCefr": "B1", "recommendedTrackId": "en-vi-b1-track" }
+func (h *LearningHandler) CompleteOnboarding(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uuid.UUID)
+	var body struct {
+		PlacementCefr      *string `json:"placementCefr"`
+		RecommendedTrackId *string `json:"recommendedTrackId"`
+	}
+	_ = c.BodyParser(&body) // both fields are optional
+	if err := h.svc.CompleteOnboarding(c.Context(), userID, body.PlacementCefr, body.RecommendedTrackId); err != nil {
+		return handleError(c, err)
+	}
+	state, _ := h.svc.GetOnboardingState(c.Context(), userID)
+	return c.JSON(fiber.Map{"state": state})
+}

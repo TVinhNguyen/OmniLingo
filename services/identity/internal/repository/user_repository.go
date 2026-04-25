@@ -34,6 +34,11 @@ type UserRepository interface {
 	CreateEmailVerification(ctx context.Context, ev *domain.EmailVerification) error
 	FindEmailVerificationByHash(ctx context.Context, tokenHash string) (*domain.EmailVerification, error)
 	MarkEmailVerificationUsed(ctx context.Context, id uuid.UUID) error
+	// Password reset
+	CreatePasswordResetToken(ctx context.Context, prt *domain.PasswordResetToken) error
+	FindPasswordResetByHash(ctx context.Context, tokenHash string) (*domain.PasswordResetToken, error)
+	MarkPasswordResetUsed(ctx context.Context, id uuid.UUID) error
+	UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error
 }
 
 type userRepository struct {
@@ -88,7 +93,8 @@ func (r *userRepository) Create(ctx context.Context, u *domain.User) error {
 func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
 		SELECT id, email, password_hash, display_name, ui_language, timezone, status,
-		       email_verified, mfa_enabled, failed_login_count, locked_until, created_at, updated_at
+		       email_verified, mfa_enabled, failed_login_count, locked_until,
+		       created_at, updated_at
 		FROM users WHERE email = $1 AND status != 'deleted'
 	`
 	u := &domain.User{}
@@ -115,7 +121,8 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	const q = `
 		SELECT id, email, password_hash, display_name, ui_language, timezone, status,
-		       email_verified, mfa_enabled, failed_login_count, locked_until, created_at, updated_at
+		       email_verified, mfa_enabled, failed_login_count, locked_until,
+		       created_at, updated_at
 		FROM users WHERE id = $1 AND status != 'deleted'
 	`
 	u := &domain.User{}
@@ -279,6 +286,49 @@ func (r *userRepository) MarkEmailVerificationUsed(ctx context.Context, id uuid.
 	_, err := r.db.Exec(ctx,
 		`UPDATE email_verifications SET used_at = NOW() WHERE id = $1`,
 		id,
+	)
+	return err
+}
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+func (r *userRepository) CreatePasswordResetToken(ctx context.Context, prt *domain.PasswordResetToken) error {
+	_, err := r.db.Exec(ctx,
+		`INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at)
+		 VALUES ($1, $2, $3, $4)`,
+		prt.ID, prt.UserID, prt.TokenHash, prt.ExpiresAt,
+	)
+	return err
+}
+
+func (r *userRepository) FindPasswordResetByHash(ctx context.Context, tokenHash string) (*domain.PasswordResetToken, error) {
+	prt := &domain.PasswordResetToken{}
+	err := r.db.QueryRow(ctx,
+		`SELECT id, user_id, token_hash, expires_at, used_at
+		 FROM password_reset_tokens WHERE token_hash = $1`,
+		tokenHash,
+	).Scan(&prt.ID, &prt.UserID, &prt.TokenHash, &prt.ExpiresAt, &prt.UsedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrResetTokenInvalid
+		}
+		return nil, err
+	}
+	return prt, nil
+}
+
+func (r *userRepository) MarkPasswordResetUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1`,
+		id,
+	)
+	return err
+}
+
+func (r *userRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+		newHash, userID,
 	)
 	return err
 }

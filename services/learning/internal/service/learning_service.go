@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"math"
 	"time"
 
@@ -32,6 +31,12 @@ type LearningService interface {
 	StartLesson(ctx context.Context, userID uuid.UUID, lessonID string, opts StartOpts) (*domain.LessonAttempt, error)
 	CompleteLesson(ctx context.Context, req CompleteRequest) (*domain.LessonAttempt, error)
 	GetHistory(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.LessonAttempt, int, error)
+	GetTodayMission(ctx context.Context, userID uuid.UUID) (*domain.TodayMission, error)
+
+	// T3 — Onboarding state machine
+	GetOnboardingState(ctx context.Context, userID uuid.UUID) (*domain.OnboardingState, error)
+	UpdateOnboardingStep(ctx context.Context, userID uuid.UUID, step domain.OnboardingStep, answers map[string]any) error
+	CompleteOnboarding(ctx context.Context, userID uuid.UUID, cefr, trackID *string) error
 }
 
 type StartOpts struct {
@@ -50,23 +55,27 @@ type CompleteRequest struct {
 }
 
 type learningService struct {
-	profileRepo  repository.ProfileRepository
-	pathRepo     repository.PathRepository
-	attemptRepo  repository.AttemptRepository
-	publisher    messaging.Publisher
-	log          *zap.Logger
+	profileRepo    repository.ProfileRepository
+	pathRepo       repository.PathRepository
+	attemptRepo    repository.AttemptRepository
+	onboardingRepo repository.OnboardingRepository
+	publisher      messaging.Publisher
+	outbox         *messaging.OutboxRepository
+	log            *zap.Logger
 }
 
 func NewLearningService(
 	profileRepo repository.ProfileRepository,
 	pathRepo repository.PathRepository,
 	attemptRepo repository.AttemptRepository,
+	onboardingRepo repository.OnboardingRepository,
 	publisher messaging.Publisher,
+	outboxRepo *messaging.OutboxRepository,
 	log *zap.Logger,
 ) LearningService {
 	return &learningService{
 		profileRepo: profileRepo, pathRepo: pathRepo, attemptRepo: attemptRepo,
-		publisher: publisher, log: log,
+		onboardingRepo: onboardingRepo, publisher: publisher, outbox: outboxRepo, log: log,
 	}
 }
 
@@ -78,7 +87,8 @@ func (s *learningService) SetProfile(ctx context.Context, p *domain.LearningProf
 	if p.PrimaryLanguage == "" {
 		return domain.Errorf("BAD_REQUEST", "primary_language is required")
 	}
-	if p.Preferences.DailyGoalMinutes == 0 { p.Preferences.DailyGoalMinutes = 15 }
+	if p.DailyGoalMinutes == 0 { p.DailyGoalMinutes = 10 }
+	if p.LearningLanguages == nil { p.LearningLanguages = []string{} }
 	return s.profileRepo.Upsert(ctx, p)
 }
 
@@ -88,7 +98,7 @@ func (s *learningService) SetGoals(ctx context.Context, userID uuid.UUID, goals 
 		// Auto-create minimal profile if not exists
 		profile = &domain.LearningProfile{
 			UserID: userID, PrimaryLanguage: "en",
-			Preferences: domain.Prefs{DailyGoalMinutes: 15},
+			DailyGoalMinutes: 10, LearningLanguages: []string{},
 		}
 	}
 	profile.Goals = goals
@@ -98,12 +108,9 @@ func (s *learningService) SetGoals(ctx context.Context, userID uuid.UUID, goals 
 		EventID: uuid.New().String(), UserID: userID.String(),
 		Goals: goals, CreatedAt: time.Now().UTC(),
 	}
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "learning.goal.set", payload); err != nil {
-			s.log.Warn("failed to publish goal.set", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.Enqueue(ctx, "learning.goal.set", event); err != nil {
+		s.log.Warn("outbox insert goal.set failed", zap.Error(err))
+	}
 	return nil
 }
 
@@ -136,17 +143,14 @@ func (s *learningService) StartLesson(ctx context.Context, userID uuid.UUID, les
 	}
 	if err := s.attemptRepo.Create(ctx, attempt); err != nil { return nil, domain.ErrInternalError }
 
-	// Publish started event
+	// Outbox: durable Kafka event
 	event := domain.LessonStartedEvent{
 		EventID: uuid.New().String(), UserID: userID.String(),
 		LessonID: lessonID, Language: opts.Language, CreatedAt: time.Now().UTC(),
 	}
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "learning.lesson.started", payload); err != nil {
-			s.log.Warn("publish lesson.started failed", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.Enqueue(ctx, "learning.lesson.started", event); err != nil {
+		s.log.Warn("outbox insert lesson.started failed", zap.Error(err))
+	}
 	return attempt, nil
 }
 
@@ -155,23 +159,76 @@ func (s *learningService) CompleteLesson(ctx context.Context, req CompleteReques
 	attempt, err := s.attemptRepo.Complete(ctx, req.AttemptID, req.Score, xp, req.TimeSpentSec)
 	if err != nil { return nil, domain.ErrNotFound }
 
-	// Publish completed event
+	// Outbox: durable Kafka event
 	event := domain.LessonCompletedEvent{
 		EventID: uuid.New().String(), UserID: req.UserID.String(),
 		LessonID: attempt.LessonID, Language: req.Language,
 		Score: req.Score, XPEarned: xp, TimeSpentSec: req.TimeSpentSec,
 		SkillEmphasis: req.SkillTag, CreatedAt: time.Now().UTC(),
 	}
-	payload, _ := json.Marshal(event)
-	go func() {
-		if err := s.publisher.Publish(context.Background(), "learning.lesson.completed", payload); err != nil {
-			s.log.Warn("publish lesson.completed failed", zap.Error(err))
-		}
-	}()
+	if err := s.outbox.Enqueue(ctx, "learning.lesson.completed", event); err != nil {
+		s.log.Warn("outbox insert lesson.completed failed", zap.Error(err))
+	}
 	return attempt, nil
 }
 
 func (s *learningService) GetHistory(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.LessonAttempt, int, error) {
 	if limit <= 0 || limit > 100 { limit = 20 }
 	return s.attemptRepo.ListByUser(ctx, userID, limit, offset)
+}
+
+// GetTodayMission assembles the user's daily mission widget data.
+// MVP logic: pull active path, set default XP reward; NextLessonID requires content-service join (Phase 2).
+func (s *learningService) GetTodayMission(ctx context.Context, userID uuid.UUID) (*domain.TodayMission, error) {
+	mission := &domain.TodayMission{
+		MinutesToGoal: 15, // default daily goal
+		XPReward:      50,
+		DueCardCount:  0,
+	}
+
+	// Attempt to pull active learning paths
+	paths, err := s.ListPaths(ctx, userID)
+	if err != nil || len(paths) == 0 {
+		return mission, nil // no active path — return stub
+	}
+
+	// Active path exists — language determined from first path
+	// NextLessonID join with content-service is deferred to Phase 2 (requires content-service grpc)
+	_ = paths[0] // suppress unused var
+
+	return mission, nil
+}
+
+// ─── T3: Onboarding ───────────────────────────────────────────────────────────
+
+func (s *learningService) GetOnboardingState(ctx context.Context, userID uuid.UUID) (*domain.OnboardingState, error) {
+	return s.onboardingRepo.GetState(ctx, userID)
+}
+
+func (s *learningService) UpdateOnboardingStep(ctx context.Context, userID uuid.UUID, step domain.OnboardingStep, answers map[string]any) error {
+	// Validate step
+	switch step {
+	case domain.StepLanguageSelect, domain.StepGoalSelect, domain.StepLevelSelect, domain.StepPlacement, domain.StepDone:
+	default:
+		return domain.Errorf("BAD_REQUEST", "invalid onboarding step: %s", step)
+	}
+	return s.onboardingRepo.UpsertStep(ctx, userID, step, answers)
+}
+
+func (s *learningService) CompleteOnboarding(ctx context.Context, userID uuid.UUID, cefr, trackID *string) error {
+	if err := s.onboardingRepo.Complete(ctx, userID, cefr, trackID); err != nil {
+		return err
+	}
+	// Auto-enroll track if a recommendation is provided
+	if trackID != nil && *trackID != "" {
+		state, _ := s.onboardingRepo.GetState(ctx, userID) // re-read to get primary_language
+		lang := "en"
+		if state != nil {
+			if v, ok := state.Answers["target_language"].(string); ok && v != "" {
+				lang = v
+			}
+		}
+		_, _ = s.CreatePath(ctx, userID, lang, *trackID)
+	}
+	return nil
 }

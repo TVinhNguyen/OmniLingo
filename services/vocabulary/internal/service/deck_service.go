@@ -19,6 +19,7 @@ type DeckService interface {
 	CreateDeck(ctx context.Context, userID uuid.UUID, req domain.CreateDeckRequest) (*domain.Deck, error)
 	DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) error
 	AddCard(ctx context.Context, userID, deckID uuid.UUID, req domain.AddCardRequest) (*domain.UserCard, error)
+	ListCards(ctx context.Context, userID, deckID uuid.UUID) ([]*domain.UserCard, error)
 	RemoveCard(ctx context.Context, userID, deckID uuid.UUID, cardID uuid.UUID) error
 	MarkKnown(ctx context.Context, userID, cardID uuid.UUID) error
 }
@@ -28,6 +29,7 @@ type deckService struct {
 	cardRepo repository.CardRepository
 	wordRepo repository.WordRepository
 	pub      messaging.Publisher
+	outbox   *messaging.OutboxRepository
 	log      *zap.Logger
 }
 
@@ -37,6 +39,7 @@ func NewDeckService(
 	cardRepo repository.CardRepository,
 	wordRepo repository.WordRepository,
 	pub messaging.Publisher,
+	outboxRepo *messaging.OutboxRepository,
 	log *zap.Logger,
 ) DeckService {
 	return &deckService{
@@ -44,6 +47,7 @@ func NewDeckService(
 		cardRepo: cardRepo,
 		wordRepo: wordRepo,
 		pub:      pub,
+		outbox:   outboxRepo,
 		log:      log,
 	}
 }
@@ -83,7 +87,7 @@ func (s *deckService) CreateDeck(ctx context.Context, userID uuid.UUID, req doma
 		return nil, err
 	}
 
-	// Emit Kafka event (fail-soft)
+	// Outbox: durable Kafka event
 	evt := &domain.DeckCreatedEvent{
 		EventID:   uuid.New().String(),
 		UserID:    userID,
@@ -92,8 +96,8 @@ func (s *deckService) CreateDeck(ctx context.Context, userID uuid.UUID, req doma
 		Name:      d.Name,
 		CreatedAt: time.Now().UTC(),
 	}
-	if err := s.pub.Publish(ctx, domain.TopicDeckCreated, evt); err != nil {
-		s.log.Warn("failed to publish deck.created event", zap.Error(err))
+	if err := s.outbox.Enqueue(ctx, domain.TopicDeckCreated, evt); err != nil {
+		s.log.Warn("outbox insert deck.created failed", zap.Error(err))
 	}
 
 	return d, nil
@@ -142,7 +146,7 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 		return nil, err
 	}
 
-	// Emit Kafka event for srs-service to schedule
+	// Outbox: durable Kafka event for srs-service to schedule
 	evt := &domain.CardAddedEvent{
 		EventID:   uuid.New().String(),
 		UserID:    userID,
@@ -153,12 +157,25 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 		Level:     word.Level,
 		CreatedAt: now,
 	}
-	if err := s.pub.Publish(ctx, domain.TopicCardAdded, evt); err != nil {
-		s.log.Warn("failed to publish card.added event", zap.Error(err))
+	if err := s.outbox.Enqueue(ctx, domain.TopicCardAdded, evt); err != nil {
+		s.log.Warn("outbox insert card.added failed", zap.Error(err))
 	}
 
 	card.Word = word
 	return card, nil
+}
+
+// ListCards returns all cards in a deck (with enriched word data).
+func (s *deckService) ListCards(ctx context.Context, userID, deckID uuid.UUID) ([]*domain.UserCard, error) {
+	// Verify ownership
+	d, err := s.deckRepo.GetByID(ctx, deckID)
+	if err != nil {
+		return nil, err
+	}
+	if d.OwnerID != userID {
+		return nil, domain.ErrDeckNotOwned
+	}
+	return s.cardRepo.ListByDeck(ctx, userID, deckID)
 }
 
 func (s *deckService) RemoveCard(ctx context.Context, userID, deckID uuid.UUID, cardID uuid.UUID) error {
@@ -174,15 +191,15 @@ func (s *deckService) RemoveCard(ctx context.Context, userID, deckID uuid.UUID, 
 		return err
 	}
 
-	// Emit event (fail-soft)
+	// Outbox: durable Kafka event
 	evt := &domain.CardRemovedEvent{
 		EventID:   uuid.New().String(),
 		UserID:    userID,
 		CardID:    cardID,
 		CreatedAt: time.Now().UTC(),
 	}
-	if err := s.pub.Publish(ctx, domain.TopicCardRemoved, evt); err != nil {
-		s.log.Warn("failed to publish card.removed event", zap.Error(err))
+	if err := s.outbox.Enqueue(ctx, domain.TopicCardRemoved, evt); err != nil {
+		s.log.Warn("outbox insert card.removed failed", zap.Error(err))
 	}
 	return nil
 }
@@ -199,7 +216,7 @@ func (s *deckService) MarkKnown(ctx context.Context, userID, cardID uuid.UUID) e
 		return err
 	}
 
-	// Emit event (fail-soft)
+	// Outbox: durable Kafka event
 	evt := &domain.CardMarkedKnownEvent{
 		EventID:   uuid.New().String(),
 		UserID:    userID,
@@ -207,8 +224,8 @@ func (s *deckService) MarkKnown(ctx context.Context, userID, cardID uuid.UUID) e
 		WordID:    card.WordID,
 		CreatedAt: time.Now().UTC(),
 	}
-	if err := s.pub.Publish(ctx, domain.TopicCardMarkedKnown, evt); err != nil {
-		s.log.Warn("failed to publish card.marked_known event", zap.Error(err))
+	if err := s.outbox.Enqueue(ctx, domain.TopicCardMarkedKnown, evt); err != nil {
+		s.log.Warn("outbox insert card.marked_known failed", zap.Error(err))
 	}
 	return nil
 }

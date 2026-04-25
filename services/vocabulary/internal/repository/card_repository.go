@@ -21,6 +21,7 @@ const wordCacheTTL = time.Hour
 type CardRepository interface {
 	AddCard(ctx context.Context, card *domain.UserCard) error
 	GetCard(ctx context.Context, id uuid.UUID) (*domain.UserCard, error)
+	ListByDeck(ctx context.Context, userID, deckID uuid.UUID) ([]*domain.UserCard, error)
 	RemoveCard(ctx context.Context, userID, cardID uuid.UUID) error
 	MarkKnown(ctx context.Context, userID, cardID uuid.UUID) error
 	BulkAdd(ctx context.Context, cards []*domain.UserCard) (added, skipped int, err error)
@@ -66,6 +67,35 @@ func (r *cardRepository) GetCard(ctx context.Context, id uuid.UUID) (*domain.Use
 		return nil, err
 	}
 	return &c, nil
+}
+
+// ListByDeck returns all cards in a deck belonging to userID, enriched with word data.
+func (r *cardRepository) ListByDeck(ctx context.Context, userID, deckID uuid.UUID) ([]*domain.UserCard, error) {
+	const q = `
+		SELECT uc.id, uc.user_id, uc.deck_id, uc.word_id, uc.suspended, uc.added_at,
+		       w.lemma, w.ipa, w.pos
+		FROM user_cards uc
+		JOIN words w ON w.id = uc.word_id
+		WHERE uc.user_id=$1 AND uc.deck_id=$2
+		ORDER BY uc.added_at DESC`
+	rows, err := r.db.Query(ctx, q, userID, deckID)
+	if err != nil {
+		return nil, fmt.Errorf("list by deck: %w", err)
+	}
+	defer rows.Close()
+	var out []*domain.UserCard
+	for rows.Next() {
+		c := &domain.UserCard{Word: &domain.Word{}}
+		err := rows.Scan(
+			&c.ID, &c.UserID, &c.DeckID, &c.WordID, &c.Suspended, &c.AddedAt,
+			&c.Word.Lemma, &c.Word.IPA, &c.Word.POS,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan card: %w", err)
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 func (r *cardRepository) RemoveCard(ctx context.Context, userID, cardID uuid.UUID) error {

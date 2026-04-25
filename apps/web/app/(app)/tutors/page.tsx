@@ -12,6 +12,8 @@ import {
   SlidersHorizontal,
   Globe2,
   Clock,
+  Calendar,
+  Video,
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -144,6 +146,23 @@ export default function TutorsPage() {
             Book 1-on-1 video lessons with vetted tutors from around the world.
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" className="rounded-full bg-transparent">
+            <Link href="/live">
+              <Video className="mr-1.5 size-4" />
+              Lớp live
+            </Link>
+          </Button>
+          <Button asChild className="rounded-full">
+            <Link href="/tutors/bookings">
+              <Calendar className="mr-1.5 size-4" />
+              Lịch đã đặt
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-6 flex items-center justify-end">
         <Button variant="outline" className="rounded-full bg-transparent">
           <SlidersHorizontal className="mr-2 size-4" />
           Filters

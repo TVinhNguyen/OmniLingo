@@ -65,10 +65,13 @@ func main() {
 	}
 	defer pub.Close()
 
-	profileRepo := repository.NewProfileRepository(db)
-	pathRepo    := repository.NewPathRepository(db)
-	attemptRepo := repository.NewAttemptRepository(db)
-	svc         := service.NewLearningService(profileRepo, pathRepo, attemptRepo, pub, log)
+	// Outbox repo: used by service for durable event inserts + by relay worker
+	outboxRepo     := messaging.NewOutboxRepository(db)
+	profileRepo    := repository.NewProfileRepository(db)
+	pathRepo       := repository.NewPathRepository(db)
+	attemptRepo    := repository.NewAttemptRepository(db)
+	onboardingRepo := repository.NewOnboardingRepository(db)
+	svc            := service.NewLearningService(profileRepo, pathRepo, attemptRepo, onboardingRepo, pub, outboxRepo, log)
 	h           := handler.New(svc, log)
 
 	// Init JWKS-backed JWT verifier
@@ -118,6 +121,15 @@ func main() {
 		return nil
 	})
 
+	// T9: Outbox relay worker
+	outboxCtx, outboxCancel := context.WithCancel(context.Background())
+	defer outboxCancel()
+	if cfg.KafkaEnabled {
+		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		go outboxWorker.Run(outboxCtx)
+		log.Info("outbox relay started")
+	}
+
 	protected := app.Group("", auth.Handler())
 	h.Register(protected)
 
@@ -131,6 +143,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 	log.Info("shutting down gracefully")
+	outboxCancel()
 	_ = app.Shutdown()
 }
 
