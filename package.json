@@ -1,0 +1,9 @@
+{
+  "name": "omnilingo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "gen:openapi": "sh scripts/gen-openapi.sh",
+    "check:openapi": "sh scripts/validate-openapi.sh && pnpm gen:openapi && git diff --exit-code -- services/web-bff/src/generated"
+  }
+}

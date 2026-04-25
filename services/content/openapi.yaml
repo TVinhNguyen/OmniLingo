@@ -1,0 +1,465 @@
+openapi: 3.1.0
+info:
+  title: OmniLingo Content Service API
+  version: 1.0.0
+  description: Content catalog API for languages, tracks, courses, units, lessons, exercises, and local seed data.
+servers:
+  - url: http://localhost:3003
+    description: Local development
+  - url: https://staging-api.omnilingo.com/content
+    description: Staging
+tags:
+  - name: infrastructure
+  - name: content
+  - name: admin
+paths:
+  /healthz:
+    get:
+      tags: [infrastructure]
+      operationId: getHealth
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/HealthResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /readyz:
+    get:
+      tags: [infrastructure]
+      operationId: getReady
+      responses:
+        "200": { description: Ready, content: { application/json: { schema: { $ref: "#/components/schemas/ReadyResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "503": { description: Not ready, content: { application/json: { schema: { $ref: "#/components/schemas/ReadyResponse" } } } }
+  /metrics:
+    get:
+      tags: [infrastructure]
+      operationId: getMetrics
+      responses:
+        "200": { description: Prometheus exposition format, content: { text/plain: { schema: { type: string } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/languages:
+    get:
+      tags: [content]
+      operationId: listLanguages
+      responses:
+        "200": { description: Active languages, content: { application/json: { schema: { type: object, required: [languages], properties: { languages: { type: array, items: { $ref: "#/components/schemas/Language" } } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/tracks:
+    get:
+      tags: [content]
+      operationId: listTracks
+      parameters:
+        - in: query
+          name: language
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 5 }
+      responses:
+        "200": { description: Tracks by language, content: { application/json: { schema: { type: object, required: [tracks], properties: { tracks: { type: array, items: { $ref: "#/components/schemas/Track" } } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/courses/{id}:
+    get:
+      tags: [content]
+      operationId: getCourse
+      parameters: [{ $ref: "#/components/parameters/StringId" }]
+      responses:
+        "200": { description: Course, content: { application/json: { schema: { type: object, required: [course], properties: { course: { $ref: "#/components/schemas/Course" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/courses:
+    post:
+      tags: [content]
+      operationId: createCourse
+      security: [{ bearerJwt: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateCourseRequest" } } } }
+      responses:
+        "201": { description: Course created, content: { application/json: { schema: { type: object, required: [course], properties: { course: { $ref: "#/components/schemas/Course" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/units/{id}:
+    get:
+      tags: [content]
+      operationId: getUnit
+      parameters: [{ $ref: "#/components/parameters/StringId" }]
+      responses:
+        "200": { description: Unit, content: { application/json: { schema: { type: object, required: [unit], properties: { unit: { $ref: "#/components/schemas/Unit" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/units:
+    post:
+      tags: [content]
+      operationId: createUnit
+      security: [{ bearerJwt: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateUnitRequest" } } } }
+      responses:
+        "201": { description: Unit created, content: { application/json: { schema: { type: object, required: [unit], properties: { unit: { $ref: "#/components/schemas/Unit" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/lessons/{id}:
+    get:
+      tags: [content]
+      operationId: getLesson
+      parameters:
+        - $ref: "#/components/parameters/StringId"
+        - in: query
+          name: version
+          schema: { type: integer }
+      responses:
+        "200": { description: Lesson, content: { application/json: { schema: { type: object, required: [lesson], properties: { lesson: { $ref: "#/components/schemas/Lesson" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    patch:
+      tags: [content]
+      operationId: updateLesson
+      security: [{ bearerJwt: [] }]
+      parameters: [{ $ref: "#/components/parameters/StringId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateLessonRequest" } } } }
+      responses:
+        "200": { description: Lesson updated, content: { application/json: { schema: { type: object, required: [lesson], properties: { lesson: { $ref: "#/components/schemas/Lesson" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    delete:
+      tags: [content]
+      operationId: archiveLesson
+      security: [{ bearerJwt: [] }]
+      parameters: [{ $ref: "#/components/parameters/StringId" }]
+      responses:
+        "204": { description: Lesson archived }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/lessons:
+    get:
+      tags: [content]
+      operationId: listLessonsByUnit
+      parameters:
+        - in: query
+          name: unitId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Lessons, content: { application/json: { schema: { type: object, required: [lessons], properties: { lessons: { type: array, items: { $ref: "#/components/schemas/Lesson" } } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    post:
+      tags: [content]
+      operationId: createLesson
+      security: [{ bearerJwt: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateLessonRequest" } } } }
+      responses:
+        "201": { description: Lesson created, content: { application/json: { schema: { type: object, required: [lesson], properties: { lesson: { $ref: "#/components/schemas/Lesson" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/lessons/{id}/publish:
+    post:
+      tags: [content]
+      operationId: publishLesson
+      security: [{ bearerJwt: [] }]
+      parameters: [{ $ref: "#/components/parameters/StringId" }]
+      requestBody: { required: false, content: { application/json: { schema: { type: ["object", "null"] } } } }
+      responses:
+        "200": { description: Lesson published, content: { application/json: { schema: { type: object, required: [lesson, message], properties: { lesson: { $ref: "#/components/schemas/Lesson" }, message: { type: string } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/exercises/{id}:
+    get:
+      tags: [content]
+      operationId: getExercise
+      parameters: [{ $ref: "#/components/parameters/StringId" }]
+      responses:
+        "200": { description: Exercise, content: { application/json: { schema: { type: object, required: [exercise], properties: { exercise: { $ref: "#/components/schemas/Exercise" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    patch:
+      tags: [content]
+      operationId: updateExercise
+      security: [{ bearerJwt: [] }]
+      parameters: [{ $ref: "#/components/parameters/StringId" }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/UpdateExerciseRequest" } } } }
+      responses:
+        "200": { description: Exercise updated, content: { application/json: { schema: { type: object, required: [exercise], properties: { exercise: { $ref: "#/components/schemas/Exercise" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/content/exercises:
+    get:
+      tags: [content]
+      operationId: listExercises
+      parameters:
+        - in: query
+          name: ids
+          description: Comma-separated ids, max 100.
+          schema:
+            type: string
+        - in: query
+          name: language
+          schema:
+            type: string
+        - in: query
+          name: skill
+          schema:
+            type: string
+        - in: query
+          name: level
+          schema:
+            type: string
+        - in: query
+          name: tags
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200": { description: Exercises, content: { application/json: { schema: { $ref: "#/components/schemas/ExercisesResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    post:
+      tags: [content]
+      operationId: createExercise
+      security: [{ bearerJwt: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CreateExerciseRequest" } } } }
+      responses:
+        "201": { description: Exercise created, content: { application/json: { schema: { type: object, required: [exercise], properties: { exercise: { $ref: "#/components/schemas/Exercise" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /admin/seed:
+    post:
+      tags: [admin]
+      operationId: seedLocalContent
+      requestBody: { required: false, content: { application/json: { schema: { type: ["object", "null"] } } } }
+      responses:
+        "200": { description: Seed data inserted, content: { application/json: { schema: { $ref: "#/components/schemas/SeedResponse" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+components:
+  securitySchemes:
+    bearerJwt: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    StringId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    BadRequest: { description: Bad request, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    Unauthorized: { description: Unauthorized, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    NotFound: { description: Not found, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+    InternalError: { description: Internal server error, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } } }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties: { error: { type: string }, message: { type: string } }
+    HealthResponse:
+      type: object
+      required: [status, service, version]
+      properties: { status: { type: string }, service: { type: string }, version: { type: string } }
+    ReadyResponse:
+      type: object
+      required: [status, checks]
+      properties: { status: { type: string }, checks: { type: object, additionalProperties: { type: string } } }
+    LocaleText:
+      type: object
+      additionalProperties: { type: string }
+    Language:
+      type: object
+      required: [code, name, flagEmoji, isActive]
+      properties:
+        code: { type: string }
+        name: { $ref: "#/components/schemas/LocaleText" }
+        flagEmoji: { type: string }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Track:
+      type: object
+      required: [id, language, type, name, levelRange, order, isActive]
+      properties:
+        id: { type: string }
+        language: { type: string }
+        type: { type: string, enum: [general, test_prep] }
+        name: { $ref: "#/components/schemas/LocaleText" }
+        cert: { type: string }
+        levelRange: { type: array, items: { type: string } }
+        order: { type: integer }
+        isActive: { type: boolean }
+    Course:
+      type: object
+      required: [id, trackId, language, level, title, description, order, unitIds, status, createdBy, updatedBy]
+      properties:
+        id: { type: string }
+        trackId: { type: string }
+        language: { type: string }
+        level: { type: string }
+        title: { $ref: "#/components/schemas/LocaleText" }
+        description: { $ref: "#/components/schemas/LocaleText" }
+        thumbnailUrl: { type: string, format: uri }
+        order: { type: integer }
+        unitIds: { type: array, items: { type: string } }
+        status: { type: string, enum: [draft, published, archived] }
+        publishedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        updatedBy: { type: string }
+    Unit:
+      type: object
+      required: [id, courseId, title, order, lessonIds, createdBy, updatedBy]
+      properties:
+        id: { type: string }
+        courseId: { type: string }
+        title: { $ref: "#/components/schemas/LocaleText" }
+        description: { $ref: "#/components/schemas/LocaleText" }
+        order: { type: integer }
+        lessonIds: { type: array, items: { type: string } }
+        createdBy: { type: string }
+        updatedBy: { type: string }
+    LessonBlock:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [explanation, vocab_intro, exercise, dictation, video, reading] }
+        content: { $ref: "#/components/schemas/LocaleText" }
+        words: { type: array, items: { type: string } }
+        exerciseId: { type: string }
+        audioRef: { type: string }
+        sentences: { type: array, items: { type: object, properties: { text: { type: string }, startMs: { type: number }, endMs: { type: number } } } }
+        videoRef: { type: string }
+        transcript: { type: string }
+        passageRef: { type: string }
+    Lesson:
+      type: object
+      required: [id, version, language, track, level, unitId, title, objective, estimatedMinutes, blocks, status, createdBy, updatedBy]
+      properties:
+        id: { type: string }
+        version: { type: integer }
+        language: { type: string }
+        track: { type: string }
+        level: { type: string }
+        unitId: { type: string }
+        title: { $ref: "#/components/schemas/LocaleText" }
+        objective: { $ref: "#/components/schemas/LocaleText" }
+        estimatedMinutes: { type: integer }
+        blocks: { type: array, items: { $ref: "#/components/schemas/LessonBlock" } }
+        thumbnailUrl: { type: string, format: uri }
+        status: { type: string, enum: [draft, published, archived] }
+        publishedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        updatedBy: { type: string }
+    Exercise:
+      type: object
+      required: [id, type, language, level, skill, prompt, explanation, tags, difficulty, createdBy, updatedBy]
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [multiple_choice, dictation, speaking_prompt, fill_in_blank, sentence_arrange, matching, translation] }
+        language: { type: string }
+        level: { type: string }
+        skill: { type: string, enum: [vocabulary, grammar, listening, speaking, reading, writing] }
+        prompt: { type: object, properties: { text: { $ref: "#/components/schemas/LocaleText" }, audioRef: { type: string } } }
+        choices: { type: array, items: { type: string } }
+        answer: {}
+        referenceText: { type: string }
+        lengthSeconds: { type: number }
+        durationSeconds: { type: number }
+        rubricCode: { type: string }
+        pairs: { type: array, items: { type: object, properties: { left: { type: string }, right: { type: string } } } }
+        explanation: { $ref: "#/components/schemas/LocaleText" }
+        tags: { type: array, items: { type: string } }
+        difficulty: { type: number, minimum: 0, maximum: 1 }
+        createdBy: { type: string }
+        updatedBy: { type: string }
+    CreateCourseRequest:
+      type: object
+      required: [id, trackId, language, level, title]
+      properties:
+        id: { type: string, minLength: 3 }
+        trackId: { type: string, minLength: 3 }
+        language: { type: string, minLength: 2, maxLength: 5 }
+        level: { type: string }
+        title: { $ref: "#/components/schemas/LocaleText" }
+        description: { $ref: "#/components/schemas/LocaleText" }
+        thumbnailUrl: { type: string, format: uri }
+        order: { type: integer }
+    CreateUnitRequest:
+      type: object
+      required: [id, courseId, title]
+      properties:
+        id: { type: string, minLength: 3 }
+        courseId: { type: string, minLength: 3 }
+        title: { $ref: "#/components/schemas/LocaleText" }
+        description: { $ref: "#/components/schemas/LocaleText" }
+        order: { type: integer }
+    CreateLessonRequest:
+      type: object
+      required: [language, track, level, unitId, title]
+      properties:
+        language: { type: string }
+        track: { type: string }
+        level: { type: string }
+        unitId: { type: string }
+        title: { $ref: "#/components/schemas/LocaleText" }
+        objective: { $ref: "#/components/schemas/LocaleText" }
+        estimatedMinutes: { type: integer, minimum: 1, maximum: 120 }
+        blocks: { type: array, items: { $ref: "#/components/schemas/LessonBlock" } }
+        thumbnailUrl: { type: string, format: uri }
+    UpdateLessonRequest:
+      type: object
+      properties:
+        title: { $ref: "#/components/schemas/LocaleText" }
+        objective: { $ref: "#/components/schemas/LocaleText" }
+        estimatedMinutes: { type: integer, minimum: 1, maximum: 120 }
+        blocks: { type: array, items: { $ref: "#/components/schemas/LessonBlock" } }
+        thumbnailUrl: { type: string, format: uri }
+    CreateExerciseRequest:
+      allOf:
+        - $ref: "#/components/schemas/Exercise"
+      description: id, createdBy, and updatedBy are generated by the service.
+    UpdateExerciseRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        type: { type: string }
+        language: { type: string }
+        level: { type: string }
+        skill: { type: string }
+        prompt: { type: object }
+        choices: { type: array, items: { type: string } }
+        answer: {}
+        tags: { type: array, items: { type: string } }
+    ExercisesResponse:
+      type: object
+      required: [exercises]
+      properties:
+        exercises: { type: array, items: { $ref: "#/components/schemas/Exercise" } }
+        total: { type: integer }
+    SeedResponse:
+      type: object
+      required: [message, counts]
+      properties:
+        message: { type: string }
+        counts: { type: object, additionalProperties: { type: integer } }
