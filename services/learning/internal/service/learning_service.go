@@ -225,9 +225,13 @@ func (s *learningService) GetTodayMission(ctx context.Context, userID uuid.UUID)
 		if !completedLessonIDs[l.ID] {
 			copiedID := l.ID
 			mission.LessonID = &copiedID
-			// Resolve title intelligently
-			title := l.Title["en"]
-			if t, ok := l.Title["vi"]; ok { title = t }
+			// Resolve title using user's primary language, fallback to "en"
+			lang := "en"
+			if profile, perr := s.profileRepo.Get(ctx, userID); perr == nil && profile.PrimaryLanguage != "" {
+				lang = profile.PrimaryLanguage
+			}
+			title := l.Title[lang]
+			if title == "" { title = l.Title["en"] }
 			mission.LessonTitle = &title
 			break
 		}
