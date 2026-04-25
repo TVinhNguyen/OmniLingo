@@ -12,9 +12,11 @@ import (
 )
 
 const (
-	TopicXPAwarded      = "progress.xp.awarded"
-	TopicStreakBroken   = "progress.streak.broken"
-	TopicStreakUpdated  = "progress.streak.updated"
+	// gamification-publisher publishes these topics (consumers downstream should read them)
+	TopicXPAwardedOut     = "gamification.xp.awarded"    // published by this service
+	TopicStreakUpdatedOut = "gamification.streak.updated" // published by this service
+
+	// upstream events this service consumes
 	TopicLessonCompleted = "learning.lesson.completed"
 )
 
@@ -43,7 +45,7 @@ type GamificationConsumer struct {
 }
 
 func NewGamificationConsumer(brokers []string, groupID string, svc service.GamificationService, log *zap.Logger) *GamificationConsumer {
-	topics := []string{TopicXPAwarded, TopicStreakBroken, TopicLessonCompleted}
+	topics := []string{TopicLessonCompleted}
 	readers := make([]*kafka.Reader, len(topics))
 	for i, t := range topics {
 		readers[i] = kafka.NewReader(kafka.ReaderConfig{
@@ -98,25 +100,6 @@ func (c *GamificationConsumer) dispatch(ctx context.Context, msg kafka.Message) 
 			return fmt.Errorf("decode lesson.completed: %w", err)
 		}
 		return c.svc.HandleLessonCompleted(ctx, &ev)
-
-	case TopicXPAwarded:
-		// Map XP awarded events to exercise graded events with synthetic data
-		var ev XPAwardedEvent
-		if err := json.Unmarshal(msg.Value, &ev); err != nil {
-			return fmt.Errorf("decode xp.awarded: %w", err)
-		}
-		return c.svc.HandleExerciseGraded(ctx, &domain.ExerciseGradedEvent{
-			EventID:  ev.EventID,
-			UserID:   ev.UserID,
-			Score:    float64(ev.XP),
-			MaxScore: float64(ev.XP), // perfect score to trigger leaderboard update
-			Language: ev.Language,
-		})
-
-	case TopicStreakBroken:
-		// Streak broken — no gamification action needed currently
-		c.log.Debug("streak broken event received", zap.String("raw", string(msg.Value)))
-		return nil
 
 	default:
 		c.log.Warn("unknown topic", zap.String("topic", msg.Topic))

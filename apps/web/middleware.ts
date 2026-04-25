@@ -21,6 +21,7 @@ const PROTECTED_PATHS = [
   "/leaderboard",
   "/notifications",
   "/messages",
+  "/onboarding",
 ];
 
 // Auth routes — redirect to dashboard if already logged in

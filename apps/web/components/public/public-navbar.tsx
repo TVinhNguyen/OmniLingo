@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "motion/react"
-import { Menu, X, Languages } from "lucide-react"
+import { Menu, X, Languages, Sun, Moon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { ThemeToggle } from "@/components/theme-toggle"
 
 const navLinks = [
   { href: "/courses", label: "Khóa học" },
@@ -19,13 +18,29 @@ const navLinks = [
 export function PublicNavbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const onScroll = () => setScrolled(window.scrollY > 10)
     onScroll()
     window.addEventListener("scroll", onScroll)
+    
+    // Check dark mode from localStorage
+    const isDarkMode = localStorage.getItem("theme") === "dark" || 
+      (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    setIsDark(isDarkMode)
+    
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
+
+  const toggleTheme = () => {
+    const newTheme = isDark ? "light" : "dark"
+    setIsDark(!isDark)
+    localStorage.setItem("theme", newTheme)
+    document.documentElement.classList.toggle("dark")
+  }
 
   return (
     <motion.header
@@ -62,7 +77,17 @@ export function PublicNavbar() {
           </nav>
 
           <div className="hidden items-center gap-2 md:flex">
-            <ThemeToggle />
+            {mounted && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="rounded-full h-9 w-9"
+                title="Toggle dark mode"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+            )}
             <Button asChild variant="ghost" size="sm" className="rounded-full">
               <Link href="/sign-in">Đăng nhập</Link>
             </Button>
@@ -102,7 +127,6 @@ export function PublicNavbar() {
                 </Link>
               ))}
               <div className="mt-2 flex gap-2 pt-2">
-                <ThemeToggle className="mr-auto" />
                 <Button asChild variant="ghost" size="sm" className="flex-1 rounded-full">
                   <Link href="/sign-in">Đăng nhập</Link>
                 </Button>

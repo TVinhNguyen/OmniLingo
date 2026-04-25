@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 CREATE TABLE srs_states (
     user_id         UUID        NOT NULL,
     item_kind       TEXT        NOT NULL,
@@ -31,3 +33,10 @@ CREATE TABLE srs_reviews (
 
 CREATE INDEX ix_srs_reviews_user ON srs_reviews (user_id, reviewed_at DESC);
 CREATE INDEX ix_srs_reviews_item ON srs_reviews (user_id, item_kind, item_id);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS srs_reviews;
+DROP TABLE IF EXISTS srs_states;
+-- +goose StatementEnd

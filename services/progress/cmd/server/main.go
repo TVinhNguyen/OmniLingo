@@ -59,9 +59,10 @@ func main() {
 	}
 	log.Info("postgres connected and migrated")
 
-	scoreRepo := repository.NewSkillScoreRepository(db)
-	predRepo  := repository.NewCertPredictionRepository(db)
-	svc       := service.NewProgressService(scoreRepo, predRepo, log)
+	scoreRepo    := repository.NewSkillScoreRepository(db)
+	predRepo     := repository.NewCertPredictionRepository(db)
+	activityRepo := repository.NewActivityDailyRepository(db)
+	svc          := service.NewProgressService(scoreRepo, predRepo, activityRepo, log)
 	h         := handler.NewProgressHandler(svc, log)
 
 

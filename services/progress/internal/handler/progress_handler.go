@@ -33,6 +33,9 @@ func (h *ProgressHandler) Register(router fiber.Router) {
 
 	// GET /api/v1/progress/predicted-score?cert=ielts
 	v1.Get("/predicted-score", h.GetPredictedScore)
+
+	// GET /api/v1/progress/activity-heatmap?days=365
+	v1.Get("/activity-heatmap", h.GetActivityHeatmap)
 }
 
 // GetOverview — GET /api/v1/progress/overview?language=ja
@@ -97,6 +100,17 @@ func (h *ProgressHandler) GetPredictedScore(c *fiber.Ctx) error {
 		return handleError(c, err)
 	}
 	return c.JSON(fiber.Map{"prediction": pred})
+}
+
+// GetActivityHeatmap — GET /api/v1/progress/activity-heatmap?days=365
+func (h *ProgressHandler) GetActivityHeatmap(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uuid.UUID)
+	days, _ := strconv.Atoi(c.Query("days", "365"))
+	data, err := h.svc.GetActivityHeatmap(c.Context(), userID, days)
+	if err != nil {
+		return handleError(c, err)
+	}
+	return c.JSON(fiber.Map{"heatmap": data})
 }
 
 func handleError(c *fiber.Ctx, err error) error {

@@ -41,34 +41,47 @@ func NewProfileRepository(db *pgxpool.Pool) ProfileRepository { return &profileR
 
 func (r *profileRepo) Get(ctx context.Context, userID uuid.UUID) (*domain.LearningProfile, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT user_id, primary_language, secondary_languages, starting_level, goals, preferences, created_at, updated_at
+		SELECT user_id, primary_language, secondary_languages, starting_level,
+		       goals, preferences, daily_goal_minutes, reminder_time, learning_languages,
+		       created_at, updated_at
 		FROM user_learning_profiles WHERE user_id=$1`, userID)
 	p := &domain.LearningProfile{}
 	var goalsJSON, prefsJSON []byte
 	if err := row.Scan(&p.UserID, &p.PrimaryLanguage, &p.SecondaryLanguages,
-		&p.StartingLevel, &goalsJSON, &prefsJSON, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		&p.StartingLevel, &goalsJSON, &prefsJSON,
+		&p.DailyGoalMinutes, &p.ReminderTime, &p.LearningLanguages,
+		&p.CreatedAt, &p.UpdatedAt); err != nil {
 		return nil, domain.ErrNotFound
 	}
 	_ = json.Unmarshal(goalsJSON, &p.Goals)
 	_ = json.Unmarshal(prefsJSON, &p.Preferences)
+	if p.LearningLanguages == nil { p.LearningLanguages = []string{} }
 	return p, nil
 }
 
 func (r *profileRepo) Upsert(ctx context.Context, p *domain.LearningProfile) error {
 	goalsJSON, _ := json.Marshal(p.Goals)
 	prefsJSON, _ := json.Marshal(p.Preferences)
+	if p.LearningLanguages == nil { p.LearningLanguages = []string{} }
 	now := time.Now().UTC()
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO user_learning_profiles
-			(user_id, primary_language, secondary_languages, starting_level, goals, preferences, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$7)
+			(user_id, primary_language, secondary_languages, starting_level,
+			 goals, preferences, daily_goal_minutes, reminder_time, learning_languages,
+			 created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
 		ON CONFLICT (user_id) DO UPDATE SET
 			primary_language=EXCLUDED.primary_language,
 			secondary_languages=EXCLUDED.secondary_languages,
 			starting_level=EXCLUDED.starting_level,
-			goals=EXCLUDED.goals, preferences=EXCLUDED.preferences, updated_at=EXCLUDED.updated_at`,
+			goals=EXCLUDED.goals,
+			preferences=EXCLUDED.preferences,
+			daily_goal_minutes=EXCLUDED.daily_goal_minutes,
+			reminder_time=EXCLUDED.reminder_time,
+			learning_languages=EXCLUDED.learning_languages,
+			updated_at=EXCLUDED.updated_at`,
 		p.UserID, p.PrimaryLanguage, p.SecondaryLanguages, p.StartingLevel,
-		goalsJSON, prefsJSON, now)
+		goalsJSON, prefsJSON, p.DailyGoalMinutes, p.ReminderTime, p.LearningLanguages, now)
 	return err
 }
 

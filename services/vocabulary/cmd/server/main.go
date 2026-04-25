@@ -68,12 +68,15 @@ func main() {
 	deckRepo := repository.NewDeckRepository(db, rdb, log)
 	cardRepo := repository.NewCardRepository(db, rdb, log)
 
+	// ─── Outbox Repository (shared by services + relay worker) ────────────────
+	outboxRepo := messaging.NewOutboxRepository(db)
+
 	// ─── Services ─────────────────────────────────────────────────────────────
 	wordSvc := service.NewWordService(wordRepo, log)
-	deckSvc := service.NewDeckService(deckRepo, cardRepo, wordRepo, pub, log)
+	deckSvc := service.NewDeckService(deckRepo, cardRepo, wordRepo, pub, outboxRepo, log)
 
 	// ─── Anki Importer ────────────────────────────────────────────────────────
-	ankiImporter := anki.NewImporter(wordRepo, cardRepo, deckRepo, pub, log)
+	ankiImporter := anki.NewImporter(wordRepo, cardRepo, deckRepo, pub, outboxRepo, log)
 
 	// ─── Handlers ─────────────────────────────────────────────────────────────
 	wordH := handler.NewWordHandler(wordSvc, log)
@@ -121,6 +124,14 @@ func main() {
 	deckH.RegisterRoutes(protected)
 	ankiH.RegisterRoutes(protected)
 
+	// T9: Outbox relay worker
+	outboxCtx, outboxCancel := context.WithCancel(context.Background())
+	if cfg.KafkaEnabled {
+		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		go outboxWorker.Run(outboxCtx)
+		log.Info("outbox relay started")
+	}
+
 	// ─── Graceful shutdown ────────────────────────────────────────────────────
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -128,6 +139,7 @@ func main() {
 	go func() {
 		<-quit
 		log.Info("shutting down vocabulary-service...")
+		outboxCancel()
 		shutCtx, cancelShut := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelShut()
 		_ = app.ShutdownWithContext(shutCtx)
