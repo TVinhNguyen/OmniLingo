@@ -28,19 +28,20 @@ export async function createCheckoutSessionAction(
   const successUrl = `${origin}/checkout/success`
   const cancelUrl  = `${origin}/checkout/cancel`
 
+  let checkoutUrl: string | undefined
   try {
     const res = await gql<{ createCheckoutSession: CheckoutSessionResult }>(
       CREATE_CHECKOUT_SESSION_MUTATION,
       { planId, period, provider, successUrl, cancelUrl },
       token,
     )
-    const checkoutUrl = res?.createCheckoutSession?.checkoutUrl
-    if (!checkoutUrl) return { error: "Không nhận được URL thanh toán" }
-    redirect(checkoutUrl)
+    checkoutUrl = res?.createCheckoutSession?.checkoutUrl
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Lỗi tạo phiên thanh toán"
     return { error: msg }
   }
+  if (!checkoutUrl) return { error: "Không nhận được URL thanh toán" }
+  redirect(checkoutUrl)
 }
 
 export async function cancelSubscriptionAction(reason?: string) {
