@@ -39,7 +39,8 @@ export async function createTestUser(request: APIRequestContext): Promise<TestUs
     data: {
       email: user.email,
       password: user.password,
-      name: user.name,
+      display_name: user.name,
+      ui_language: 'en',
     },
   });
 
