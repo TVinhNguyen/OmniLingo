@@ -351,6 +351,19 @@ export interface components {
             meanings: components["schemas"]["CreateMeaningRequest"][];
             examples: components["schemas"]["CreateExampleRequest"][];
         };
+        UpdateWordRequest: {
+            language?: string;
+            lemma?: string;
+            pos?: string;
+            ipa?: string;
+            frequency_rank?: number;
+            level?: string;
+            extra?: {
+                [key: string]: unknown;
+            };
+            meanings?: components["schemas"]["CreateMeaningRequest"][];
+            examples?: components["schemas"]["CreateExampleRequest"][];
+        };
         AnkiImportResponse: {
             message: string;
             /** Format: uuid */
@@ -580,7 +593,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateWordRequest"];
+                "application/json": components["schemas"]["UpdateWordRequest"];
             };
         };
         responses: {
