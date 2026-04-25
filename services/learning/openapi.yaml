@@ -232,15 +232,9 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
     LearningProfileInput:
-      type: object
-      required: [primary_language, secondary_languages, goals, preferences]
-      properties:
-        primary_language: { type: string }
-        secondary_languages: { type: array, items: { type: string } }
-        starting_level: { type: string }
-        goals: { type: array, items: { $ref: "#/components/schemas/Goal" } }
-        preferences: { $ref: "#/components/schemas/Prefs" }
-      description: user_id, created_at, and updated_at are managed by the server.
+      allOf:
+        - $ref: "#/components/schemas/LearningProfile"
+      description: user_id is ignored and replaced by the authenticated user id.
     SetGoalsRequest:
       type: object
       required: [goals]
