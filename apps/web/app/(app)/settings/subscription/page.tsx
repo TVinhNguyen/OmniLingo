@@ -1,27 +1,24 @@
 /**
- * Subscription settings RSC — loads real subscription + invoice data from BFF.
- * Falls back to empty state when billing-service unavailable.
+ * Subscription settings RSC — loads real subscription data from BFF.
+ * Invoice history is rendered on /settings/billing (D3 split).
  */
 import { redirect } from "next/navigation"
 import { gql } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/auth/session"
-import { MY_SUBSCRIPTION_QUERY, BILLING_HISTORY_QUERY } from "@/lib/api/queries"
-import type { BillingSubscription, InvoicePage } from "@/lib/api/types"
+import { MY_SUBSCRIPTION_QUERY } from "@/lib/api/queries"
+import type { BillingSubscription } from "@/lib/api/types"
 import SubscriptionClient from "./subscription-client"
 
 export default async function SubscriptionPage() {
   const token = await getAccessToken()
   if (!token) redirect("/sign-in")
 
-  let subscription: BillingSubscription | null = null
-  let invoicePage: InvoicePage = { items: [], nextCursor: null }
+  const subRes = await gql<{ mySubscription: BillingSubscription | null }>(
+    MY_SUBSCRIPTION_QUERY,
+    {},
+    token,
+  ).catch(() => null)
+  const subscription = subRes?.mySubscription ?? null
 
-  const [subRes, invRes] = await Promise.allSettled([
-    gql<{ mySubscription: BillingSubscription | null }>(MY_SUBSCRIPTION_QUERY, {}, token),
-    gql<{ billingHistory: InvoicePage }>(BILLING_HISTORY_QUERY, { limit: 10 }, token),
-  ])
-  if (subRes.status === "fulfilled") subscription = subRes.value?.mySubscription ?? null
-  if (invRes.status === "fulfilled" && invRes.value?.billingHistory) invoicePage = invRes.value.billingHistory
-
-  return <SubscriptionClient subscription={subscription} invoices={invoicePage.items} />
+  return <SubscriptionClient subscription={subscription} />
 }
