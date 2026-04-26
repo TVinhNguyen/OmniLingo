@@ -395,7 +395,7 @@ jobs:
       - changes
       - frontend
       - node-services
-    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' && vars.E2E_CI_ENABLED == 'true' }}
+    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -453,6 +453,8 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           KAFKA_ENABLED: "false"
           HIBP_ENABLED: "false"
+          RATE_REGISTER_MAX_PER_IP: "1000"
+          RATE_LOGIN_MAX_PER_IP: "1000"
 
       - name: Install web app dependencies and build
         run: |
@@ -472,7 +474,6 @@ jobs:
         working-directory: apps/web
 
       - name: Run E2E tests (Chromium only in CI)
-        continue-on-error: true
         env:
           BASE_URL: http://localhost:3000
           IDENTITY_SERVICE_URL: http://localhost:3001
