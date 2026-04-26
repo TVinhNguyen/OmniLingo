@@ -28,12 +28,7 @@ export function buildTestUser(): TestUser {
  * Returns the user details including a one-time password.
  */
 export async function createTestUser(request: APIRequestContext): Promise<TestUser> {
-  const suffix = uuidv4().split('-')[0];
-  const user: TestUser = {
-    email: `e2e-${suffix}@omnilingo-test.local`,
-    password: `TestPass_${suffix}!2`,
-    name: `E2E User ${suffix}`,
-  };
+  const user = buildTestUser();
 
   const resp = await request.post(`${IDENTITY_URL}/api/v1/auth/register`, {
     data: {

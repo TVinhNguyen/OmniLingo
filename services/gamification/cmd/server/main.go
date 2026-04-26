@@ -74,15 +74,17 @@ func main() {
 		log.Info("redis connected")
 	}
 	defer func() {
-		if rdb != nil { _ = rdb.Close() }
+		if rdb != nil {
+			_ = rdb.Close()
+		}
 	}()
 
 	// Deps
-	xpRepo  := repository.NewXPRepository(db)
+	xpRepo := repository.NewXPRepository(db)
 	strRepo := repository.NewStreakRepository(db)
 	achRepo := repository.NewAchievementRepository(db)
-	svc     := service.NewGamificationService(xpRepo, strRepo, achRepo, rdb, log)
-	h       := handler.NewGamificationHandler(svc, log)
+	svc := service.NewGamificationService(xpRepo, strRepo, achRepo, rdb, log)
+	h := handler.NewGamificationHandler(svc, log)
 
 	// Init JWKS-backed JWT verifier (RS256, cache 1h)
 	jwksURL := cfg.IdentityServiceURL + "/.well-known/jwks.json"
@@ -102,7 +104,7 @@ func main() {
 		defer consumer.Stop()
 
 		// T9: Outbox relay
-		outboxRepo   := messaging.NewOutboxRepository(db)
+		outboxRepo := messaging.NewOutboxRepository(db)
 		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
 		go outboxWorker.Run(appCtx)
 
@@ -115,9 +117,15 @@ func main() {
 		BodyLimit:    64 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok { code = e.Code }
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
 			var msg string
-			if cfg.Env != "production" { msg = err.Error() } else { msg = "an internal error occurred" }
+			if cfg.Env != "production" || code < fiber.StatusInternalServerError {
+				msg = err.Error()
+			} else {
+				msg = "an internal error occurred"
+			}
 			return c.Status(code).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": msg})
 		},
 	})
@@ -141,13 +149,25 @@ func main() {
 	app.Get("/readyz", func(c *fiber.Ctx) error {
 		pgOk := db.Ping(context.Background()) == nil
 		status := 200
-		if !pgOk { status = 503 }
+		if !pgOk {
+			status = 503
+		}
 		redisOk := rdb != nil && rdb.Ping(context.Background()).Err() == nil
 		return c.Status(status).JSON(fiber.Map{
-			"ready":  pgOk,
+			"ready": pgOk,
 			"checks": fiber.Map{
-				"postgres": func() string { if pgOk { return "ok" }; return "error" }(),
-				"redis":    func() string { if redisOk { return "ok" }; return "unavailable" }(),
+				"postgres": func() string {
+					if pgOk {
+						return "ok"
+					}
+					return "error"
+				}(),
+				"redis": func() string {
+					if redisOk {
+						return "ok"
+					}
+					return "unavailable"
+				}(),
 			},
 		})
 	})
