@@ -2,6 +2,7 @@ import { gql } from "@/lib/api/client"
 import { getAccessToken } from "@/lib/auth/session"
 import {
   ME_QUERY,
+  MY_LEARNING_PROFILE_QUERY,
   MY_PROGRESS_QUERY,
   WEEKLY_PROGRESS_QUERY,
   MY_STREAK_QUERY,
@@ -17,6 +18,7 @@ import type {
   CertPrediction,
   ActivityDay,
   User,
+  LearningProfile,
 } from "@/lib/api/types"
 import { ProgressClient } from "./progress-client"
 import { ActivityHeatmap } from "@/components/app/activity-heatmap"
@@ -39,16 +41,19 @@ export default async function ProgressPage() {
   // sequentially (one extra round trip) so the second fan-out can be parameterised
   // by the user's primary learning language instead of a hardcoded "en".
   let me: User | null = null
+  let profile: LearningProfile | null = null
   try {
-    const res = await gql<{ me: User }>(ME_QUERY, {}, token ?? undefined)
-    if (res?.me) me = res.me
+    const [meRes, profRes] = await Promise.allSettled([
+      gql<{ me: User }>(ME_QUERY, {}, token ?? undefined),
+      gql<{ myLearningProfile: LearningProfile }>(MY_LEARNING_PROFILE_QUERY, {}, token ?? undefined),
+    ])
+    if (meRes.status === "fulfilled" && meRes.value?.me) me = meRes.value.me
+    if (profRes.status === "fulfilled" && profRes.value?.myLearningProfile) profile = profRes.value.myLearningProfile
   } catch {
     // identity / learning-service unavailable
   }
   const language = me?.learningLanguages?.[0] ?? "en"
-  // TODO: replace hardcoded "ielts" once BE exposes a `certGoal` (LearningProfile is
-  // not in the BFF schema yet — verified in services/web-bff/src/schema/schema.ts).
-  const cert = "ielts"
+  const cert = profile?.certGoal ?? "ielts"
 
   let progress = MOCK_PROGRESS
   let weekly = MOCK_WEEKLY
