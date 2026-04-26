@@ -115,10 +115,6 @@ func (s *deckService) DeleteDeck(ctx context.Context, userID, deckID uuid.UUID) 
 }
 
 func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req domain.AddCardRequest) (*domain.UserCard, error) {
-	if req.WordID == uuid.Nil {
-		return nil, domain.ErrWordIDRequired
-	}
-
 	// Verify deck ownership
 	d, err := s.deckRepo.GetByID(ctx, deckID)
 	if err != nil {
@@ -128,10 +124,19 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 		return nil, domain.ErrDeckNotOwned
 	}
 
-	// Verify word exists
-	word, err := s.wordRepo.GetByID(ctx, req.WordID)
-	if err != nil {
-		return nil, err
+	wordID := req.WordID
+	var word *domain.Word
+	if wordID == uuid.Nil {
+		word, err = s.resolveCardWord(ctx, d.Language, req)
+		if err != nil {
+			return nil, err
+		}
+		wordID = word.ID
+	} else {
+		word, err = s.wordRepo.GetByID(ctx, wordID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	now := time.Now().UTC()
@@ -139,7 +144,7 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 		ID:      uuid.New(),
 		UserID:  userID,
 		DeckID:  deckID,
-		WordID:  req.WordID,
+		WordID:  wordID,
 		AddedAt: now,
 	}
 	if err := s.cardRepo.AddCard(ctx, card); err != nil {
@@ -152,7 +157,7 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 		UserID:    userID,
 		DeckID:    deckID,
 		CardID:    card.ID,
-		WordID:    req.WordID,
+		WordID:    wordID,
 		Language:  word.Language,
 		Level:     word.Level,
 		CreatedAt: now,
@@ -163,6 +168,51 @@ func (s *deckService) AddCard(ctx context.Context, userID, deckID uuid.UUID, req
 
 	card.Word = word
 	return card, nil
+}
+
+func (s *deckService) resolveCardWord(ctx context.Context, language string, req domain.AddCardRequest) (*domain.Word, error) {
+	lemma := strings.TrimSpace(req.Lemma)
+	if lemma == "" {
+		return nil, domain.ErrWordIDRequired
+	}
+	uiLang := strings.TrimSpace(req.UILanguage)
+	if uiLang == "" {
+		uiLang = "vi"
+	}
+
+	if word, err := s.wordRepo.Lookup(ctx, domain.LookupRequest{
+		Language: language,
+		Word:     lemma,
+		UILang:   uiLang,
+	}); err == nil {
+		return word, nil
+	} else if err != domain.ErrWordNotFound {
+		return nil, err
+	}
+
+	meaning := strings.TrimSpace(req.Meaning)
+	word := &domain.Word{
+		ID:            uuid.New(),
+		Language:      language,
+		Lemma:         lemma,
+		Reading:       strings.TrimSpace(req.Reading),
+		POS:           strings.TrimSpace(req.POS),
+		IPA:           strings.TrimSpace(req.IPA),
+		FrequencyRank: 999999,
+		Level:         "",
+		Extra:         map[string]any{},
+	}
+	if meaning != "" {
+		word.Meanings = []domain.WordMeaning{{
+			UILanguage: uiLang,
+			Meaning:    meaning,
+			OrderIdx:   0,
+		}}
+	}
+	if err := s.wordRepo.Create(ctx, word); err != nil {
+		return nil, err
+	}
+	return word, nil
 }
 
 // ListCards returns all cards in a deck (with enriched word data).

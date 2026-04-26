@@ -127,6 +127,24 @@ export const resolvers = {
       return ctx.dataSources.vocabulary.getDeckCards(deckId);
     },
 
+    lookupWord: async (
+      _: unknown,
+      { lang, word, uiLang }: { lang: string; word: string; uiLang?: string },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.vocabulary.lookupWord(lang, word, uiLang ?? "en");
+    },
+
+    searchWords: async (
+      _: unknown,
+      { lang, q, uiLang, limit }: { lang: string; q: string; uiLang?: string; limit?: number },
+      ctx: BffContext,
+    ) => {
+      requireAuth(ctx);
+      return ctx.dataSources.vocabulary.searchWords(lang, q, uiLang ?? "en", limit ?? 10);
+    },
+
     checkFeature: async (_: unknown, { code }: { code: string }, ctx: BffContext) => {
       requireAuth(ctx);
       const result = await ctx.dataSources.entitlement.checkFeature(code);
