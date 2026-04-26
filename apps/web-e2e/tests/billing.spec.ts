@@ -22,8 +22,8 @@ test.describe('Billing', () => {
   test('upgrade to Plus plan (mock flow)', async ({ page, request }) => {
     // Skip if Stripe mock not configured
     test.skip(
-      !process.env.MOCK_STRIPE && !process.env.CI,
-      'Stripe mock not configured — set MOCK_STRIPE=true or run in CI'
+      process.env.MOCK_STRIPE !== 'true',
+      'Stripe mock not configured — set MOCK_STRIPE=true'
     );
 
     const user = await createTestUser(request);

@@ -11,10 +11,10 @@ export interface TestUser {
 const IDENTITY_URL = process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001';
 
 /**
- * Generate unique test user credentials without calling any API.
- * Use this when the test itself will register the user through the UI.
+ * Build a unique test user object without registering via API.
+ * Use this for tests that register through the UI.
  */
-export function generateTestUser(): TestUser {
+export function buildTestUser(): TestUser {
   const suffix = uuidv4().split('-')[0];
   return {
     email: `e2e-${suffix}@omnilingo-test.local`,
@@ -28,13 +28,19 @@ export function generateTestUser(): TestUser {
  * Returns the user details including a one-time password.
  */
 export async function createTestUser(request: APIRequestContext): Promise<TestUser> {
-  const user = generateTestUser();
+  const suffix = uuidv4().split('-')[0];
+  const user: TestUser = {
+    email: `e2e-${suffix}@omnilingo-test.local`,
+    password: `TestPass_${suffix}!2`,
+    name: `E2E User ${suffix}`,
+  };
 
   const resp = await request.post(`${IDENTITY_URL}/api/v1/auth/register`, {
     data: {
       email: user.email,
       password: user.password,
-      name: user.name,
+      display_name: user.name,
+      ui_language: 'en',
     },
   });
 
