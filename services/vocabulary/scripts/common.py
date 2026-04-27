@@ -153,7 +153,7 @@ async def connect():
     return await asyncpg.connect(database_url)
 
 
-async def bulk_insert_words(conn, rows: list[WordRow]) -> dict[tuple[str, str], uuid.UUID]:
+async def bulk_insert_words(conn, rows: list[WordRow]) -> dict[tuple[str, str, str], uuid.UUID]:
     if not rows:
         return {}
     await conn.execute("DROP TABLE IF EXISTS tmp_words_import")
