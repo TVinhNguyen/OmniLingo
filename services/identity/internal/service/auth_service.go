@@ -548,7 +548,7 @@ func (s *authService) ForgotPassword(ctx context.Context, email string) error {
 			zap.String("link", s.cfg.BaseURL+"/reset-password?token="+rawToken),
 		)
 	} else {
-		s.log.Info("password reset token created — notification pending",
+		s.log.Warn("password reset token created — notification-service NOT YET integrated",
 			zap.String("user_id", user.ID.String()))
 	}
 

@@ -9,6 +9,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { SharedArray } from 'k6/data';
+import exec from 'k6/execution';
 
 const BASE_URL = __ENV.IDENTITY_URL || 'http://localhost:3001';
 const TOTAL_USERS = parseInt(__ENV.SEED_COUNT || '1000');
@@ -22,7 +23,7 @@ export const options = {
 };
 
 export default function () {
-  const idx = __ITER + (__VU - 1) * Math.ceil(TOTAL_USERS / 50);
+  const idx = exec.scenario.iterationInTest;
   const user = {
     email: `loadtest-${idx}@omnilingo-perf.local`,
     password: `Perf_Pass_${idx}!`,
