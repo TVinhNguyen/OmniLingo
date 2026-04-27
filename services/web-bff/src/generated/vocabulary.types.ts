@@ -68,6 +68,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vocab/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lookupWord"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vocab/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchWords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vocab/entries/search": {
         parameters: {
             query?: never;
@@ -259,6 +291,7 @@ export interface components {
             id: string;
             language: string;
             lemma: string;
+            reading: string;
             pos: string;
             ipa: string;
             frequency_rank: number;
@@ -266,6 +299,8 @@ export interface components {
             extra: {
                 [key: string]: unknown;
             };
+            source?: string;
+            source_id?: string;
             meanings: components["schemas"]["WordMeaning"][];
             examples: components["schemas"]["WordExample"][];
             /** Format: date-time */
@@ -324,7 +359,14 @@ export interface components {
         };
         AddCardRequest: {
             /** Format: uuid */
-            word_id: string;
+            word_id?: string;
+            lemma?: string;
+            meaning?: string;
+            /** @default vi */
+            ui_language: string;
+            ipa?: string;
+            pos?: string;
+            reading?: string;
         };
         CreateMeaningRequest: {
             ui_language: string;
@@ -341,6 +383,7 @@ export interface components {
         CreateWordRequest: {
             language: string;
             lemma: string;
+            reading?: string;
             pos: string;
             ipa: string;
             frequency_rank: number;
@@ -348,12 +391,15 @@ export interface components {
             extra: {
                 [key: string]: unknown;
             };
+            source?: string;
+            source_id?: string;
             meanings: components["schemas"]["CreateMeaningRequest"][];
             examples: components["schemas"]["CreateExampleRequest"][];
         };
         UpdateWordRequest: {
             language?: string;
             lemma?: string;
+            reading?: string;
             pos?: string;
             ipa?: string;
             frequency_rank?: number;
@@ -361,6 +407,8 @@ export interface components {
             extra?: {
                 [key: string]: unknown;
             };
+            source?: string;
+            source_id?: string;
             meanings?: components["schemas"]["CreateMeaningRequest"][];
             examples?: components["schemas"]["CreateExampleRequest"][];
         };
@@ -523,6 +571,64 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    lookupWord: {
+        parameters: {
+            query: {
+                lang: string;
+                word: string;
+                uiLang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dictionary entry */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        word: components["schemas"]["Word"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    searchWords: {
+        parameters: {
+            query: {
+                lang: string;
+                q: string;
+                uiLang?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dictionary search results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        words: components["schemas"]["Word"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
             500: components["responses"]["InternalError"];
         };
     };
