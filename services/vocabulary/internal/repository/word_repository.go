@@ -91,7 +91,7 @@ func (r *wordRepository) Lookup(ctx context.Context, req domain.LookupRequest) (
 		return nil, domain.ErrSearchQueryEmpty
 	}
 
-	cacheKey := fmt.Sprintf("vocab:lookup:%s:%s:%s", req.Language, req.Word, req.UILang)
+	cacheKey := fmt.Sprintf("vocab:lookup:%s:%s:%s", req.Language, strings.ToLower(req.Word), req.UILang)
 	if cached, err := r.rdb.Get(ctx, cacheKey).Bytes(); err == nil {
 		var w domain.Word
 		if json.Unmarshal(cached, &w) == nil {
@@ -302,17 +302,18 @@ func (r *wordRepository) Update(ctx context.Context, w *domain.Word, oldLemma, o
 	// Invalidate word-by-ID cache
 	r.rdb.Del(ctx, fmt.Sprintf("vocab:word:%s", w.ID)) //nolint:errcheck
 
-	// Invalidate lookup caches for old and new lemma/reading across all UI languages
+	// Invalidate lookup caches for old and new lemma/reading across all UI languages.
+	// Cache keys use lowercase to match the case-insensitive SQL query in Lookup.
 	for _, uiLang := range []string{"en", "vi", "ja", "zh", "ko"} {
-		r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, w.Lemma, uiLang)) //nolint:errcheck
+		r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(w.Lemma), uiLang)) //nolint:errcheck
 		if w.Reading != "" {
-			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, w.Reading, uiLang)) //nolint:errcheck
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(w.Reading), uiLang)) //nolint:errcheck
 		}
-		if oldLemma != "" && oldLemma != w.Lemma {
-			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, oldLemma, uiLang)) //nolint:errcheck
+		if oldLemma != "" && strings.ToLower(oldLemma) != strings.ToLower(w.Lemma) {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(oldLemma), uiLang)) //nolint:errcheck
 		}
-		if oldReading != "" && oldReading != w.Reading {
-			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, oldReading, uiLang)) //nolint:errcheck
+		if oldReading != "" && strings.ToLower(oldReading) != strings.ToLower(w.Reading) {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(oldReading), uiLang)) //nolint:errcheck
 		}
 	}
 	return nil
