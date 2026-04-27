@@ -470,11 +470,16 @@ func (s *authService) SendVerificationEmail(ctx context.Context, userID uuid.UUI
 	}
 
 	// TODO: integrate with notification-service to send email
-	// For now, log the token (dev mode only)
-	s.log.Info("email verification token generated (dev — use in prod: send via notification-service)",
-		zap.String("user_id", userID.String()),
-		zap.String("token", rawToken[:8]+"..."),
-		zap.String("link", s.cfg.BaseURL+"/api/v1/auth/verify-email?token="+rawToken))
+	// G14 Fix: only log the token link in non-production environments
+	if s.cfg.Env != "production" {
+		s.log.Info("email verification token generated (dev — use in prod: send via notification-service)",
+			zap.String("user_id", userID.String()),
+			zap.String("token", rawToken[:8]+"..."),
+			zap.String("link", s.cfg.BaseURL+"/api/v1/auth/verify-email?token="+rawToken))
+	} else {
+		s.log.Warn("email verification token generated — notification-service NOT integrated yet (TODO)",
+			zap.String("user_id", userID.String()))
+	}
 
 	return nil
 }
@@ -536,11 +541,16 @@ func (s *authService) ForgotPassword(ctx context.Context, email string) error {
 	}
 
 	// TODO: integrate notification-service to send email
-	// Dev: log the full link so developers can test the flow
-	s.log.Info("password reset token generated (dev — wire notification-service in prod)",
-		zap.String("user_id", user.ID.String()),
-		zap.String("link", s.cfg.BaseURL+"/reset-password?token="+rawToken),
-	)
+	// G14 Fix: only log the full reset link in non-production environments
+	if s.cfg.Env != "production" {
+		s.log.Info("password reset token generated (dev — wire notification-service in prod)",
+			zap.String("user_id", user.ID.String()),
+			zap.String("link", s.cfg.BaseURL+"/reset-password?token="+rawToken),
+		)
+	} else {
+		s.log.Warn("password reset token created — notification-service NOT integrated yet (TODO)",
+			zap.String("user_id", user.ID.String()))
+	}
 
 	return nil
 }

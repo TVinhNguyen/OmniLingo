@@ -64,8 +64,22 @@ export async function buildApp(cfg: Config) {
   });
 
   // ─── Security headers (Helmet) ────────────────────────────────────────────
+  // G14 Fix: CSP enabled in production, disabled in dev (GraphQL playground needs inline scripts)
   await app.register(helmet, {
-    contentSecurityPolicy: false, // GraphQL playground needs inline scripts in dev
+    contentSecurityPolicy: cfg.env === "production"
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            frameSrc: ["'none'"],
+          },
+        }
+      : false, // Disabled in dev — GraphQL playground needs inline scripts
   });
 
   // ─── CORS — whitelist only ─────────────────────────────────────────────────

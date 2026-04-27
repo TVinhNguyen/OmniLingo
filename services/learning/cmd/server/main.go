@@ -14,8 +14,8 @@ import (
 	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"go.uber.org/zap"
 
-	"github.com/omnilingo/learning-service/internal/config"
 	"github.com/omnilingo/learning-service/internal/client"
+	"github.com/omnilingo/learning-service/internal/config"
 	"github.com/omnilingo/learning-service/internal/handler"
 	"github.com/omnilingo/learning-service/internal/messaging"
 	"github.com/omnilingo/learning-service/internal/metrics"
@@ -50,7 +50,9 @@ func main() {
 	defer cancel()
 
 	db, err := repository.NewPostgres(ctx, cfg.DatabaseURL)
-	if err != nil { log.Fatal("postgres failed", zap.Error(err)) }
+	if err != nil {
+		log.Fatal("postgres failed", zap.Error(err))
+	}
 	defer db.Close()
 
 	if err := repository.RunMigrations(cfg.DatabaseURL, "migrations"); err != nil {
@@ -67,14 +69,14 @@ func main() {
 	defer pub.Close()
 
 	// Outbox repo: used by service for durable event inserts + by relay worker
-	outboxRepo     := messaging.NewOutboxRepository(db)
-	profileRepo    := repository.NewProfileRepository(db)
-	pathRepo       := repository.NewPathRepository(db)
-	attemptRepo    := repository.NewAttemptRepository(db)
+	outboxRepo := messaging.NewOutboxRepository(db)
+	profileRepo := repository.NewProfileRepository(db)
+	pathRepo := repository.NewPathRepository(db)
+	attemptRepo := repository.NewAttemptRepository(db)
 	onboardingRepo := repository.NewOnboardingRepository(db)
-	contentClient  := client.NewContentClient(cfg.ContentServiceURL, log)
-	svc            := service.NewLearningService(profileRepo, pathRepo, attemptRepo, onboardingRepo, pub, outboxRepo, contentClient, log)
-	h           := handler.New(svc, log)
+	contentClient := client.NewContentClient(cfg.ContentServiceURL, log)
+	svc := service.NewLearningService(profileRepo, pathRepo, attemptRepo, onboardingRepo, pub, outboxRepo, contentClient, log)
+	h := handler.New(svc, log)
 
 	// Init JWKS-backed JWT verifier
 	jwksURL := cfg.IdentityServiceURL + "/.well-known/jwks.json"
@@ -88,8 +90,16 @@ func main() {
 		BodyLimit: 64 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok { code = e.Code }
-			return c.Status(code).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": err.Error()})
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
+			var msg string
+			if cfg.Env != "production" || code < fiber.StatusInternalServerError {
+				msg = err.Error()
+			} else {
+				msg = "an internal error occurred"
+			}
+			return c.Status(code).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": msg})
 		},
 	})
 
@@ -112,7 +122,9 @@ func main() {
 	app.Get("/readyz", func(c *fiber.Ctx) error {
 		pgOk := db.Ping(context.Background()) == nil
 		status := 200
-		if !pgOk { status = 503 }
+		if !pgOk {
+			status = 503
+		}
 		return c.Status(status).JSON(fiber.Map{
 			"ready":  pgOk,
 			"checks": fiber.Map{"postgres": boolStr(pgOk)},
@@ -137,7 +149,8 @@ func main() {
 
 	go func() {
 		if err := app.Listen(":" + cfg.Port); err != nil {
-			log.Error("server error", zap.Error(err)); os.Exit(1)
+			log.Error("server error", zap.Error(err))
+			os.Exit(1)
 		}
 	}()
 
@@ -150,6 +163,8 @@ func main() {
 }
 
 func boolStr(b bool) string {
-	if b { return "ok" }
+	if b {
+		return "ok"
+	}
 	return "error"
 }
