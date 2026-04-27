@@ -302,9 +302,12 @@ func (r *wordRepository) Update(ctx context.Context, w *domain.Word) error {
 	// Invalidate word-by-ID cache
 	r.rdb.Del(ctx, fmt.Sprintf("vocab:word:%s", w.ID)) //nolint:errcheck
 
-	// Invalidate lookup caches for all UI-language variants
+	// Invalidate lookup caches for all UI-language variants (lemma + reading)
 	for _, uiLang := range []string{"en", "vi", "ja", "zh", "ko"} {
 		r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, w.Lemma, uiLang)) //nolint:errcheck
+		if w.Reading != "" {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, w.Reading, uiLang)) //nolint:errcheck
+		}
 	}
 	return nil
 }

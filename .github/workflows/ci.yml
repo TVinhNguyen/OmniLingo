@@ -474,7 +474,6 @@ jobs:
         working-directory: apps/web
 
       - name: Run E2E tests (Chromium only in CI)
-        continue-on-error: true
         env:
           BASE_URL: http://localhost:3000
           IDENTITY_SERVICE_URL: http://localhost:3001
