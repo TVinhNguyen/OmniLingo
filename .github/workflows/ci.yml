@@ -453,6 +453,8 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           KAFKA_ENABLED: "false"
           HIBP_ENABLED: "false"
+          RATE_REGISTER_MAX_PER_IP: "1000"
+          RATE_LOGIN_MAX_PER_IP: "1000"
 
       - name: Install web app dependencies and build
         run: |

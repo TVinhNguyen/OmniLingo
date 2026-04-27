@@ -477,7 +477,7 @@ func (s *authService) SendVerificationEmail(ctx context.Context, userID uuid.UUI
 			zap.String("token", rawToken[:8]+"..."),
 			zap.String("link", s.cfg.BaseURL+"/api/v1/auth/verify-email?token="+rawToken))
 	} else {
-		s.log.Info("email verification token generated — sending via notification-service",
+		s.log.Warn("email verification token generated — notification-service NOT YET integrated",
 			zap.String("user_id", userID.String()))
 	}
 

@@ -299,8 +299,13 @@ func (r *wordRepository) Update(ctx context.Context, w *domain.Word) error {
 	if tag.RowsAffected() == 0 {
 		return domain.ErrWordNotFound
 	}
-	// Invalidate cache
+	// Invalidate word-by-ID cache
 	r.rdb.Del(ctx, fmt.Sprintf("vocab:word:%s", w.ID)) //nolint:errcheck
+
+	// Invalidate lookup caches for all UI-language variants
+	for _, uiLang := range []string{"en", "vi", "ja", "zh", "ko"} {
+		r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, w.Lemma, uiLang)) //nolint:errcheck
+	}
 	return nil
 }
 

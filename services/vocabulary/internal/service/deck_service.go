@@ -210,6 +210,12 @@ func (s *deckService) resolveCardWord(ctx context.Context, language string, req 
 		}}
 	}
 	if err := s.wordRepo.Create(ctx, word); err != nil {
+		if err == domain.ErrWordAlreadyExists {
+			// Another request created this word concurrently — look it up
+			return s.wordRepo.Lookup(ctx, domain.LookupRequest{
+				Language: language, Word: lemma, UILang: uiLang,
+			})
+		}
 		return nil, err
 	}
 	return word, nil
