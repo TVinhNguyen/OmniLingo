@@ -30,6 +30,7 @@ test.describe('Authentication', () => {
 
     // ── Login
     await page.goto('/sign-in');
+    await page.waitForLoadState('networkidle');
     await page.locator('input[name="email"]').fill(user.email);
     await page.locator('input[name="password"]').fill(user.password);
     await page.getByRole('button', { name: /đăng nhập|sign in|log in|login/i }).click();
@@ -43,6 +44,7 @@ test.describe('Authentication', () => {
 
   test('login with wrong password returns error', async ({ page }) => {
     await page.goto('/sign-in');
+    await page.waitForLoadState('networkidle');
     await page.locator('input[name="email"]').fill('nonexistent@omnilingo-test.local');
     await page.locator('input[name="password"]').fill('WrongPassword1!');
     await page.getByRole('button', { name: /đăng nhập|sign in|log in|login/i }).click();
