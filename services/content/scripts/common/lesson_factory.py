@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -387,25 +388,28 @@ def _assemble_exercises(
     # ── Multiple Choice ───────────────────────────────────────────────────────
     if mc_out is not None:
         all_choices = [mc_out.correct_meaning] + mc_out.distractors[:3]
+        random.shuffle(all_choices)
         mc_ex = Exercise(
             id=_xid("mc_1"),
             type=ExerciseType.MULTIPLE_CHOICE,
             language=language, level=level, skill="vocabulary",
             prompt={"text": {ui_language: mc_out.question_vi}},
             choices=all_choices,
-            answer=0,
+            answer=all_choices.index(mc_out.correct_meaning),
             explanation={ui_language: mc_out.explanation_vi},
             tags=tags, difficulty=0.2,
         )
     else:
         first_meaning = _meaning(entry_map.get(first_word.lower()), first_word)
+        fb_choices = [first_meaning, "tạm biệt", "gia đình", "số một"]
+        random.shuffle(fb_choices)
         mc_ex = Exercise(
             id=_xid("mc_1"),
             type=ExerciseType.MULTIPLE_CHOICE,
             language=language, level=level, skill="vocabulary",
             prompt={"text": {ui_language: f"'{first_word}' có nghĩa là gì?"}},
-            choices=[first_meaning, "tạm biệt", "gia đình", "số một"],
-            answer=0,
+            choices=fb_choices,
+            answer=fb_choices.index(first_meaning),
             explanation={ui_language: f"'{first_word}' nghĩa là '{first_meaning}'."},
             tags=tags, difficulty=0.2,
         )
@@ -501,8 +505,7 @@ def _assemble_exercises(
     if arr_out is not None and len(arr_out.correct_order) >= 2:
         tokens = arr_out.correct_order
         correct_sentence = " ".join(tokens)
-        # Shuffle tokens for display (stable shuffle via sorted)
-        import random
+        # Shuffle tokens for display
         shuffled = tokens.copy()
         random.shuffle(shuffled)
         # Deduplicate while preserving all tokens (index-based)
@@ -591,14 +594,16 @@ def build_rule_based_lesson(
 
     first_meaning = _meaning(entry_map.get(first_word.lower()), first_word)
 
+    rb_mc_choices = [first_meaning, "tạm biệt", "gia đình", "số một"]
+    random.shuffle(rb_mc_choices)
     exercises = [
         Exercise(
             id=_xid("mc_1"),
             type=ExerciseType.MULTIPLE_CHOICE,
             language=language, level=level, skill="vocabulary",
             prompt={"text": {ui_language: f"'{first_word}' có nghĩa là gì?"}},
-            choices=[first_meaning, "tạm biệt", "gia đình", "số một"],
-            answer=0,
+            choices=rb_mc_choices,
+            answer=rb_mc_choices.index(first_meaning),
             explanation={ui_language: f"'{first_word}' nghĩa là '{first_meaning}'."},
             tags=tags, difficulty=0.2,
         ),

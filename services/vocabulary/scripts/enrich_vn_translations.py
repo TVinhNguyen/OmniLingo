@@ -9,7 +9,7 @@ from common import connect
 
 
 PROMPT = """Translate these English meanings of a Japanese/Chinese word to natural Vietnamese.
-Return JSON only: {"vi": ["...", "..."]}.
+Return JSON only: {{"vi": ["...", "..."]}}.
 Word: {lemma}
 English meanings: {meanings_en}
 """
@@ -35,20 +35,15 @@ async def fetch_candidates(conn, limit: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def translate_batch(client, rows: list[dict]) -> list[tuple[str, list[str]]]:
-    prompt = "\n\n".join(
-        PROMPT.format(lemma=row["lemma"], meanings_en=json.dumps(row["meanings_en"], ensure_ascii=False))
-        for row in rows
-    )
+async def translate_one(client, row: dict) -> tuple[str, list[str]]:
+    prompt = PROMPT.format(lemma=row["lemma"], meanings_en=json.dumps(row["meanings_en"], ensure_ascii=False))
     msg = await client.messages.create(
         model=os.environ.get("ANTHROPIC_MODEL", "claude-3-haiku-20240307"),
         max_tokens=1_000,
         messages=[{"role": "user", "content": prompt}],
     )
     payload = json.loads(msg.content[0].text)
-    if isinstance(payload, dict) and "items" in payload:
-        return [(row["id"], item.get("vi", [])) for row, item in zip(rows, payload["items"])]
-    return [(rows[0]["id"], payload.get("vi", []))]
+    return (row["id"], payload.get("vi", []))
 
 
 async def insert_vi(conn, word_id: str, meanings: list[str]) -> None:
@@ -72,10 +67,9 @@ async def main_async(limit: int, dry_run: bool) -> None:
         if dry_run or not rows:
             return
         client = AsyncAnthropic()
-        for idx in range(0, len(rows), 10):
-            translated = await translate_batch(client, rows[idx : idx + 10])
-            for word_id, meanings in translated:
-                await insert_vi(conn, word_id, meanings)
+        for row in rows:
+            word_id, meanings = await translate_one(client, row)
+            await insert_vi(conn, word_id, meanings)
     finally:
         await conn.close()
 
