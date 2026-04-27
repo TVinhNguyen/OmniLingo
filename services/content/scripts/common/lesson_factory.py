@@ -157,6 +157,16 @@ FALLBACK_MEANINGS: dict[str, str] = {
 }
 
 
+_DISTRACTOR_POOL = [
+    "tạm biệt", "gia đình", "số một", "xin chào", "cảm ơn",
+    "đi", "ăn", "uống", "ngủ", "học",
+]
+
+
+def _mc_distractors(correct: str, count: int = 3) -> list[str]:
+    return [d for d in _DISTRACTOR_POOL if d != correct][:count]
+
+
 def _meaning(entry: VocabEntry | None, lemma: str) -> str:
     if entry and entry.meanings:
         return entry.meanings[0]
@@ -401,7 +411,7 @@ def _assemble_exercises(
         )
     else:
         first_meaning = _meaning(entry_map.get(first_word.lower()), first_word)
-        fb_choices = [first_meaning, "tạm biệt", "gia đình", "số một"]
+        fb_choices = [first_meaning] + _mc_distractors(first_meaning)
         random.shuffle(fb_choices)
         mc_ex = Exercise(
             id=_xid("mc_1"),
@@ -594,7 +604,7 @@ def build_rule_based_lesson(
 
     first_meaning = _meaning(entry_map.get(first_word.lower()), first_word)
 
-    rb_mc_choices = [first_meaning, "tạm biệt", "gia đình", "số một"]
+    rb_mc_choices = [first_meaning] + _mc_distractors(first_meaning)
     random.shuffle(rb_mc_choices)
     exercises = [
         Exercise(
