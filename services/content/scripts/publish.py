@@ -66,7 +66,7 @@ async def publish_file(path: Path, publish: bool = False, force: bool = False) -
     # B2 — remote idempotency gate
     # Use a stable source key derived from the relative path so it survives
     # volume remounts inside Docker.
-    source_key = path.name  # e.g. "greetings_hello_basics.approved.json"
+    source_key = f"{path.parent.name}/{path.name}"  # include track dir to avoid cross-track collision
     if not force:
         existing_remote = await _check_remote_idempotency(source_key)
         if existing_remote:
