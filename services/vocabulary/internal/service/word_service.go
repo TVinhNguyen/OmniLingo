@@ -91,6 +91,8 @@ func (s *wordService) UpdateWord(ctx context.Context, id uuid.UUID, req domain.C
 	if err != nil {
 		return nil, err
 	}
+	oldLemma := w.Lemma
+	oldReading := w.Reading
 	w.Lemma = req.Lemma
 	w.Reading = req.Reading
 	w.POS = req.POS
@@ -100,7 +102,7 @@ func (s *wordService) UpdateWord(ctx context.Context, id uuid.UUID, req domain.C
 	w.Extra = req.Extra
 	w.Source = req.Source
 	w.SourceID = req.SourceID
-	if err := s.wordRepo.Update(ctx, w); err != nil {
+	if err := s.wordRepo.Update(ctx, w, oldLemma, oldReading); err != nil {
 		return nil, err
 	}
 	return w, nil

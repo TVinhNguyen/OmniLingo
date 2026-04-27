@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from common.schema import GeneratedLesson
@@ -24,7 +25,7 @@ def validate_generated_lesson(data: dict) -> GeneratedLesson:
         if exercise.answer in (None, "", [], {}):
             raise ValueError(f"exercise {exercise.id} has empty answer")
     serialized = json.dumps(data, ensure_ascii=False).lower()
-    blocked = sorted(term for term in BLOCKED_TERMS if term in serialized)
+    blocked = sorted(term for term in BLOCKED_TERMS if re.search(rf"\b{re.escape(term)}\b", serialized))
     if blocked:
         raise ValueError(f"blocked terms found: {blocked}")
     return generated

@@ -22,7 +22,7 @@ type WordRepository interface {
 	SearchDictionary(ctx context.Context, req domain.DictionarySearchRequest) ([]*domain.Word, error)
 	Search(ctx context.Context, req domain.SearchRequest) (*domain.SearchResult, error)
 	Create(ctx context.Context, w *domain.Word) error
-	Update(ctx context.Context, w *domain.Word) error
+	Update(ctx context.Context, w *domain.Word, oldLemma, oldReading string) error
 }
 
 // wordRepository is the PostgreSQL + Redis implementation.
@@ -284,7 +284,7 @@ func (r *wordRepository) Create(ctx context.Context, w *domain.Word) error {
 
 // ─── Update ───────────────────────────────────────────────────────────────────
 
-func (r *wordRepository) Update(ctx context.Context, w *domain.Word) error {
+func (r *wordRepository) Update(ctx context.Context, w *domain.Word, oldLemma, oldReading string) error {
 	extraJSON, _ := json.Marshal(w.Extra)
 	const q = `
 		UPDATE words
@@ -302,11 +302,17 @@ func (r *wordRepository) Update(ctx context.Context, w *domain.Word) error {
 	// Invalidate word-by-ID cache
 	r.rdb.Del(ctx, fmt.Sprintf("vocab:word:%s", w.ID)) //nolint:errcheck
 
-	// Invalidate lookup caches for all UI-language variants (lemma + reading)
+	// Invalidate lookup caches for old and new lemma/reading across all UI languages
 	for _, uiLang := range []string{"en", "vi", "ja", "zh", "ko"} {
 		r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, w.Lemma, uiLang)) //nolint:errcheck
 		if w.Reading != "" {
 			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, w.Reading, uiLang)) //nolint:errcheck
+		}
+		if oldLemma != "" && oldLemma != w.Lemma {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, oldLemma, uiLang)) //nolint:errcheck
+		}
+		if oldReading != "" && oldReading != w.Reading {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, oldReading, uiLang)) //nolint:errcheck
 		}
 	}
 	return nil
