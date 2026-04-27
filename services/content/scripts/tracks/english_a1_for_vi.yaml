@@ -1,0 +1,237 @@
+track:
+  id: english_a1_for_vi
+  title: "English A1 for Vietnamese Learners"
+  description: "Khoá học tiếng Anh từ con số 0 dành cho người Việt"
+  source_lang: en
+  ui_lang: vi
+  cefr_level: A1
+
+voice:
+  primary: "21m00Tcm4TlvDq8ikWAM"
+  fallback: "ErXwobaYiN019PkySvjV"
+
+units:
+  - id: greetings
+    title: "Chào hỏi"
+    theme: greetings
+    lessons:
+      - id: hello_basics
+        title: "Hello & Hi"
+        target_words: [hello, hi, hey, greetings]
+        grammar_focus: null
+        target_minutes: 5
+      - id: introducing_yourself
+        title: "Tự giới thiệu"
+        target_words: [my, name, am, is]
+        grammar_focus: "verb 'to be' (am/is)"
+        target_minutes: 7
+      - id: how_are_you
+        title: "How are you?"
+        target_words: [how, are, you, fine, thanks]
+        grammar_focus: null
+        target_minutes: 5
+      - id: goodbye
+        title: "Tạm biệt"
+        target_words: [bye, goodbye, see, you, later]
+        grammar_focus: null
+        target_minutes: 5
+      - id: polite_words
+        title: "Từ lịch sự"
+        target_words: [please, sorry, excuse, thank, welcome]
+        grammar_focus: null
+        target_minutes: 6
+      - id: yes_no
+        title: "Yes & No"
+        target_words: [yes, no, not, okay]
+        grammar_focus: "simple yes/no responses"
+        target_minutes: 5
+      - id: morning_evening
+        title: "Morning & Evening"
+        target_words: [morning, afternoon, evening, night]
+        grammar_focus: null
+        target_minutes: 6
+      - id: classroom_greetings
+        title: "Chào hỏi trong lớp"
+        target_words: [teacher, student, class, ready]
+        grammar_focus: null
+        target_minutes: 6
+
+  - id: family
+    title: "Gia đình"
+    theme: family
+    lessons:
+      - id: family_members
+        title: "Thành viên gia đình"
+        target_words: [family, mother, father, sister, brother]
+        grammar_focus: null
+        target_minutes: 7
+      - id: parents_children
+        title: "Cha mẹ và con cái"
+        target_words: [parent, child, son, daughter]
+        grammar_focus: null
+        target_minutes: 6
+      - id: possessives_my_your
+        title: "My & Your"
+        target_words: [my, your, his, her]
+        grammar_focus: "possessive adjectives"
+        target_minutes: 7
+      - id: describing_family
+        title: "Mô tả gia đình"
+        target_words: [big, small, old, young]
+        grammar_focus: "adjective before noun"
+        target_minutes: 7
+      - id: family_questions
+        title: "Hỏi về gia đình"
+        target_words: [who, this, that, they]
+        grammar_focus: "Who is this?"
+        target_minutes: 7
+      - id: home_people
+        title: "Người ở nhà"
+        target_words: [home, house, people, live]
+        grammar_focus: null
+        target_minutes: 6
+      - id: married_single
+        title: "Tình trạng gia đình"
+        target_words: [married, single, husband, wife]
+        grammar_focus: null
+        target_minutes: 6
+      - id: family_review
+        title: "Ôn tập gia đình"
+        target_words: [family, mother, father, brother, sister, home]
+        grammar_focus: null
+        target_minutes: 8
+
+  - id: numbers_time
+    title: "Số và thời gian"
+    theme: numbers_time
+    lessons:
+      - id: numbers_1_5
+        title: "Số 1-5"
+        target_words: [one, two, three, four, five]
+        grammar_focus: null
+        target_minutes: 5
+      - id: numbers_6_10
+        title: "Số 6-10"
+        target_words: [six, seven, eight, nine, ten]
+        grammar_focus: null
+        target_minutes: 5
+      - id: age_basics
+        title: "Nói tuổi"
+        target_words: [age, old, years, how]
+        grammar_focus: "How old are you?"
+        target_minutes: 7
+      - id: days_week
+        title: "Các ngày trong tuần"
+        target_words: [day, week, monday, friday]
+        grammar_focus: null
+        target_minutes: 7
+      - id: today_tomorrow
+        title: "Hôm nay và ngày mai"
+        target_words: [today, tomorrow, yesterday, now]
+        grammar_focus: null
+        target_minutes: 6
+      - id: time_words
+        title: "Từ chỉ thời gian"
+        target_words: [time, hour, minute, late, early]
+        grammar_focus: null
+        target_minutes: 7
+      - id: asking_time
+        title: "Hỏi giờ"
+        target_words: [what, time, is, it]
+        grammar_focus: "What time is it?"
+        target_minutes: 7
+      - id: numbers_time_review
+        title: "Ôn tập số và thời gian"
+        target_words: [one, two, three, day, time, today]
+        grammar_focus: null
+        target_minutes: 8
+
+  - id: food_drink
+    title: "Đồ ăn và thức uống"
+    theme: food_drink
+    lessons:
+      - id: basic_food
+        title: "Đồ ăn cơ bản"
+        target_words: [food, rice, bread, egg, soup]
+        grammar_focus: null
+        target_minutes: 7
+      - id: drinks
+        title: "Thức uống"
+        target_words: [water, tea, coffee, milk, juice]
+        grammar_focus: null
+        target_minutes: 7
+      - id: like_food
+        title: "Nói thích món ăn"
+        target_words: [like, love, want, eat, drink]
+        grammar_focus: "I like..."
+        target_minutes: 7
+      - id: ordering_food
+        title: "Gọi món đơn giản"
+        target_words: [menu, order, please, want]
+        grammar_focus: "I want... please"
+        target_minutes: 7
+      - id: tastes
+        title: "Vị của món ăn"
+        target_words: [good, bad, hot, cold, sweet]
+        grammar_focus: null
+        target_minutes: 6
+      - id: meals
+        title: "Các bữa ăn"
+        target_words: [breakfast, lunch, dinner, meal]
+        grammar_focus: null
+        target_minutes: 6
+      - id: restaurant_words
+        title: "Từ trong nhà hàng"
+        target_words: [table, bill, waiter, restaurant]
+        grammar_focus: null
+        target_minutes: 7
+      - id: food_review
+        title: "Ôn tập ăn uống"
+        target_words: [food, water, eat, drink, like, please]
+        grammar_focus: null
+        target_minutes: 8
+
+  - id: daily_life
+    title: "Đời sống hằng ngày"
+    theme: daily_life
+    lessons:
+      - id: daily_actions
+        title: "Hành động hằng ngày"
+        target_words: [go, come, do, make, get]
+        grammar_focus: null
+        target_minutes: 7
+      - id: places
+        title: "Địa điểm quen thuộc"
+        target_words: [school, work, home, market, park]
+        grammar_focus: null
+        target_minutes: 7
+      - id: simple_routine
+        title: "Lịch sinh hoạt đơn giản"
+        target_words: [wake, sleep, study, work]
+        grammar_focus: "simple present routine"
+        target_minutes: 8
+      - id: transport
+        title: "Đi lại"
+        target_words: [bus, car, bike, walk, taxi]
+        grammar_focus: null
+        target_minutes: 7
+      - id: weather
+        title: "Thời tiết"
+        target_words: [sunny, rainy, hot, cold, weather]
+        grammar_focus: "It is..."
+        target_minutes: 7
+      - id: feelings
+        title: "Cảm xúc cơ bản"
+        target_words: [happy, sad, tired, hungry, thirsty]
+        grammar_focus: "I am..."
+        target_minutes: 7
+      - id: simple_requests
+        title: "Yêu cầu đơn giản"
+        target_words: [help, open, close, read, write]
+        grammar_focus: "Can you...?"
+        target_minutes: 8
+      - id: a1_review
+        title: "Ôn tập A1 cơ bản"
+        target_words: [hello, family, time, food, go, happy]
+        grammar_focus: null
+        target_minutes: 10

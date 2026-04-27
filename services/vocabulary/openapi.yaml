@@ -56,6 +56,53 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/vocab/lookup:
+    get:
+      tags: [entries]
+      operationId: lookupWord
+      parameters:
+        - name: lang
+          in: query
+          required: true
+          schema: { type: string }
+        - name: word
+          in: query
+          required: true
+          schema: { type: string }
+        - name: uiLang
+          in: query
+          required: false
+          schema: { type: string, default: en }
+      responses:
+        "200": { description: Dictionary entry, content: { application/json: { schema: { type: object, required: [word], properties: { word: { $ref: "#/components/schemas/Word" } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /api/v1/vocab/search:
+    get:
+      tags: [entries]
+      operationId: searchWords
+      parameters:
+        - name: lang
+          in: query
+          required: true
+          schema: { type: string }
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: uiLang
+          in: query
+          required: false
+          schema: { type: string, default: en }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 10, maximum: 50 }
+      responses:
+        "200": { description: Dictionary search results, content: { application/json: { schema: { type: object, required: [words], properties: { words: { type: array, items: { $ref: "#/components/schemas/Word" } } } } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalError" }
   /api/v1/vocab/entries/search:
     post:
       tags: [entries]
@@ -275,16 +322,19 @@ components:
         audio_url: { type: string }
     Word:
       type: object
-      required: [id, language, lemma, pos, ipa, frequency_rank, level, extra, meanings, examples, created_at, updated_at]
+      required: [id, language, lemma, reading, pos, ipa, frequency_rank, level, extra, meanings, examples, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         language: { type: string }
         lemma: { type: string }
+        reading: { type: string }
         pos: { type: string }
         ipa: { type: string }
         frequency_rank: { type: integer }
         level: { type: string }
         extra: { type: object, additionalProperties: true }
+        source: { type: string }
+        source_id: { type: string }
         meanings: { type: array, items: { $ref: "#/components/schemas/WordMeaning" } }
         examples: { type: array, items: { $ref: "#/components/schemas/WordExample" } }
         created_at: { type: string, format: date-time }
@@ -339,9 +389,14 @@ components:
         is_public: { type: boolean }
     AddCardRequest:
       type: object
-      required: [word_id]
       properties:
         word_id: { type: string, format: uuid }
+        lemma: { type: string }
+        meaning: { type: string }
+        ui_language: { type: string, default: vi }
+        ipa: { type: string }
+        pos: { type: string }
+        reading: { type: string }
     CreateMeaningRequest:
       type: object
       required: [ui_language, meaning, order_idx]
@@ -362,11 +417,14 @@ components:
       properties:
         language: { type: string }
         lemma: { type: string }
+        reading: { type: string }
         pos: { type: string }
         ipa: { type: string }
         frequency_rank: { type: integer }
         level: { type: string }
         extra: { type: object, additionalProperties: true }
+        source: { type: string }
+        source_id: { type: string }
         meanings: { type: array, items: { $ref: "#/components/schemas/CreateMeaningRequest" } }
         examples: { type: array, items: { $ref: "#/components/schemas/CreateExampleRequest" } }
     UpdateWordRequest:
@@ -374,11 +432,14 @@ components:
       properties:
         language: { type: string }
         lemma: { type: string }
+        reading: { type: string }
         pos: { type: string }
         ipa: { type: string }
         frequency_rank: { type: integer }
         level: { type: string }
         extra: { type: object, additionalProperties: true }
+        source: { type: string }
+        source_id: { type: string }
         meanings: { type: array, items: { $ref: "#/components/schemas/CreateMeaningRequest" } }
         examples: { type: array, items: { $ref: "#/components/schemas/CreateExampleRequest" } }
     AnkiImportResponse:

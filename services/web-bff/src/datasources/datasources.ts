@@ -57,6 +57,31 @@ export interface Deck {
   masteredCount: number;
 }
 
+export interface DictMeaning {
+  uiLanguage: string;
+  meaning: string;
+}
+
+export interface DictExample {
+  sentence: string;
+  translation: Record<string, string>;
+  audioUrl?: string;
+}
+
+export interface DictEntry {
+  id: string;
+  language: string;
+  lemma: string;
+  reading?: string;
+  ipa?: string;
+  pos?: string;
+  level?: string;
+  frequencyRank: number;
+  extra: Record<string, unknown>;
+  meanings: DictMeaning[];
+  examples: DictExample[];
+}
+
 export interface Entitlement {
   planTier: string;
   validUntil?: string | null;
@@ -630,15 +655,60 @@ export class VocabularyDataSource {
       this.ds,
       `/api/v1/vocab/decks/${deckId}/cards`,
     ).catch(() => ({ cards: [] }));
-    return (raw.cards ?? []).map((c) => ({
-      id:      (c.id ?? "") as string,
-      deckId:  (c.deck_id ?? deckId) as string,
-      lemma:   (c.lemma ?? "") as string,
-      meaning: (c.meaning ?? "") as string,
-      ipa:     (c.ipa ?? undefined) as string | undefined,
-      pos:     (c.pos ?? undefined) as string | undefined,
-      status:  (c.status ?? "new") as string,
-    }));
+    return (raw.cards ?? []).map((c) => {
+      const word = (c.word ?? {}) as Record<string, unknown>;
+      const meanings = Array.isArray(word.meanings) ? word.meanings as Array<Record<string, unknown>> : [];
+      return {
+        id:      (c.id ?? "") as string,
+        deckId:  (c.deck_id ?? deckId) as string,
+        lemma:   (word.lemma ?? c.lemma ?? "") as string,
+        meaning: (meanings[0]?.meaning ?? c.meaning ?? "") as string,
+        ipa:     (word.ipa ?? c.ipa ?? undefined) as string | undefined,
+        pos:     (word.pos ?? c.pos ?? undefined) as string | undefined,
+        status:  (c.status ?? "new") as string,
+      };
+    });
+  }
+
+  private mapDictEntry(raw: Record<string, unknown>): DictEntry {
+    const meanings = Array.isArray(raw.meanings) ? raw.meanings as Array<Record<string, unknown>> : [];
+    const examples = Array.isArray(raw.examples) ? raw.examples as Array<Record<string, unknown>> : [];
+    return {
+      id:            String(raw.id ?? ""),
+      language:      String(raw.language ?? ""),
+      lemma:         String(raw.lemma ?? ""),
+      reading:       raw.reading != null ? String(raw.reading) : undefined,
+      ipa:           raw.ipa != null ? String(raw.ipa) : undefined,
+      pos:           raw.pos != null ? String(raw.pos) : undefined,
+      level:         raw.level != null ? String(raw.level) : undefined,
+      frequencyRank: Number(raw.frequency_rank ?? raw.frequencyRank ?? 999999),
+      extra:         (raw.extra ?? {}) as Record<string, unknown>,
+      meanings:      meanings.map((m) => ({
+        uiLanguage: String(m.ui_language ?? m.uiLanguage ?? ""),
+        meaning:    String(m.meaning ?? ""),
+      })),
+      examples:      examples.map((e) => ({
+        sentence:    String(e.sentence ?? ""),
+        translation: (e.translation ?? {}) as Record<string, string>,
+        audioUrl:    e.audio_url != null ? String(e.audio_url) : undefined,
+      })),
+    };
+  }
+
+  async lookupWord(lang: string, word: string, uiLang = "en"): Promise<DictEntry | null> {
+    const raw = await call<{ word?: Record<string, unknown> }>(
+      this.ds,
+      `/api/v1/vocab/lookup?lang=${encodeURIComponent(lang)}&word=${encodeURIComponent(word)}&uiLang=${encodeURIComponent(uiLang)}`,
+    ).catch(() => ({ word: undefined }));
+    return raw.word ? this.mapDictEntry(raw.word) : null;
+  }
+
+  async searchWords(lang: string, q: string, uiLang = "en", limit = 10): Promise<DictEntry[]> {
+    const raw = await call<{ words?: Array<Record<string, unknown>> }>(
+      this.ds,
+      `/api/v1/vocab/search?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(q)}&uiLang=${encodeURIComponent(uiLang)}&limit=${limit}`,
+    ).catch(() => ({ words: [] }));
+    return (raw.words ?? []).map((w) => this.mapDictEntry(w));
   }
 
   async addCard(
@@ -654,13 +724,14 @@ export class VocabularyDataSource {
       { method: "POST", body: { lemma, meaning, ipa, pos } },
     );
     const c = raw.card ?? {};
+    const word = (c.word ?? {}) as Record<string, unknown>;
     return {
       id: (c.id ?? "") as string,
       deckId: (c.deck_id ?? deckId) as string,
-      lemma: (c.lemma ?? lemma) as string,
-      meaning: (c.meaning ?? meaning) as string,
-      ipa: (c.ipa ?? ipa) as string | undefined,
-      pos: (c.pos ?? pos) as string | undefined,
+      lemma: (word.lemma ?? c.lemma ?? lemma) as string,
+      meaning: ((word.meanings as Array<Record<string, unknown>> | undefined)?.[0]?.meaning ?? c.meaning ?? meaning) as string,
+      ipa: (word.ipa ?? c.ipa ?? ipa) as string | undefined,
+      pos: (word.pos ?? c.pos ?? pos) as string | undefined,
     };
   }
 

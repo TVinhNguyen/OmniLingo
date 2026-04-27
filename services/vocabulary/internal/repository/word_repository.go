@@ -18,9 +18,11 @@ import (
 // WordRepository defines the contract for word data access.
 type WordRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Word, error)
+	Lookup(ctx context.Context, req domain.LookupRequest) (*domain.Word, error)
+	SearchDictionary(ctx context.Context, req domain.DictionarySearchRequest) ([]*domain.Word, error)
 	Search(ctx context.Context, req domain.SearchRequest) (*domain.SearchResult, error)
 	Create(ctx context.Context, w *domain.Word) error
-	Update(ctx context.Context, w *domain.Word) error
+	Update(ctx context.Context, w *domain.Word, oldLemma, oldReading string) error
 }
 
 // wordRepository is the PostgreSQL + Redis implementation.
@@ -67,10 +69,100 @@ func (r *wordRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Wor
 
 func (r *wordRepository) fetchWordByID(ctx context.Context, id uuid.UUID) (*domain.Word, error) {
 	const q = `
-		SELECT id, language, lemma, pos, ipa, frequency_rank, level, extra, created_at, updated_at
+		SELECT id, language, lemma, reading, pos, ipa, frequency_rank, level, extra,
+		       COALESCE(source, ''), COALESCE(source_id, ''), created_at, updated_at
 		FROM words WHERE id = $1`
 	row := r.db.QueryRow(ctx, q, id)
 	return scanWord(row)
+}
+
+// ─── Dictionary Lookup ───────────────────────────────────────────────────────
+
+func (r *wordRepository) Lookup(ctx context.Context, req domain.LookupRequest) (*domain.Word, error) {
+	req.Language = strings.TrimSpace(req.Language)
+	req.Word = strings.TrimSpace(req.Word)
+	if req.UILang == "" {
+		req.UILang = "en"
+	}
+	if req.Language == "" {
+		return nil, domain.ErrLanguageRequired
+	}
+	if req.Word == "" {
+		return nil, domain.ErrSearchQueryEmpty
+	}
+
+	cacheKey := fmt.Sprintf("vocab:lookup:%s:%s:%s", req.Language, strings.ToLower(req.Word), req.UILang)
+	if cached, err := r.rdb.Get(ctx, cacheKey).Bytes(); err == nil {
+		var w domain.Word
+		if json.Unmarshal(cached, &w) == nil {
+			return &w, nil
+		}
+	}
+
+	const q = `
+		SELECT id, language, lemma, reading, pos, ipa, frequency_rank, level, extra,
+		       COALESCE(source, ''), COALESCE(source_id, ''), created_at, updated_at
+		FROM words
+		WHERE language = $1
+		  AND (lemma = $2 OR lower(lemma) = lower($2) OR reading = $2)
+		ORDER BY CASE WHEN lemma = $2 THEN 0 WHEN reading = $2 THEN 1 ELSE 2 END,
+		         frequency_rank ASC, lemma ASC
+		LIMIT 1`
+	w, err := scanWord(r.db.QueryRow(ctx, q, req.Language, req.Word))
+	if err != nil {
+		return nil, err
+	}
+	w.Meanings, _ = r.fetchMeaningsForLookup(ctx, w.ID, req.UILang)
+	w.Examples, _ = r.fetchExamples(ctx, w.ID)
+
+	if data, err := json.Marshal(w); err == nil {
+		r.rdb.Set(ctx, cacheKey, data, 24*wordCacheTTL).Err() //nolint:errcheck
+	}
+	return w, nil
+}
+
+func (r *wordRepository) SearchDictionary(ctx context.Context, req domain.DictionarySearchRequest) ([]*domain.Word, error) {
+	req.Language = strings.TrimSpace(req.Language)
+	req.Query = strings.TrimSpace(req.Query)
+	if req.UILang == "" {
+		req.UILang = "en"
+	}
+	if req.Limit < 1 || req.Limit > 50 {
+		req.Limit = 10
+	}
+	if req.Language == "" {
+		return nil, domain.ErrLanguageRequired
+	}
+	if req.Query == "" {
+		return nil, domain.ErrSearchQueryEmpty
+	}
+
+	const q = `
+		SELECT id, language, lemma, reading, pos, ipa, frequency_rank, level, extra,
+		       COALESCE(source, ''), COALESCE(source_id, ''), created_at, updated_at
+		FROM words
+		WHERE language = $1
+		  AND (lemma % $2 OR lemma ILIKE $2 || '%' OR reading ILIKE $2 || '%')
+		ORDER BY CASE WHEN lemma = $2 THEN 0 WHEN reading = $2 THEN 1 ELSE 2 END,
+		         similarity(lemma, $2) DESC, frequency_rank ASC
+		LIMIT $3`
+	rows, err := r.db.Query(ctx, q, req.Language, req.Query, req.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("dictionary search: %w", err)
+	}
+	defer rows.Close()
+
+	words := make([]*domain.Word, 0)
+	for rows.Next() {
+		w, err := scanWord(rows)
+		if err != nil {
+			return nil, err
+		}
+		w.Meanings, _ = r.fetchMeaningsForLookup(ctx, w.ID, req.UILang)
+		w.Examples, _ = r.fetchExamples(ctx, w.ID)
+		words = append(words, w)
+	}
+	return words, rows.Err()
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────
@@ -114,7 +206,8 @@ func (r *wordRepository) Search(ctx context.Context, req domain.SearchRequest) (
 	// Data
 	args = append(args, req.PageSize, offset)
 	dataQ := fmt.Sprintf(`
-		SELECT id, language, lemma, pos, ipa, frequency_rank, level, extra, created_at, updated_at
+		SELECT id, language, lemma, reading, pos, ipa, frequency_rank, level, extra,
+		       COALESCE(source, ''), COALESCE(source_id, ''), created_at, updated_at
 		FROM words WHERE %s
 		ORDER BY frequency_rank ASC
 		LIMIT $%d OFFSET $%d`, whereClause, pIdx, pIdx+1)
@@ -153,11 +246,11 @@ func (r *wordRepository) Create(ctx context.Context, w *domain.Word) error {
 
 	extraJSON, _ := json.Marshal(w.Extra)
 	const q = `
-		INSERT INTO words (id, language, lemma, pos, ipa, frequency_rank, level, extra)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		INSERT INTO words (id, language, lemma, reading, pos, ipa, frequency_rank, level, extra, source, source_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,''),NULLIF($11,''))
 		ON CONFLICT (language, lemma, pos) DO NOTHING`
-	tag, err := tx.Exec(ctx, q, w.ID, w.Language, w.Lemma, w.POS, w.IPA,
-		w.FrequencyRank, w.Level, extraJSON)
+	tag, err := tx.Exec(ctx, q, w.ID, w.Language, w.Lemma, w.Reading, w.POS, w.IPA,
+		w.FrequencyRank, w.Level, extraJSON, w.Source, w.SourceID)
 	if err != nil {
 		return fmt.Errorf("insert word: %w", err)
 	}
@@ -191,20 +284,38 @@ func (r *wordRepository) Create(ctx context.Context, w *domain.Word) error {
 
 // ─── Update ───────────────────────────────────────────────────────────────────
 
-func (r *wordRepository) Update(ctx context.Context, w *domain.Word) error {
+func (r *wordRepository) Update(ctx context.Context, w *domain.Word, oldLemma, oldReading string) error {
 	extraJSON, _ := json.Marshal(w.Extra)
 	const q = `
-		UPDATE words SET lemma=$2, pos=$3, ipa=$4, frequency_rank=$5, level=$6, extra=$7, updated_at=now()
+		UPDATE words
+		SET lemma=$2, reading=$3, pos=$4, ipa=$5, frequency_rank=$6, level=$7,
+		    extra=$8, source=NULLIF($9,''), source_id=NULLIF($10,''), updated_at=now()
 		WHERE id=$1`
-	tag, err := r.db.Exec(ctx, q, w.ID, w.Lemma, w.POS, w.IPA, w.FrequencyRank, w.Level, extraJSON)
+	tag, err := r.db.Exec(ctx, q, w.ID, w.Lemma, w.Reading, w.POS, w.IPA,
+		w.FrequencyRank, w.Level, extraJSON, w.Source, w.SourceID)
 	if err != nil {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
 		return domain.ErrWordNotFound
 	}
-	// Invalidate cache
+	// Invalidate word-by-ID cache
 	r.rdb.Del(ctx, fmt.Sprintf("vocab:word:%s", w.ID)) //nolint:errcheck
+
+	// Invalidate lookup caches for old and new lemma/reading across all UI languages.
+	// Cache keys use lowercase to match the case-insensitive SQL query in Lookup.
+	for _, uiLang := range []string{"en", "vi", "ja", "zh", "ko"} {
+		r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(w.Lemma), uiLang)) //nolint:errcheck
+		if w.Reading != "" {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(w.Reading), uiLang)) //nolint:errcheck
+		}
+		if oldLemma != "" && strings.ToLower(oldLemma) != strings.ToLower(w.Lemma) {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(oldLemma), uiLang)) //nolint:errcheck
+		}
+		if oldReading != "" && strings.ToLower(oldReading) != strings.ToLower(w.Reading) {
+			r.rdb.Del(ctx, fmt.Sprintf("vocab:lookup:%s:%s:%s", w.Language, strings.ToLower(oldReading), uiLang)) //nolint:errcheck
+		}
+	}
 	return nil
 }
 
@@ -213,8 +324,8 @@ func (r *wordRepository) Update(ctx context.Context, w *domain.Word) error {
 func scanWord(row pgx.Row) (*domain.Word, error) {
 	var w domain.Word
 	var extraRaw []byte
-	err := row.Scan(&w.ID, &w.Language, &w.Lemma, &w.POS, &w.IPA,
-		&w.FrequencyRank, &w.Level, &extraRaw, &w.CreatedAt, &w.UpdatedAt)
+	err := row.Scan(&w.ID, &w.Language, &w.Lemma, &w.Reading, &w.POS, &w.IPA,
+		&w.FrequencyRank, &w.Level, &extraRaw, &w.Source, &w.SourceID, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrWordNotFound
@@ -243,6 +354,27 @@ func (r *wordRepository) fetchMeanings(ctx context.Context, wordID uuid.UUID) ([
 		}
 	}
 	return ms, nil
+}
+
+func (r *wordRepository) fetchMeaningsForLookup(ctx context.Context, wordID uuid.UUID, uiLang string) ([]domain.WordMeaning, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, word_id, ui_language, meaning, order_idx
+		FROM word_meanings
+		WHERE word_id=$1 AND (ui_language=$2 OR ui_language='en')
+		ORDER BY CASE WHEN ui_language=$2 THEN 0 ELSE 1 END, order_idx`,
+		wordID, uiLang)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ms []domain.WordMeaning
+	for rows.Next() {
+		var m domain.WordMeaning
+		if err := rows.Scan(&m.ID, &m.WordID, &m.UILanguage, &m.Meaning, &m.OrderIdx); err == nil {
+			ms = append(ms, m)
+		}
+	}
+	return ms, rows.Err()
 }
 
 func (r *wordRepository) fetchExamples(ctx context.Context, wordID uuid.UUID) ([]domain.WordExample, error) {

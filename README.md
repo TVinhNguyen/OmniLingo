@@ -4,6 +4,22 @@
 
 Bộ tài liệu kiến trúc cho một nền tảng học ngôn ngữ tổng hợp (web + mobile) hỗ trợ nhiều ngôn ngữ (Anh, Nhật, Trung, Hàn, Pháp, Đức, Tây Ban Nha, Việt cho người nước ngoài…), tích hợp đầy đủ các module học (từ vựng, ngữ pháp, nghe chép chính tả, đọc, nói, viết), luyện đề chứng chỉ quốc tế (TOEIC, IELTS, TOEFL, HSK, JLPT, TOPIK, DELF/DELE, Cambridge), lộ trình học cá nhân hoá và nhiều gói đăng ký phân tầng.
 
+## 📊 Trạng thái dự án (2026-04-25)
+
+| Milestone | Định nghĩa | Status | ETA |
+|-----------|-----------|--------|-----|
+| **Tech Wire** | FE↔BE wired, CI green, code build clean | ✅ ~99% | Done |
+| **MVP1 Alpha** | + content demo + staging deploy | ⏳ ~30% | ~4 tuần |
+| **MVP1 Beta** | + provider thật + 30-50 user UAT | ⏳ ~10% | ~6 tuần |
+| **MVP1 Launch (VN-only)** | + legal PDPL + Hetzner VPS deploy + content seed | ⏳ ~5% | **~9 tuần** (ETA 2026-06-25) |
+
+**Đọc kỹ trước khi đánh giá**: technical wiring xong **không nghĩa là** product ship được. Còn cần content (lesson/audio/đề thi), production deploy, provider integration (Stripe/SES/ElevenLabs), legal review.
+
+📋 **Checklist chi tiết task ship-blocker**: [docs/mvp1-product-readiness-checklist.md](./docs/mvp1-product-readiness-checklist.md)
+🔧 **Trạng thái wire FE↔BE từng flow**: [docs/wiring-status-2026-04-22.md](./docs/wiring-status-2026-04-22.md)
+🛠️ **Plan phát triển 4 tuần**: [docs/development-plan-2026-04-25.md](./docs/development-plan-2026-04-25.md)
+🤖 **Task brief Gemini Wave 2**: [docs/gemini-tasks-wave2-hardening.md](./docs/gemini-tasks-wave2-hardening.md)
+
 ## Cấu trúc tài liệu
 
 | # | Tài liệu | Nội dung chính |

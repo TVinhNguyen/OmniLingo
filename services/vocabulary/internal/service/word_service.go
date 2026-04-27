@@ -13,6 +13,8 @@ import (
 // WordService defines the business logic for word catalog operations.
 type WordService interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Word, error)
+	Lookup(ctx context.Context, req domain.LookupRequest) (*domain.Word, error)
+	SearchDictionary(ctx context.Context, req domain.DictionarySearchRequest) ([]*domain.Word, error)
 	Search(ctx context.Context, req domain.SearchRequest) (*domain.SearchResult, error)
 	CreateWord(ctx context.Context, req domain.CreateWordRequest) (*domain.Word, error)
 	UpdateWord(ctx context.Context, id uuid.UUID, req domain.CreateWordRequest) (*domain.Word, error)
@@ -32,6 +34,14 @@ func (s *wordService) GetByID(ctx context.Context, id uuid.UUID) (*domain.Word, 
 	return s.wordRepo.GetByID(ctx, id)
 }
 
+func (s *wordService) Lookup(ctx context.Context, req domain.LookupRequest) (*domain.Word, error) {
+	return s.wordRepo.Lookup(ctx, req)
+}
+
+func (s *wordService) SearchDictionary(ctx context.Context, req domain.DictionarySearchRequest) ([]*domain.Word, error) {
+	return s.wordRepo.SearchDictionary(ctx, req)
+}
+
 func (s *wordService) Search(ctx context.Context, req domain.SearchRequest) (*domain.SearchResult, error) {
 	if strings.TrimSpace(req.Query) == "" && req.Language == "" {
 		return nil, domain.ErrSearchQueryEmpty
@@ -47,11 +57,14 @@ func (s *wordService) CreateWord(ctx context.Context, req domain.CreateWordReque
 		ID:            uuid.New(),
 		Language:      req.Language,
 		Lemma:         req.Lemma,
+		Reading:       req.Reading,
 		POS:           req.POS,
 		IPA:           req.IPA,
 		FrequencyRank: req.FrequencyRank,
 		Level:         req.Level,
 		Extra:         req.Extra,
+		Source:        req.Source,
+		SourceID:      req.SourceID,
 	}
 	for _, m := range req.Meanings {
 		w.Meanings = append(w.Meanings, domain.WordMeaning{
@@ -78,13 +91,18 @@ func (s *wordService) UpdateWord(ctx context.Context, id uuid.UUID, req domain.C
 	if err != nil {
 		return nil, err
 	}
+	oldLemma := w.Lemma
+	oldReading := w.Reading
 	w.Lemma = req.Lemma
+	w.Reading = req.Reading
 	w.POS = req.POS
 	w.IPA = req.IPA
 	w.FrequencyRank = req.FrequencyRank
 	w.Level = req.Level
 	w.Extra = req.Extra
-	if err := s.wordRepo.Update(ctx, w); err != nil {
+	w.Source = req.Source
+	w.SourceID = req.SourceID
+	if err := s.wordRepo.Update(ctx, w, oldLemma, oldReading); err != nil {
 		return nil, err
 	}
 	return w, nil

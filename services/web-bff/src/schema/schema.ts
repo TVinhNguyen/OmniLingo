@@ -222,6 +222,31 @@ export const schema = /* GraphQL */ `
     status:  String   # new | learning | mastered
   }
 
+  type DictMeaning {
+    uiLanguage: String!
+    meaning:    String!
+  }
+
+  type DictExample {
+    sentence:    String!
+    translation: JSON!
+    audioUrl:    String
+  }
+
+  type DictEntry {
+    id:            ID!
+    language:      String!
+    lemma:         String!
+    reading:       String
+    ipa:           String
+    pos:           String
+    level:         String
+    frequencyRank: Int!
+    extra:         JSON!
+    meanings:      [DictMeaning!]!
+    examples:      [DictExample!]!
+  }
+
   # ─── Dashboard ────────────────────────────────────────────────────────────
 
   """
@@ -385,6 +410,12 @@ export const schema = /* GraphQL */ `
 
     """Cards in a deck."""
     deckCards(deckId: ID!): [Card!]!
+
+    """Exact dictionary lookup for add-card auto-fill."""
+    lookupWord(lang: String!, word: String!, uiLang: String): DictEntry
+
+    """Fuzzy dictionary search for compact typeahead."""
+    searchWords(lang: String!, q: String!, uiLang: String, limit: Int): [DictEntry!]!
 
     """Check a single feature entitlement."""
     checkFeature(code: String!): FeatureSummary!

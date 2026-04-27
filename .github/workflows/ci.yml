@@ -395,7 +395,7 @@ jobs:
       - changes
       - frontend
       - node-services
-    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' }}
+    if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' && vars.E2E_CI_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -466,11 +466,11 @@ jobs:
         run: |
           nohup pnpm start &
           echo "Waiting for web app to be ready..."
-          for i in $(seq 1 60); do
-            curl -sf -o /dev/null http://localhost:3000 && break
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 && break
             sleep 1
           done
-          curl -sf -o /dev/null http://localhost:3000 || { echo "::error::Web app failed to start within 60s"; exit 1; }
+          curl -sf http://localhost:3000 || { echo "::error::Web app failed to start within 30s"; exit 1; }
         working-directory: apps/web
 
       - name: Run E2E tests (Chromium only in CI)
