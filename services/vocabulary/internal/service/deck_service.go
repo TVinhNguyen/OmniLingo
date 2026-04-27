@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -186,7 +187,7 @@ func (s *deckService) resolveCardWord(ctx context.Context, language string, req 
 		UILang:   uiLang,
 	}); err == nil {
 		return word, nil
-	} else if err != domain.ErrWordNotFound {
+	} else if !errors.Is(err, domain.ErrWordNotFound) {
 		return nil, err
 	}
 
@@ -210,7 +211,7 @@ func (s *deckService) resolveCardWord(ctx context.Context, language string, req 
 		}}
 	}
 	if err := s.wordRepo.Create(ctx, word); err != nil {
-		if err == domain.ErrWordAlreadyExists {
+		if errors.Is(err, domain.ErrWordAlreadyExists) {
 			// Another request created this word concurrently — look it up
 			return s.wordRepo.Lookup(ctx, domain.LookupRequest{
 				Language: language, Word: lemma, UILang: uiLang,

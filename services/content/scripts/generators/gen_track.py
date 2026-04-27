@@ -45,7 +45,7 @@ async def _generate_one(
     client: GeminiClient | None,
     out_dir: Path,
     sem: asyncio.Semaphore,
-) -> tuple[str, str | None, str | None]:
+) -> tuple[str | None, str | None]:
     """Generate a single lesson. Returns (path_str_or_none, error_or_none)."""
     lesson_id = lesson_cfg["id"]
     unit_id = unit["id"]
