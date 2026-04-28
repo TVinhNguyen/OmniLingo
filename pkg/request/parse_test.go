@@ -211,8 +211,8 @@ func TestParsePagination_CapAt100(t *testing.T) {
 	req := httptest.NewRequest("GET", "/page?limit=999", nil)
 	app.Test(req, -1)
 
-	if gotLimit != 20 { // reset to default when over cap
-		t.Errorf("want capped limit 20, got %d", gotLimit)
+	if gotLimit != 100 {
+		t.Errorf("want capped limit 100, got %d", gotLimit)
 	}
 }
 

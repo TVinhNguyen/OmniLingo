@@ -230,8 +230,8 @@ func (s *billingService) HandlePaymentSuccess(ctx context.Context, req PaymentSu
 		payload, err := json.Marshal(event)
 		if err != nil { return fmt.Errorf("marshal outbox event: %w", err) }
 		_, err = tx.Exec(ctx,
-			`INSERT INTO outbox_events (id, topic, payload) VALUES ($1,$2,$3)`,
-			uuid.New(), "billing.invoice.paid", payload)
+			`INSERT INTO outbox_events (topic, key, payload) VALUES ($1,$2,$3)`,
+			"billing.invoice.paid", sub.UserID.String(), payload)
 		return err
 	})
 

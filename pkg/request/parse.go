@@ -82,11 +82,15 @@ func ParseUUID(c *fiber.Ctx, param string) (uuid.UUID, error) {
 func ParsePagination(c *fiber.Ctx) (limit, offset int) {
 	limit = c.QueryInt("limit", 20)
 	offset = c.QueryInt("offset", 0)
-	if limit <= 0 || limit > 100 {
+	if limit <= 0 {
 		limit = 20
+	} else if limit > 100 {
+		limit = 100
 	}
 	if offset < 0 {
 		offset = 0
+	} else if offset > 10000 {
+		offset = 10000
 	}
 	return limit, offset
 }
