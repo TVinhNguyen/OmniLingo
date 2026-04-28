@@ -87,8 +87,8 @@ export async function unitRoutes(
         description: parsed.data.description ?? {},
         order: parsed.data.order ?? 0,
         lessonIds: [],
-        createdBy: user.id,
-        updatedBy: user.id,
+        createdBy: user.userId,
+        updatedBy: user.userId,
       });
 
       return reply.status(201).send({ unit });

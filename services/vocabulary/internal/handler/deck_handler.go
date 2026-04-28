@@ -2,11 +2,11 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/omnilingo/vocabulary-service/internal/domain"
 	"github.com/omnilingo/vocabulary-service/internal/metrics"
 	"github.com/omnilingo/vocabulary-service/internal/middleware"
 	"github.com/omnilingo/vocabulary-service/internal/service"
+	"github.com/omnilingo/pkg/request"
 	"go.uber.org/zap"
 )
 
@@ -56,11 +56,9 @@ func (h *DeckHandler) CreateDeck(c *fiber.Ctx) error {
 			Error: "UNAUTHORIZED", Message: "authentication required",
 		})
 	}
-	var req domain.CreateDeckRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid request body",
-		})
+	req, err := request.Parse[domain.CreateDeckRequest](c)
+	if err != nil {
+		return HandleError(c, err, h.log)
 	}
 	deck, err := h.deckSvc.CreateDeck(c.Context(), uid, req)
 	if err != nil {
@@ -78,11 +76,9 @@ func (h *DeckHandler) GetDeck(c *fiber.Ctx) error {
 			Error: "UNAUTHORIZED", Message: "authentication required",
 		})
 	}
-	deckID, err := uuid.Parse(c.Params("id"))
+	deckID, err := request.ParseUUID(c, "id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid deck id",
-		})
+		return HandleError(c, err, h.log)
 	}
 	deck, err := h.deckSvc.GetDeck(c.Context(), uid, deckID)
 	if err != nil {
@@ -99,11 +95,9 @@ func (h *DeckHandler) DeleteDeck(c *fiber.Ctx) error {
 			Error: "UNAUTHORIZED", Message: "authentication required",
 		})
 	}
-	deckID, err := uuid.Parse(c.Params("id"))
+	deckID, err := request.ParseUUID(c, "id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid deck id",
-		})
+		return HandleError(c, err, h.log)
 	}
 	if err := h.deckSvc.DeleteDeck(c.Context(), uid, deckID); err != nil {
 		return HandleError(c, err, h.log)
@@ -119,11 +113,9 @@ func (h *DeckHandler) ListCards(c *fiber.Ctx) error {
 			Error: "UNAUTHORIZED", Message: "authentication required",
 		})
 	}
-	deckID, err := uuid.Parse(c.Params("id"))
+	deckID, err := request.ParseUUID(c, "id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid deck id",
-		})
+		return HandleError(c, err, h.log)
 	}
 	cards, err := h.deckSvc.ListCards(c.Context(), uid, deckID)
 	if err != nil {
@@ -140,17 +132,13 @@ func (h *DeckHandler) AddCard(c *fiber.Ctx) error {
 			Error: "UNAUTHORIZED", Message: "authentication required",
 		})
 	}
-	deckID, err := uuid.Parse(c.Params("id"))
+	deckID, err := request.ParseUUID(c, "id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid deck id",
-		})
+		return HandleError(c, err, h.log)
 	}
-	var req domain.AddCardRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid request body",
-		})
+	req, err := request.Parse[domain.AddCardRequest](c)
+	if err != nil {
+		return HandleError(c, err, h.log)
 	}
 	card, err := h.deckSvc.AddCard(c.Context(), uid, deckID, req)
 	if err != nil {
@@ -168,17 +156,13 @@ func (h *DeckHandler) RemoveCard(c *fiber.Ctx) error {
 			Error: "UNAUTHORIZED", Message: "authentication required",
 		})
 	}
-	deckID, err := uuid.Parse(c.Params("deckId"))
+	deckID, err := request.ParseUUID(c, "deckId")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid deck id",
-		})
+		return HandleError(c, err, h.log)
 	}
-	cardID, err := uuid.Parse(c.Params("cardId"))
+	cardID, err := request.ParseUUID(c, "cardId")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid card id",
-		})
+		return HandleError(c, err, h.log)
 	}
 	if err := h.deckSvc.RemoveCard(c.Context(), uid, deckID, cardID); err != nil {
 		return HandleError(c, err, h.log)
@@ -194,11 +178,9 @@ func (h *DeckHandler) MarkKnown(c *fiber.Ctx) error {
 			Error: "UNAUTHORIZED", Message: "authentication required",
 		})
 	}
-	cardID, err := uuid.Parse(c.Params("id"))
+	cardID, err := request.ParseUUID(c, "id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Error: "BAD_REQUEST", Message: "invalid card id",
-		})
+		return HandleError(c, err, h.log)
 	}
 	if err := h.deckSvc.MarkKnown(c.Context(), uid, cardID); err != nil {
 		return HandleError(c, err, h.log)

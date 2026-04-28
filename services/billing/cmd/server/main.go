@@ -22,6 +22,7 @@ import (
 	"github.com/omnilingo/billing-service/internal/repository"
 	"github.com/omnilingo/billing-service/internal/service"
 	"github.com/omnilingo/billing-service/internal/telemetry"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 func main() {
@@ -68,7 +69,7 @@ func main() {
 	planRepo := repository.NewPlanRepository(db)
 	subRepo := repository.NewSubscriptionRepository(db)
 	invRepo := repository.NewInvoiceRepository(db)
-	outboxRepo := messaging.NewOutboxRepository(db)
+	outboxRepo := outbox.NewRepository(db)
 	svc := service.NewBillingService(db, planRepo, subRepo, invRepo, outboxRepo, pub, log)
 	h := handler.New(svc, log, cfg.WebhookSecret)
 
@@ -83,7 +84,8 @@ func main() {
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer appCancel()
 	if cfg.KafkaEnabled {
-		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		outboxPub := outbox.NewKafkaPublisher(cfg.KafkaBrokers, log)
+		outboxWorker := outbox.NewWorker(outboxRepo, outboxPub, log)
 		go outboxWorker.Run(appCtx)
 		log.Info("outbox worker started")
 	}

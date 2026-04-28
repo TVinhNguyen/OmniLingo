@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/omnilingo/assessment-service/internal/domain"
-	"github.com/omnilingo/assessment-service/internal/messaging"
 	"github.com/omnilingo/assessment-service/internal/repository"
+	"github.com/omnilingo/pkg/outbox"
 	"go.uber.org/zap"
 )
 
@@ -40,14 +40,14 @@ type SubmitTestRequest struct {
 type assessmentService struct {
 	subRepo     repository.SubmissionRepository
 	testRepo    repository.TestSessionRepository
-	outbox      *messaging.OutboxRepository
+	outbox      *outbox.Repository
 	log         *zap.Logger
 }
 
 func NewAssessmentService(
 	subRepo repository.SubmissionRepository,
 	testRepo repository.TestSessionRepository,
-	outbox *messaging.OutboxRepository,
+	outbox *outbox.Repository,
 	log *zap.Logger,
 ) AssessmentService {
 	return &assessmentService{

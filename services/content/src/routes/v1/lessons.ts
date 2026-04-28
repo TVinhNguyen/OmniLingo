@@ -53,7 +53,7 @@ export async function lessonRoutes(
       if (!parsed.success) {
         throw Errors.validationError(parsed.error.errors.map((e) => e.message).join('; '));
       }
-      const lesson = await lessonService.create(parsed.data, req.user!.id);
+      const lesson = await lessonService.create(parsed.data, req.user!.userId);
       return reply.status(201).send({ lesson });
     },
   );
@@ -67,7 +67,7 @@ export async function lessonRoutes(
       if (!parsed.success) {
         throw Errors.validationError(parsed.error.errors.map((e) => e.message).join('; '));
       }
-      const lesson = await lessonService.update(req.params.id, parsed.data, req.user!.id);
+      const lesson = await lessonService.update(req.params.id, parsed.data, req.user!.userId);
       return reply.send({ lesson });
     },
   );
@@ -80,7 +80,7 @@ export async function lessonRoutes(
       schema: { body: { type: ['object', 'null'], nullable: true } },
     },
     async (req, reply) => {
-      const lesson = await lessonService.publish(req.params.id, req.user!.id);
+      const lesson = await lessonService.publish(req.params.id, req.user!.userId);
       return reply.send({ lesson, message: `Lesson published at version ${lesson.version}` });
     },
   );
@@ -90,7 +90,7 @@ export async function lessonRoutes(
     '/:id',
     { preHandler: [fastify.requireAuth, fastify.requireContentAdmin] },
     async (req, reply) => {
-      await lessonService.archive(req.params.id, req.user!.id);
+      await lessonService.archive(req.params.id, req.user!.userId);
       return reply.status(204).send();
     },
   );

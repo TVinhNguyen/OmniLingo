@@ -21,12 +21,12 @@ import (
 	"github.com/omnilingo/omnilingo/services/identity/internal/config"
 	"github.com/omnilingo/omnilingo/services/identity/internal/handler"
 	iam "github.com/omnilingo/omnilingo/services/identity/internal/metrics"
-	"github.com/omnilingo/omnilingo/services/identity/internal/messaging"
 	"github.com/omnilingo/omnilingo/services/identity/internal/middleware"
 	"github.com/omnilingo/omnilingo/services/identity/internal/ratelimit"
 	"github.com/omnilingo/omnilingo/services/identity/internal/repository"
 	"github.com/omnilingo/omnilingo/services/identity/internal/service"
 	"github.com/omnilingo/omnilingo/services/identity/internal/telemetry"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 func main() {
@@ -75,15 +75,8 @@ func main() {
 		log.Fatal("failed to run migrations", zap.Error(err))
 	}
 
-	// ─── Kafka Publisher ──────────────────────────────────────────────────────
-	publisher, err := messaging.NewPublisher(cfg.KafkaBrokers, cfg.KafkaEnabled, log)
-	if err != nil {
-		log.Fatal("failed to init kafka publisher", zap.Error(err))
-	}
-	defer publisher.Close()
-
 	// ─── Outbox Repository (shared by audit + auth) ────────────────────────────
-	outboxRepo := messaging.NewOutboxRepository(db)
+	outboxRepo := outbox.NewRepository(db)
 
 	// ─── Audit Service ────────────────────────────────────────────────────────
 	auditSvc := audit.NewService(log, outboxRepo)
@@ -96,7 +89,7 @@ func main() {
 	limiter := ratelimit.NewLimiter(rdb)
 
 	// ─── Auth Service ─────────────────────────────────────────────────────────
-	authSvc, err := service.NewAuthService(cfg, log, userRepo, sessionRepo, limiter, publisher, auditSvc, outboxRepo)
+	authSvc, err := service.NewAuthService(cfg, log, userRepo, sessionRepo, limiter, auditSvc, outboxRepo)
 	if err != nil {
 		log.Fatal("failed to init auth service", zap.Error(err))
 	}
@@ -154,7 +147,8 @@ func main() {
 	outboxCtx, outboxCancel := context.WithCancel(context.Background())
 	defer outboxCancel()
 	if cfg.KafkaEnabled {
-		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		outboxPub := outbox.NewKafkaPublisher(cfg.KafkaBrokers, log)
+		outboxWorker := outbox.NewWorker(outboxRepo, outboxPub, log)
 		go outboxWorker.Run(outboxCtx)
 		log.Info("outbox relay started")
 	}

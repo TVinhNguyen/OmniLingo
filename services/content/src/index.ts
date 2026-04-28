@@ -5,7 +5,7 @@ import fp from 'fastify-plugin';
 import { config } from './config/index';
 import mongoPlugin from './plugins/mongodb';
 import redisPlugin from './plugins/redis';
-import jwtAuthPlugin from './plugins/jwt-auth';
+import contentAuthPlugin from './plugins/auth';
 import metricsPlugin from './plugins/metrics';
 import { errorHandler } from './middleware/error-handler';
 import { healthRoutes } from './routes/health';
@@ -53,7 +53,7 @@ export async function buildApp() {
   // ─── Infrastructure (all wrapped with fp so decorators leak to all scopes) ─
   await fastify.register(fp(mongoPlugin), { url: config.mongodbUrl });
   await fastify.register(fp(redisPlugin), { url: config.redisUrl });
-  await fastify.register(fp(jwtAuthPlugin), { identityServiceUrl: config.identityServiceUrl });
+  await fastify.register(fp(contentAuthPlugin), { identityServiceUrl: config.identityServiceUrl });
   await fastify.register(fp(metricsPlugin));
 
   fastify.setErrorHandler(errorHandler);

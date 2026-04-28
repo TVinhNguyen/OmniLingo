@@ -12,17 +12,14 @@ import (
 	"github.com/omnilingo/billing-service/internal/domain"
 	"github.com/omnilingo/billing-service/internal/messaging"
 	"github.com/omnilingo/billing-service/internal/repository"
+	"github.com/omnilingo/pkg/outbox"
 	"go.uber.org/zap"
 )
 
-// publishViaOutbox inserts an event into the outbox table.
-// Must be called WITHIN the same DB transaction as your business writes.
-func publishViaOutbox(ctx context.Context, outbox *messaging.OutboxRepository, topic string, event any) error {
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-	return outbox.Insert(ctx, topic, payload)
+// publishViaOutbox enqueues an event into the outbox (non-transactional, ADR-010 MVP1).
+// For transactional inserts (HandlePaymentSuccess) the raw tx.Exec pattern is preserved.
+func publishViaOutbox(ctx context.Context, ob *outbox.Repository, topic string, event any) error {
+	return ob.Enqueue(ctx, topic, event)
 }
 
 const trialDays = 14
@@ -62,7 +59,7 @@ type billingService struct {
 	planRepo   repository.PlanRepository
 	subRepo    repository.SubscriptionRepository
 	invRepo    repository.InvoiceRepository
-	outbox     *messaging.OutboxRepository
+	outbox     *outbox.Repository
 	publisher  messaging.Publisher
 	log        *zap.Logger
 }
@@ -72,13 +69,13 @@ func NewBillingService(
 	planRepo repository.PlanRepository,
 	subRepo repository.SubscriptionRepository,
 	invRepo repository.InvoiceRepository,
-	outbox *messaging.OutboxRepository,
+	outboxRepo *outbox.Repository,
 	publisher messaging.Publisher,
 	log *zap.Logger,
 ) BillingService {
 	return &billingService{
 		db: db, planRepo: planRepo, subRepo: subRepo, invRepo: invRepo,
-		outbox: outbox, publisher: publisher, log: log,
+		outbox: outboxRepo, publisher: publisher, log: log,
 	}
 }
 
@@ -233,8 +230,8 @@ func (s *billingService) HandlePaymentSuccess(ctx context.Context, req PaymentSu
 		payload, err := json.Marshal(event)
 		if err != nil { return fmt.Errorf("marshal outbox event: %w", err) }
 		_, err = tx.Exec(ctx,
-			`INSERT INTO outbox_events (id, topic, payload) VALUES ($1,$2,$3)`,
-			uuid.New(), "billing.invoice.paid", payload)
+			`INSERT INTO outbox_events (topic, key, payload) VALUES ($1,$2,$3)`,
+			"billing.invoice.paid", sub.UserID.String(), payload)
 		return err
 	})
 
