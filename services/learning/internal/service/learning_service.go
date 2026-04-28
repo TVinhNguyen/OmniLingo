@@ -10,6 +10,7 @@ import (
 	"github.com/omnilingo/learning-service/internal/domain"
 	"github.com/omnilingo/learning-service/internal/messaging"
 	"github.com/omnilingo/learning-service/internal/repository"
+	"github.com/omnilingo/pkg/outbox"
 	"go.uber.org/zap"
 )
 
@@ -61,7 +62,7 @@ type learningService struct {
 	attemptRepo    repository.AttemptRepository
 	onboardingRepo repository.OnboardingRepository
 	publisher      messaging.Publisher
-	outbox         *messaging.OutboxRepository
+	outbox         *outbox.Repository
 	contentClient  client.ContentClient
 	log            *zap.Logger
 }
@@ -72,7 +73,7 @@ func NewLearningService(
 	attemptRepo repository.AttemptRepository,
 	onboardingRepo repository.OnboardingRepository,
 	publisher messaging.Publisher,
-	outboxRepo *messaging.OutboxRepository,
+	outboxRepo *outbox.Repository,
 	contentClient client.ContentClient,
 	log *zap.Logger,
 ) LearningService {

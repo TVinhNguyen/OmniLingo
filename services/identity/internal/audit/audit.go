@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/omnilingo/omnilingo/services/identity/internal/domain"
-	"github.com/omnilingo/omnilingo/services/identity/internal/messaging"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 // Service records security-relevant audit events.
@@ -14,12 +14,12 @@ import (
 // and durably inserted into the outbox_events table for relay to Kafka.
 type Service struct {
 	log    *zap.Logger
-	outbox *messaging.OutboxRepository
+	outbox *outbox.Repository
 }
 
 // NewService creates a new audit Service.
-func NewService(log *zap.Logger, outbox *messaging.OutboxRepository) *Service {
-	return &Service{log: log, outbox: outbox}
+func NewService(log *zap.Logger, outboxRepo *outbox.Repository) *Service {
+	return &Service{log: log, outbox: outboxRepo}
 }
 
 // Record logs an audit event and inserts it into the outbox for Kafka relay.

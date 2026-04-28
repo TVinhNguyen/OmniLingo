@@ -78,8 +78,8 @@ export async function courseRoutes(
         order: parsed.data.order ?? 0,
         unitIds: [],
         status: 'draft',
-        createdBy: user.id,
-        updatedBy: user.id,
+        createdBy: user.userId,
+        updatedBy: user.userId,
       });
 
       return reply.status(201).send({ course });

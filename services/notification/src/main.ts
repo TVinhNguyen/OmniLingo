@@ -6,7 +6,7 @@ import { loadConfig } from './config/config';
 import { Notifier } from './services/notifier';
 import { NotificationConsumer } from './services/consumer';
 import { notificationRoutes } from './routes/notifications';
-import { verifyJWT } from './services/jwt';
+import { verifyToken, extractBearer } from '@omnilingo/auth-middleware';
 import { collectDefaultMetrics, Registry, Counter, Histogram } from 'prom-client';
 
 const SERVICE_NAME = 'notification';
@@ -64,20 +64,18 @@ async function main() {
   });
 
   // JWT RS256 Verification via JWKS (identity-service/.well-known/jwks.json)
-  // Replaces the previous base64-decode-only stub — now cryptographically verified.
-  const jwksUrl = `${cfg.identityServiceUrl}/.well-known/jwks.json`;
+  // Uses @omnilingo/auth-middleware — shared across all Node-TS services.
   app.addHook('onRequest', async (req, reply) => {
     const skip = ['/healthz', '/readyz', '/metrics'].some((p) => req.url.startsWith(p));
     if (skip) return;
-    const auth = req.headers.authorization;
-    if (!auth?.startsWith('Bearer ')) {
+    const token = extractBearer(req.headers.authorization);
+    if (!token) {
       return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'authentication required' });
     }
     try {
-      const token = auth.slice(7);
-      const claims = await verifyJWT(token, jwksUrl);
-      (req as any).userId = claims.sub;
-      (req as any).roles = claims.roles ?? [];
+      const user = await verifyToken(token, cfg.identityServiceUrl);
+      (req as any).userId = user.userId;
+      (req as any).roles = user.roles;
     } catch {
       return reply.status(401).send({ error: 'UNAUTHORIZED', message: 'invalid or expired token' });
     }

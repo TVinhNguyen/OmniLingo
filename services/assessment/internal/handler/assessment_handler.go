@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"strconv"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/omnilingo/assessment-service/internal/domain"
 	"github.com/omnilingo/assessment-service/internal/metrics"
 	"github.com/omnilingo/assessment-service/internal/service"
+	"github.com/omnilingo/pkg/request"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
@@ -88,8 +87,7 @@ func (h *AssessmentHandler) SubmitExercise(c *fiber.Ctx) error {
 // ListSubmissions godoc — GET /api/v1/assessments/submissions
 func (h *AssessmentHandler) ListSubmissions(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uuid.UUID)
-	limit  := parseIntQuery(c, "limit", 20, 1, 100)
-	offset := parseIntQuery(c, "offset", 0, 0, 10000)
+	limit, offset := request.ParsePagination(c)
 
 	subs, total, err := h.svc.ListSubmissions(c.Context(), userID, limit, offset)
 	if err != nil {
@@ -115,7 +113,7 @@ func (h *AssessmentHandler) StartTest(c *fiber.Ctx) error {
 // SubmitTest godoc — POST /api/v1/assessments/tests/:sessionId/submit
 func (h *AssessmentHandler) SubmitTest(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uuid.UUID)
-	sessionID, err := uuid.Parse(c.Params("sessionId"))
+	sessionID, err := request.ParseUUID(c, "sessionId")
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "BAD_REQUEST", "message": "invalid session id"})
 	}
@@ -140,7 +138,7 @@ func (h *AssessmentHandler) SubmitTest(c *fiber.Ctx) error {
 // GetTestResult godoc — GET /api/v1/assessments/tests/:sessionId/result
 func (h *AssessmentHandler) GetTestResult(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uuid.UUID)
-	sessionID, err := uuid.Parse(c.Params("sessionId"))
+	sessionID, err := request.ParseUUID(c, "sessionId")
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "BAD_REQUEST", "message": "invalid session id"})
 	}
@@ -158,17 +156,6 @@ func handleError(c *fiber.Ctx, err error) error {
 		return c.Status(de.StatusCode).JSON(fiber.Map{"error": de.Code, "message": de.Message})
 	}
 	return c.Status(500).JSON(fiber.Map{"error": "INTERNAL_ERROR", "message": "internal server error"})
-}
-
-func parseIntQuery(c *fiber.Ctx, key string, def, min, max int) int {
-	v, err := strconv.Atoi(c.Query(key, strconv.Itoa(def)))
-	if err != nil || v < min {
-		return min
-	}
-	if v > max {
-		return max
-	}
-	return v
 }
 
 // ─── T4: Placement Test Handlers ──────────────────────────────────────────────

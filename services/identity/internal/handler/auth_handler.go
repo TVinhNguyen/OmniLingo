@@ -12,6 +12,7 @@ import (
 	"github.com/omnilingo/omnilingo/services/identity/internal/domain"
 	"github.com/omnilingo/omnilingo/services/identity/internal/middleware"
 	"github.com/omnilingo/omnilingo/services/identity/internal/service"
+	"github.com/omnilingo/pkg/request"
 )
 
 // RegisterRoutes mounts all API routes onto the v1 router group.
@@ -55,23 +56,17 @@ func RegisterRoutes(v1 fiber.Router, svc service.AuthService, log *zap.Logger) {
 // ─── Auth Handlers ────────────────────────────────────────────────────────────
 
 type registerReq struct {
-	Email       string `json:"email"`
-	Password    string `json:"password"`
-	DisplayName string `json:"display_name"`
+	Email       string `json:"email"        validate:"required,email"`
+	Password    string `json:"password"     validate:"required,min=10"`
+	DisplayName string `json:"display_name" validate:"required"`
 	UILanguage  string `json:"ui_language"`
 }
 
 func registerHandler(svc service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var req registerReq
-		if err := c.BodyParser(&req); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
-		}
-		if req.Email == "" || req.Password == "" || req.DisplayName == "" {
-			return fiber.NewError(fiber.StatusBadRequest, "email, password, and display_name are required")
-		}
-		if len(req.Password) < 10 {
-			return fiber.NewError(fiber.StatusBadRequest, "password must be at least 10 characters")
+		req, err := request.Parse[registerReq](c)
+		if err != nil {
+			return err
 		}
 
 		user, err := svc.Register(c.Context(), service.RegisterRequest{
@@ -98,16 +93,16 @@ func registerHandler(svc service.AuthService) fiber.Handler {
 }
 
 type loginReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string `json:"email"     validate:"required,email"`
+	Password string `json:"password"  validate:"required"`
 	DeviceID string `json:"device_id"`
 }
 
 func loginHandler(svc service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var req loginReq
-		if err := c.BodyParser(&req); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+		req, err := request.Parse[loginReq](c)
+		if err != nil {
+			return err
 		}
 
 		tokens, err := svc.Login(c.Context(), service.LoginRequest{
@@ -127,14 +122,14 @@ func loginHandler(svc service.AuthService) fiber.Handler {
 }
 
 type refreshReq struct {
-	RefreshToken string `json:"refresh_token"`
+	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
 func refreshHandler(svc service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var req refreshReq
-		if err := c.BodyParser(&req); err != nil || req.RefreshToken == "" {
-			return fiber.NewError(fiber.StatusBadRequest, "refresh_token is required")
+		req, err := request.Parse[refreshReq](c)
+		if err != nil {
+			return err
 		}
 		tokens, err := svc.RefreshToken(c.Context(), req.RefreshToken)
 		if err != nil {
@@ -218,9 +213,9 @@ func patchMeHandler(svc service.AuthService) fiber.Handler {
 		if err != nil {
 			return err
 		}
-		var req domain.UpdateMeRequest
-		if err := c.BodyParser(&req); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+		req, err := request.Parse[domain.UpdateMeRequest](c)
+		if err != nil {
+			return err
 		}
 		user, err := svc.UpdateMe(c.Context(), userID, req)
 		if err != nil {
@@ -261,10 +256,9 @@ func deleteMeHandler(svc service.AuthService) fiber.Handler {
 
 func getUserByIDHandler(svc service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		idStr := c.Params("id")
-		id, err := uuid.Parse(idStr)
+		id, err := request.ParseUUID(c, "id")
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid user id")
+			return err
 		}
 		user, err := svc.GetMe(c.Context(), id)
 		if err != nil {
@@ -296,14 +290,74 @@ func revokeSessionHandler(svc service.AuthService) fiber.Handler {
 		if err != nil {
 			return err
 		}
-		sessionID, err := uuid.Parse(c.Params("id"))
+		sessionID, err := request.ParseUUID(c, "id")
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid session id")
+			return err
 		}
 		if err := svc.RevokeSession(c.Context(), userID, sessionID); err != nil {
 			return mapDomainError(err)
 		}
 		return c.SendStatus(fiber.StatusNoContent)
+	}
+}
+
+// ─── Password Reset Handlers ──────────────────────────────────────────────────
+
+type forgotPwReq struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+func forgotPasswordHandler(svc service.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		req, err := request.Parse[forgotPwReq](c)
+		if err != nil {
+			return err
+		}
+		// Always returns success (anti-enumeration)
+		_ = svc.ForgotPassword(c.Context(), req.Email)
+		return c.JSON(fiber.Map{"message": "If that email exists, a reset link has been sent."})
+	}
+}
+
+type resetPwReq struct {
+	Token       string `json:"token"        validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=10"`
+}
+
+func resetPasswordHandler(svc service.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		req, err := request.Parse[resetPwReq](c)
+		if err != nil {
+			return err
+		}
+		if err := svc.ResetPassword(c.Context(), req.Token, req.NewPassword); err != nil {
+			return mapDomainError(err)
+		}
+		return c.JSON(fiber.Map{"message": "Password updated successfully."})
+	}
+}
+
+// ─── Change Password Handler ──────────────────────────────────────────────────
+
+type changePwReq struct {
+	OldPassword string `json:"old_password" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=10"`
+}
+
+func changePasswordHandler(svc service.AuthService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		userID, err := userIDFromCtx(c)
+		if err != nil {
+			return err
+		}
+		req, err := request.Parse[changePwReq](c)
+		if err != nil {
+			return err
+		}
+		if err := svc.ChangePassword(c.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
+			return mapDomainError(err)
+		}
+		return c.JSON(fiber.Map{"message": "Password changed successfully."})
 	}
 }
 
@@ -412,76 +466,4 @@ func userIDFromCtx(c *fiber.Ctx) (uuid.UUID, error) {
 		return uuid.UUID{}, fiber.NewError(fiber.StatusUnauthorized, "unauthorized")
 	}
 	return id, nil
-}
-
-// ─── Password Reset Handlers ──────────────────────────────────────────────────
-
-type forgotPwReq struct {
-	Email string `json:"email"`
-}
-
-func forgotPasswordHandler(svc service.AuthService) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		var req forgotPwReq
-		if err := c.BodyParser(&req); err != nil || req.Email == "" {
-			return fiber.NewError(fiber.StatusBadRequest, "email is required")
-		}
-		// Always returns success (anti-enumeration)
-		_ = svc.ForgotPassword(c.Context(), req.Email)
-		return c.JSON(fiber.Map{"message": "If that email exists, a reset link has been sent."})
-	}
-}
-
-type resetPwReq struct {
-	Token       string `json:"token"`
-	NewPassword string `json:"new_password"`
-}
-
-func resetPasswordHandler(svc service.AuthService) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		var req resetPwReq
-		if err := c.BodyParser(&req); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
-		}
-		if req.Token == "" {
-			return fiber.NewError(fiber.StatusBadRequest, "token is required")
-		}
-		if len(req.NewPassword) < 10 {
-			return fiber.NewError(fiber.StatusBadRequest, "password must be at least 10 characters")
-		}
-		if err := svc.ResetPassword(c.Context(), req.Token, req.NewPassword); err != nil {
-			return mapDomainError(err)
-		}
-		return c.JSON(fiber.Map{"message": "Password updated successfully."})
-	}
-}
-
-// ─── Change Password Handler ──────────────────────────────────────────────────
-
-type changePwReq struct {
-	OldPassword string `json:"old_password"`
-	NewPassword string `json:"new_password"`
-}
-
-func changePasswordHandler(svc service.AuthService) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		userID, err := userIDFromCtx(c)
-		if err != nil {
-			return err
-		}
-		var req changePwReq
-		if err := c.BodyParser(&req); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
-		}
-		if req.OldPassword == "" || req.NewPassword == "" {
-			return fiber.NewError(fiber.StatusBadRequest, "old_password and new_password are required")
-		}
-		if len(req.NewPassword) < 10 {
-			return fiber.NewError(fiber.StatusBadRequest, "new password must be at least 10 characters")
-		}
-		if err := svc.ChangePassword(c.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
-			return mapDomainError(err)
-		}
-		return c.JSON(fiber.Map{"message": "Password changed successfully."})
-	}
 }
