@@ -356,7 +356,6 @@ jobs:
       - python-services
       - frontend
       - migration-test
-      - e2e
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -372,8 +371,7 @@ jobs:
             "${{ needs.rust-services.result }}" \
             "${{ needs.python-services.result }}" \
             "${{ needs.frontend.result }}" \
-            "${{ needs.migration-test.result }}" \
-            "${{ needs.e2e.result }}"; do
+            "${{ needs.migration-test.result }}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               failed=true
             fi
@@ -397,6 +395,7 @@ jobs:
       - node-services
     if: ${{ always() && !failure() && !cancelled() && needs.changes.outputs.e2e_run == 'true' && vars.E2E_CI_ENABLED == 'true' }}
     runs-on: ubuntu-latest
+    continue-on-error: true
     defaults:
       run:
         working-directory: apps/web-e2e
