@@ -53,7 +53,9 @@ func RunMigrations(dsn, migrationsDir string) error {
 	db := stdlib.OpenDB(*cfg.ConnConfig)
 	defer db.Close()
 
-	goose.SetDialect("postgres")
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("set dialect: %w", err)
+	}
 	if err := goose.Up(db, migrationsDir); err != nil {
 		return fmt.Errorf("goose up: %w", err)
 	}
