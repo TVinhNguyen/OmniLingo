@@ -23,6 +23,7 @@ import (
 	"github.com/omnilingo/vocabulary-service/internal/middleware"
 	"github.com/omnilingo/vocabulary-service/internal/repository"
 	"github.com/omnilingo/vocabulary-service/internal/service"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 func main() {
@@ -69,7 +70,7 @@ func main() {
 	cardRepo := repository.NewCardRepository(db, rdb, log)
 
 	// ─── Outbox Repository (shared by services + relay worker) ────────────────
-	outboxRepo := messaging.NewOutboxRepository(db)
+	outboxRepo := outbox.NewRepository(db)
 
 	// ─── Services ─────────────────────────────────────────────────────────────
 	wordSvc := service.NewWordService(wordRepo, log)
@@ -128,7 +129,8 @@ func main() {
 	outboxCtx, outboxCancel := context.WithCancel(context.Background())
 	defer outboxCancel()
 	if cfg.KafkaEnabled {
-		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		outboxPub := outbox.NewKafkaPublisher(cfg.KafkaBrokers, log)
+		outboxWorker := outbox.NewWorker(outboxRepo, outboxPub, log)
 		go outboxWorker.Run(outboxCtx)
 		log.Info("outbox relay started")
 	}

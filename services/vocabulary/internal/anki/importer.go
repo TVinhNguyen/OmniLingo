@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/omnilingo/pkg/outbox"
 	"github.com/omnilingo/vocabulary-service/internal/domain"
 	"github.com/omnilingo/vocabulary-service/internal/messaging"
 	"github.com/omnilingo/vocabulary-service/internal/repository"
@@ -25,7 +26,7 @@ type Importer struct {
 	cardRepo repository.CardRepository
 	deckRepo repository.DeckRepository
 	pub      messaging.Publisher
-	outbox   *messaging.OutboxRepository
+	outbox   *outbox.Repository
 	log      *zap.Logger
 }
 
@@ -35,7 +36,7 @@ func NewImporter(
 	cardRepo repository.CardRepository,
 	deckRepo repository.DeckRepository,
 	pub messaging.Publisher,
-	outboxRepo *messaging.OutboxRepository,
+	outboxRepo *outbox.Repository,
 	log *zap.Logger,
 ) *Importer {
 	return &Importer{

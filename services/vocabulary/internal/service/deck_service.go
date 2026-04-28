@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/omnilingo/pkg/outbox"
 	"github.com/omnilingo/vocabulary-service/internal/domain"
 	"github.com/omnilingo/vocabulary-service/internal/messaging"
 	"github.com/omnilingo/vocabulary-service/internal/repository"
@@ -29,7 +30,7 @@ type deckService struct {
 	cardRepo repository.CardRepository
 	wordRepo repository.WordRepository
 	pub      messaging.Publisher
-	outbox   *messaging.OutboxRepository
+	outbox   *outbox.Repository
 	log      *zap.Logger
 }
 
@@ -39,7 +40,7 @@ func NewDeckService(
 	cardRepo repository.CardRepository,
 	wordRepo repository.WordRepository,
 	pub messaging.Publisher,
-	outboxRepo *messaging.OutboxRepository,
+	outboxRepo *outbox.Repository,
 	log *zap.Logger,
 ) DeckService {
 	return &deckService{

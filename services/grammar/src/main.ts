@@ -1,11 +1,11 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import { jwtAuthPlugin } from '@omnilingo/auth-middleware';
 import { config } from './config.js';
 import { connectMongo, connectRedis } from './repository/db.js';
 import { GrammarPointRepository, DrillTemplateRepository, SlotPoolRepository } from './repository/grammar.repository.js';
 import { GrammarService } from './service/grammar.service.js';
 import { buildGrammarRoutes } from './handler/grammar.handler.js';
-import { jwtAuthHook, requireRole } from './middleware/auth.js';
 import { getMetrics, grammarMetrics } from './metrics/metrics.js';
 import { AppError } from './domain/errors.js';
 import { GrammarProducer } from './messaging/producer.js';
@@ -28,6 +28,9 @@ async function buildApp(): Promise<FastifyInstance> {
     exposedHeaders: ['X-Request-ID', 'Retry-After'],
     maxAge: 3600,
   });
+
+  // ─── JWT auth (pkg/auth-middleware) ─────────────────────────────────────────
+  await app.register(jwtAuthPlugin, { identityServiceUrl: config.identityServiceUrl });
 
   // ─── Request-ID ─────────────────────────────────────────────────────────────
   app.addHook('onRequest', async (req, reply) => {
@@ -132,19 +135,19 @@ async function main() {
 
   // ─── Admin routes (content_editor+) ──────────────────────────────────────
   app.post('/api/v1/grammar/admin/points', {
-    preHandler: [jwtAuthHook, requireRole('content_editor', 'content_admin', 'admin')],
+    preHandler: [app.requireAuth, app.requireRole('content_editor', 'content_admin', 'admin')],
     handler: handlers.createPoint,
   });
   app.patch('/api/v1/grammar/admin/points/:id', {
-    preHandler: [jwtAuthHook, requireRole('content_editor', 'content_admin', 'admin')],
+    preHandler: [app.requireAuth, app.requireRole('content_editor', 'content_admin', 'admin')],
     handler: handlers.updatePoint,
   });
   app.delete('/api/v1/grammar/admin/points/:id', {
-    preHandler: [jwtAuthHook, requireRole('content_admin', 'admin')],
+    preHandler: [app.requireAuth, app.requireRole('content_admin', 'admin')],
     handler: handlers.deletePoint,
   });
   app.post('/api/v1/grammar/admin/drills', {
-    preHandler: [jwtAuthHook, requireRole('content_editor', 'content_admin', 'admin')],
+    preHandler: [app.requireAuth, app.requireRole('content_editor', 'content_admin', 'admin')],
     handler: handlers.createDrill,
   });
 

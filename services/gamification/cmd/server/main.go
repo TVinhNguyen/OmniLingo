@@ -23,6 +23,7 @@ import (
 	"github.com/omnilingo/gamification-service/internal/repository"
 	"github.com/omnilingo/gamification-service/internal/service"
 	"github.com/omnilingo/gamification-service/internal/telemetry"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 func main() {
@@ -104,8 +105,9 @@ func main() {
 		defer consumer.Stop()
 
 		// T9: Outbox relay
-		outboxRepo := messaging.NewOutboxRepository(db)
-		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		outboxRepo := outbox.NewRepository(db)
+		outboxPub := outbox.NewKafkaPublisher(cfg.KafkaBrokers, log)
+		outboxWorker := outbox.NewWorker(outboxRepo, outboxPub, log)
 		go outboxWorker.Run(appCtx)
 
 		log.Info("kafka consumer+publisher+outbox relay started")

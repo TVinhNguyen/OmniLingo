@@ -71,7 +71,7 @@ export async function exerciseRoutes(
       if (!parsed.success) {
         throw Errors.validationError(parsed.error.errors.map((e) => e.message).join('; '));
       }
-      const exercise = await exerciseService.create(parsed.data, req.user!.id);
+      const exercise = await exerciseService.create(parsed.data, req.user!.userId);
       return reply.status(201).send({ exercise });
     },
   );
@@ -85,7 +85,7 @@ export async function exerciseRoutes(
       if (!parsed.success) {
         throw Errors.validationError(parsed.error.errors.map((e) => e.message).join('; '));
       }
-      const exercise = await exerciseService.update(req.params.id, parsed.data, req.user!.id);
+      const exercise = await exerciseService.update(req.params.id, parsed.data, req.user!.userId);
       return reply.send({ exercise });
     },
   );

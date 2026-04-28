@@ -23,6 +23,7 @@ import (
 	"github.com/omnilingo/learning-service/internal/repository"
 	"github.com/omnilingo/learning-service/internal/service"
 	"github.com/omnilingo/learning-service/internal/telemetry"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 func main() {
@@ -69,7 +70,7 @@ func main() {
 	defer pub.Close()
 
 	// Outbox repo: used by service for durable event inserts + by relay worker
-	outboxRepo := messaging.NewOutboxRepository(db)
+	outboxRepo := outbox.NewRepository(db)
 	profileRepo := repository.NewProfileRepository(db)
 	pathRepo := repository.NewPathRepository(db)
 	attemptRepo := repository.NewAttemptRepository(db)
@@ -139,7 +140,8 @@ func main() {
 	outboxCtx, outboxCancel := context.WithCancel(context.Background())
 	defer outboxCancel()
 	if cfg.KafkaEnabled {
-		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		outboxPub := outbox.NewKafkaPublisher(cfg.KafkaBrokers, log)
+		outboxWorker := outbox.NewWorker(outboxRepo, outboxPub, log)
 		go outboxWorker.Run(outboxCtx)
 		log.Info("outbox relay started")
 	}

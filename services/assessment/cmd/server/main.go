@@ -17,12 +17,12 @@ import (
 
 	"github.com/omnilingo/assessment-service/internal/config"
 	"github.com/omnilingo/assessment-service/internal/handler"
-	"github.com/omnilingo/assessment-service/internal/messaging"
 	"github.com/omnilingo/assessment-service/internal/metrics"
 	"github.com/omnilingo/assessment-service/internal/middleware"
 	"github.com/omnilingo/assessment-service/internal/repository"
 	"github.com/omnilingo/assessment-service/internal/service"
 	"github.com/omnilingo/assessment-service/internal/telemetry"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 func main() {
@@ -64,12 +64,13 @@ func main() {
 	log.Info("postgres connected and migrated")
 
 	// Messaging (Outbox & Kafka)
-	outboxRepo := messaging.NewOutboxRepository(db)
+	outboxRepo := outbox.NewRepository(db)
 	outboxCtx, outboxCancel := context.WithCancel(context.Background())
 	defer outboxCancel()
 
 	if cfg.KafkaEnabled {
-		outboxWorker := messaging.NewOutboxWorker(outboxRepo, cfg.KafkaBrokers, log)
+		outboxPub := outbox.NewKafkaPublisher(cfg.KafkaBrokers, log)
+		outboxWorker := outbox.NewWorker(outboxRepo, outboxPub, log)
 		go outboxWorker.Run(outboxCtx)
 		log.Info("outbox relay started")
 	} else {

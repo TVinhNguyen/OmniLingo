@@ -25,10 +25,10 @@ import (
 	"github.com/omnilingo/omnilingo/services/identity/internal/config"
 	"github.com/omnilingo/omnilingo/services/identity/internal/domain"
 	iam "github.com/omnilingo/omnilingo/services/identity/internal/metrics"
-	"github.com/omnilingo/omnilingo/services/identity/internal/messaging"
 	"github.com/omnilingo/omnilingo/services/identity/internal/ratelimit"
 	"github.com/omnilingo/omnilingo/services/identity/internal/repository"
 	"github.com/omnilingo/omnilingo/services/identity/internal/security"
+	"github.com/omnilingo/pkg/outbox"
 )
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -89,9 +89,8 @@ type authService struct {
 	sessionRepo repository.SessionRepository
 	limiter     *ratelimit.Limiter
 	hibp        *security.HIBPChecker
-	publisher   *messaging.Publisher
 	auditLog    *audit.Service
-	outbox      *messaging.OutboxRepository
+	outbox      *outbox.Repository
 
 	// RS256 key pair
 	privateKey *rsa.PrivateKey
@@ -106,9 +105,8 @@ func NewAuthService(
 	userRepo repository.UserRepository,
 	sessionRepo repository.SessionRepository,
 	limiter *ratelimit.Limiter,
-	publisher *messaging.Publisher,
 	auditSvc *audit.Service,
-	outboxRepo *messaging.OutboxRepository,
+	outboxRepo *outbox.Repository,
 ) (AuthService, error) {
 	privateKey, err := loadOrGenerateRSAKey(cfg.JWTPrivateKeyPath, log)
 	if err != nil {
@@ -124,7 +122,6 @@ func NewAuthService(
 		sessionRepo: sessionRepo,
 		limiter:     limiter,
 		hibp:        hibp,
-		publisher:   publisher,
 		auditLog:    auditSvc,
 		outbox:      outboxRepo,
 		privateKey:  privateKey,

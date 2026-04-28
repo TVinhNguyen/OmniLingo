@@ -7,25 +7,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/omnilingo/learning-service/internal/domain"
-	"github.com/pressly/goose/v3"
+	"github.com/omnilingo/pkg/pgxutil"
 )
 
+// NewPostgres creates a pgxpool connection pool (delegates to pkg/pgxutil).
 func NewPostgres(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil { return nil, err }
-	if err := pool.Ping(ctx); err != nil { return nil, err }
-	return pool, nil
+	return pgxutil.NewPool(ctx, dsn)
 }
 
+// RunMigrations runs all pending goose migrations (delegates to pkg/pgxutil).
 func RunMigrations(dsn, dir string) error {
-	goose.SetDialect("postgres")
-	cfg, err := pgxpool.ParseConfig(dsn)
-	if err != nil { return err }
-	db := stdlib.OpenDB(*cfg.ConnConfig)
-	defer db.Close()
-	return goose.Up(db, dir)
+	return pgxutil.RunMigrations(dsn, dir)
 }
 
 // ─── Profile Repository ───────────────────────────────────────────────────────

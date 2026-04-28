@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/omnilingo/learning-service/internal/messaging"
+	"github.com/omnilingo/pkg/outbox"
 	"go.uber.org/zap"
 )
 
@@ -37,13 +37,13 @@ type Event struct {
 // Service records audit events via structured logging and outbox.
 type Service struct {
 	log     *zap.Logger
-	outbox  *messaging.OutboxRepository
+	outbox  *outbox.Repository
 	service string
 }
 
 // New creates a new audit Service.
-func New(log *zap.Logger, outbox *messaging.OutboxRepository, serviceName string) *Service {
-	return &Service{log: log.Named("audit"), outbox: outbox, service: serviceName}
+func New(log *zap.Logger, outboxRepo *outbox.Repository, serviceName string) *Service {
+	return &Service{log: log.Named("audit"), outbox: outboxRepo, service: serviceName}
 }
 
 // Record logs and durably inserts a security-relevant audit event into the outbox.
